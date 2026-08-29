@@ -5,10 +5,16 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "asyncpg>=0.31.0",
     "fastapi>=0.141.1",
+    "fastapi-users[sqlalchemy]>=15.0.5",
     "pre-commit>=4.6.2",
     "pydantic>=2.13.5",
     "pydantic-settings>=2.15.0",
     "ruff>=0.16.5",
+    "sqlalchemy>=2.0.52",
     "uvicorn>=0.52.4",
 ]
+
+[tool.ruff.lint]
+ignore = ["B008"]
