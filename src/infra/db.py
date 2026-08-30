@@ -1,8 +1,9 @@
+import random
 from collections.abc import AsyncGenerator
 
 from fastapi import Depends
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyUserDatabase
-from sqlalchemy import Boolean
+from sqlalchemy import Boolean, String, event
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -14,6 +15,10 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from .config import settings
 
 
+def gerar_codigo_ativacao() -> str:
+    return str(random.randint(0, 999999)).zfill(6)
+
+
 class Base(DeclarativeBase):
     pass
 
@@ -23,6 +28,13 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     is_consultor: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_incubado: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_colaborador: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    codigo_ativacao: Mapped[str] = mapped_column(String(6), nullable=True)
+
+
+@event.listens_for(User, "before_insert")
+def force_codigo_ativacao(mapper, connection, target):
+    target.codigo_ativacao = gerar_codigo_ativacao()
+    target.is_active = False
 
 
 engine: AsyncEngine = create_async_engine(str(settings.pg_dsn))
