@@ -2,14 +2,16 @@ from collections.abc import AsyncGenerator
 
 from fastapi import Depends
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyUserDatabase
-from settings import settings
+from sqlalchemy import Boolean
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+from .config import settings
 
 
 class Base(DeclarativeBase):
@@ -17,7 +19,10 @@ class Base(DeclarativeBase):
 
 
 class User(SQLAlchemyBaseUserTableUUID, Base):
-    pass
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_consultor: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_incubado: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_colaborador: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
 
 engine: AsyncEngine = create_async_engine(str(settings.pg_dsn))
