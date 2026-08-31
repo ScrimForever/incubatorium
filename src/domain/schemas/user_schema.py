@@ -10,7 +10,7 @@ class UserRead(schemas.BaseUser[uuid.UUID]):
 
 class UserCreate(schemas.BaseUserCreate):
     model_config = ConfigDict(extra="ignore")
-    is_incubado: bool = True
+    is_incubado: bool | None = True
 
     @field_validator("is_incubado", mode="before")
     @classmethod

@@ -24,10 +24,10 @@ class Base(DeclarativeBase):
 
 
 class User(SQLAlchemyBaseUserTableUUID, Base):
-    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    is_consultor: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    is_incubado: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    is_colaborador: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
+    is_consultor: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
+    is_incubado: Mapped[bool] = mapped_column(Boolean, default=True, nullable=True)
+    is_colaborador: Mapped[bool] = mapped_column(Boolean, default=False, nullable=True)
     codigo_ativacao: Mapped[str] = mapped_column(String(6), nullable=True)
 
 

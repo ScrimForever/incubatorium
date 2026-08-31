@@ -54,7 +54,7 @@ class EmailSetup:
         template = jinja_env.get_template("codigo_ativacao.html")
         html_renderizado = template.render(
             codigo_ativacao=codigo_ativacao,
-            link_verificacao="http://127.0.0.1/validar_email",  # ajuste para a URL real
+            link_verificacao=f"http://127.0.0.1/validar_email/{email}/{codigo_ativacao}",  # ajuste para a URL real
         )
 
         params: resend.Emails.SendParams = {

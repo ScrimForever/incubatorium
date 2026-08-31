@@ -1,0 +1,10 @@
+.venv
+.git
+.gitignore
+__pycache__
+*.pyc
+.pytest_cache
+.env.development
+.env
+.pre-commit-config.yaml
+README.md

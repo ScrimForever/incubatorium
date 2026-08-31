@@ -1,0 +1,46 @@
+services:
+  web:
+    build: .
+    container_name: app_web
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+      - /app/src/.venv
+    environment:
+      PYTHONPATH: /app
+    env_file:
+      - src/.env.development
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app_network
+
+  db:
+    image: bitnami/postgresql:latest
+    container_name: app_db
+    restart: unless-stopped
+    environment:
+      POSTGRESQL_USERNAME: "teccampos"
+      POSTGRESQL_PASSWORD: "teccampos123"
+      POSTGRESQL_DATABASE: "teccampos"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/bitnami/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U teccampos -d teccampos"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app_network
+
+volumes:
+  postgres_data:
+
+networks:
+  app_network:
+    driver: bridge
