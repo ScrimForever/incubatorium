@@ -3,6 +3,7 @@ from collections.abc import AsyncGenerator
 
 from fastapi import Depends
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyUserDatabase
+from loguru import logger
 from sqlalchemy import Boolean, String, event
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -11,8 +12,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-
-from .config import settings
+from src.infra.config import settings
 
 
 def gerar_codigo_ativacao() -> str:
@@ -49,7 +49,12 @@ async def create_db_and_tables():
 
 async def get_async_session() -> AsyncGenerator[AsyncSession]:
     async with async_session_maker() as session:
-        yield session
+        try:
+            yield session
+        except Exception as e:
+            logger.error(e)
+            await session.rollback()
+            raise
 
 
 async def get_user_db(session: AsyncSession = Depends(get_async_session)):
