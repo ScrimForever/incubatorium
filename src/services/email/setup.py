@@ -1,4 +1,3 @@
-import os
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from pathlib import Path
@@ -36,12 +35,13 @@ class EmailSetup:
     async def enviar_email_cadastro(self, email: str) -> bool:
         logger.info("Montando corpo do email.")
         codigo_ativacao = await self._verificar_codigo_usuario(email)
+        logger.debug(f"codigo_ativacao = {codigo_ativacao}")
         if codigo_ativacao is False:
             return False
         template = jinja_env.get_template("codigo_ativacao.html")
         html_renderizado = template.render(
             codigo_ativacao=codigo_ativacao,
-            link_verificacao=f"http://127.0.0.1/validar_email/{email}/{codigo_ativacao}",  # ajuste para a URL real
+            link_verificacao=f"http://127.0.0.1:8000/validar_email/{email}/{codigo_ativacao}",  # ajuste para a URL real
         )
         params: resend.Emails.SendParams = {
             "from": "Acme <onboarding@resend.dev>",
@@ -51,7 +51,8 @@ class EmailSetup:
         }
 
         try:
-            if os.getenv("ENV") == "development":
+            if settings.enviroment == "development":
+                logger.info("Enviando email.")
                 resend.Emails.send(params)
                 logger.success(f"Email de cadastro enviado para {email}")
                 return True

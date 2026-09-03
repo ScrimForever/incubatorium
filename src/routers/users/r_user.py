@@ -50,7 +50,7 @@ class UserRouter:
         async def authenticated_route(user: User = Depends(current_active_user)):
             return {"message": f"Hello {user.email}!"}
 
-        @self.app.post("/validar_email/{email}/{code}")
+        @self.app.get("/validar_email/{email}/{code}")
         async def ativar_email(
             email: str, code: str, db: AsyncSession = Depends(get_async_session)
         ):

@@ -56,7 +56,6 @@ class UserRepository:
         return user
 
     async def reativar_codigo(self, usuario) -> bool:
-        logger.info("Buscando email.")
         codigo = gerar_codigo_ativacao()
         usuario.codigo_ativacao = codigo
         return await self._commit_or_rollback()

@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     pg_database_name: str = "tecincubadora"
     secret_key: str = ""
     resend_api_key: str = ""
+    enviroment: str = "development"
 
     model_config = SettingsConfigDict(
         env_file=env_file if ENV == "development" else None,

@@ -18,7 +18,7 @@ class UserService:
         return await self.repository.ativar_usuario_por_codigo_gerado(email, codigo)
 
     async def verificar_usuario(self, email: str) -> Any | bool:
-        usuario = self.repository.verificar_email(email)
+        usuario = await self.repository.verificar_email(email)
         if usuario:
             return usuario
         return False
@@ -26,6 +26,7 @@ class UserService:
     async def reativar_codigo(self, usuario: User) -> bool:
         logger.info(f"Reativando código: {usuario.email}")
         persiste_codigo = await self.repository.reativar_codigo(usuario)
+        logger.debug(f"codigo = {persiste_codigo}")
         if persiste_codigo:
             envio_email = await EmailSetup().enviar_email_cadastro(usuario.email)
             return envio_email
@@ -34,6 +35,7 @@ class UserService:
     async def reenviar_codigo_para_email(self, email: str) -> bool:
         logger.info(f"Reenviando código para email: {email}")
         usuario = await self.verificar_usuario(email)
+        logger.debug(f"usuario = {usuario}")
         if not usuario:
             return False
         else:
