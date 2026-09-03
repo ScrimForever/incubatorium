@@ -54,7 +54,9 @@ class UserRouter:
         async def ativar_email(
             email: str, code: str, db: AsyncSession = Depends(get_async_session)
         ):
-            ativacao = await UserService(db=db).ativar_codigo_verificacao(email, code)
+            ativacao = await UserService(db=db).ativar_usuario_com_codigo_verificacao(
+                email, code
+            )
             if ativacao:
                 logger.success(f"Usuário: {email}. Ativado com sucesso.")
                 return JSONResponse(status_code=200, content={"mensagem": ativacao})

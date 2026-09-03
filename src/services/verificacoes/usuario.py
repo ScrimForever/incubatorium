@@ -13,7 +13,9 @@ class UserService:
         self.db = db
         self.repository = UserRepository(self.db)
 
-    async def ativar_codigo_verificacao(self, email: str, codigo: str) -> bool:
+    async def ativar_usuario_com_codigo_verificacao(
+        self, email: str, codigo: str
+    ) -> bool:
         logger.info(f"Ativando código para usuário: {email}")
         return await self.repository.ativar_usuario_por_codigo_gerado(email, codigo)
 
