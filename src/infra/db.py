@@ -11,16 +11,13 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column
+from src.domain.models.base_models import Base
 from src.infra.config import settings
 
 
 def gerar_codigo_ativacao() -> str:
     return str(random.randint(0, 999999)).zfill(6)
-
-
-class Base(DeclarativeBase):
-    pass
 
 
 class User(SQLAlchemyBaseUserTableUUID, Base):

@@ -296,3 +296,5 @@ pip-selfcheck.json
 .claude/
 .claude/*
 !.claude/settings.json
+alembic.ini
+alembic

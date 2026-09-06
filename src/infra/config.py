@@ -33,5 +33,12 @@ class Settings(BaseSettings):
             f"postgresql+asyncpg://{self.pg_user}:{self.pg_password}@{self.pg_host}:{self.pg_port}/{self.pg_database_name}"
         )
 
+    @computed_field
+    @property
+    def pg_force_alembic(self) -> PostgresDsn:
+        return PostgresDsn(
+            f"postgresql+asyncpg://{self.pg_user}:{self.pg_password}@127.0.0.1:{self.pg_port}/{self.pg_database_name}"
+        )
+
 
 settings = Settings()
