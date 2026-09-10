@@ -18,7 +18,7 @@ from starlette.responses import JSONResponse
 class UserRouter:
     app: FastAPI
 
-    def start_router(self):
+    async def start_router(self):
 
         self.app.include_router(
             fastapi_users.get_auth_router(auth_backend),

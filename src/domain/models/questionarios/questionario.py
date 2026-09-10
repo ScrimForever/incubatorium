@@ -1,8 +1,11 @@
 import enum
+from typing import Any
 
 from sqlalchemy import Enum, String
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
-from src.domain.models.base_models import Base, MixinDate
+from src.domain.models.base_models import Base
+from src.domain.models.mixin_model import MixinDate
 
 
 class StatusEnum(str, enum.Enum):
@@ -10,7 +13,6 @@ class StatusEnum(str, enum.Enum):
 
     iniciado = "iniciado"
     pendente = "pendente"
-    finalizado = "finalizado"
     aguardando_aprovacao = "aguardando_aprovacao"
     aprovado = "aprovado"
     rejeitado = "rejeitado"
@@ -18,5 +20,9 @@ class StatusEnum(str, enum.Enum):
 
 class Questionario(Base, MixinDate):
     __tablename__ = "questionario"
-    usuario_email: Mapped[str] = mapped_column(String, primary_key=True, nullable=False)
+
+    usuario_email: Mapped[str] = mapped_column(
+        String(255), primary_key=True, nullable=False
+    )
     status_questionario: Mapped[str] = mapped_column(Enum(StatusEnum), nullable=False)
+    json_questionario: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=True)
