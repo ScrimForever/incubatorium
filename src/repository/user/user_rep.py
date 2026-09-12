@@ -59,3 +59,11 @@ class UserRepository:
         codigo = gerar_codigo_ativacao()
         usuario.codigo_ativacao = codigo
         return await self._commit_or_rollback()
+
+    async def buscar_usuario(self, email: str) -> User | Literal[False]:
+        query = select(User).where(User.email == email)
+        result = await self.db.execute(query)
+        user = result.scalar_one_or_none()
+        if user is None:
+            return False
+        return user

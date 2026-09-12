@@ -95,3 +95,27 @@ class QuestionarioRepository:
             await self.db.rollback()
             logger.error(e)
             return False
+
+    async def inicializar_questionario(self, email: str) -> bool:
+        query = select(Questionario).where(
+            Questionario.usuario_email == self.user.email
+        )
+        try:
+            results = await self.db.execute(query)
+            results.scalar_one()
+            return False
+        except NoResultFound:
+            questionario = Questionario(
+                usuario_email=self.user.email,
+                criado_por=self.user.email,
+                status_questionario="iniciado",
+                json_questionario={},
+            )
+            self.db.add(questionario)
+            await self.db.commit()
+            await self.db.refresh(questionario)
+            return True
+        except SQLAlchemyError as e:
+            await self.db.rollback()
+            logger.error(e)
+            return False

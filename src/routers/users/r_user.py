@@ -11,7 +11,7 @@ from src.domain.models.user_model import (
 from src.domain.schemas.user_schema import UserCreate, UserRead, UserUpdate
 from src.infra.db import User, get_async_session
 from src.services.verificacoes.usuario import UserService
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, RedirectResponse
 
 
 @dataclass
@@ -59,10 +59,10 @@ class UserRouter:
             )
             if ativacao:
                 logger.success(f"Usuário: {email}. Ativado com sucesso.")
-                return JSONResponse(status_code=200, content={"mensagem": ativacao})
+                return RedirectResponse(url="http://127.0.0.1:3000/login")
             else:
                 logger.warning(f"Usuário: {email}. Não pode ser ativado.")
-                return JSONResponse(status_code=403, content={"mensagem": ativacao})
+                return RedirectResponse(url="http://127.0.0.1:3000/notfound")
 
         @self.app.post("/reenviar_codigo/{email}")
         async def reenviar_codigo(
