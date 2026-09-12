@@ -1,0 +1,87 @@
+<main id="conteudo" tabindex="-1" class="auth-container">
+  <div class="auth-card">
+    <img class="auth-logo" src="logo.png" alt="TecCampos" width="584" height="162" />
+    <h2 class="auth-titulo">Criar conta</h2>
+    <p class="auth-subtitulo">Cadastre-se para iniciar seu plano de negócios.</p>
+
+    @if (errorMessage()) {
+      <div class="error-message" role="alert"><app-icone nome="erro" />{{ errorMessage() }}</div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="enviar()" novalidate>
+      <div class="form-group">
+        <label for="reg-email">E-mail</label>
+        <input
+          id="reg-email"
+          type="email"
+          formControlName="email"
+          autocomplete="email"
+          placeholder="seu@email.com"
+        />
+        @if (form.controls.email.invalid && form.controls.email.touched) {
+          <span class="field-error">Informe um e-mail válido.</span>
+        }
+      </div>
+
+      <div class="form-group">
+        <label for="reg-senha">Senha</label>
+        <div class="input-senha">
+          <input
+            id="reg-senha"
+            [type]="showPassword() ? 'text' : 'password'"
+            formControlName="password"
+            autocomplete="new-password"
+            [placeholder]="'Mínimo de ' + minPassword + ' caracteres'"
+          />
+          <app-toggle-senha
+            [visible]="showPassword()"
+            (toggled)="showPassword.set(!showPassword())"
+          />
+        </div>
+        @if (form.controls.password.invalid && form.controls.password.touched) {
+          <span class="field-error">A senha precisa de ao menos {{ minPassword }} caracteres.</span>
+        }
+      </div>
+
+      <div class="form-group">
+        <label for="reg-repetir">Repetir senha</label>
+        <div class="input-senha">
+          <input
+            id="reg-repetir"
+            [type]="showConfirm() ? 'text' : 'password'"
+            formControlName="confirm"
+            autocomplete="new-password"
+            placeholder="Repita a senha"
+            [class.campo-invalido]="senhasDiferentes()"
+          />
+          <app-toggle-senha [visible]="showConfirm()" (toggled)="showConfirm.set(!showConfirm())" />
+        </div>
+        @if (form.errors?.['passwordsMismatch'] && form.controls.confirm.touched) {
+          <span class="field-error">As senhas não conferem.</span>
+        } @else if (form.controls.confirm.invalid && form.controls.confirm.touched) {
+          <span class="field-error">Repita a senha.</span>
+        }
+      </div>
+
+      <button type="submit" class="btn btn--verde btn--block" [disabled]="loading()">
+        {{ loading() ? 'Criando conta...' : 'Cadastrar' }}
+      </button>
+    </form>
+
+    <p class="auth-rodape">
+      Já tem uma conta?
+      <a routerLink="/login">Entrar</a>
+    </p>
+  </div>
+</main>
+
+<app-activation-modal
+  [open]="modalOpen()"
+  mode="enviado"
+  [email]="form.controls.email.value"
+  [sending]="resending()"
+  [erro]="modalErro()"
+  [sucesso]="modalSucesso()"
+  (resend)="onResend()"
+  (closed)="closeModal()"
+/>

@@ -1,0 +1,70 @@
+@if (user(); as u) {
+  <app-painel [user]="u" ativo="Visão geral">
+    <h1>Visão geral</h1>
+    <p class="painel-subtitulo">{{ subtitulo() }}</p>
+
+    <div class="dash-cartoes">
+      <section class="cartao">
+        <h2>Sua conta</h2>
+        <dl class="dash-dados">
+          <dt>E-mail</dt>
+          <dd>{{ u.email }}</dd>
+          <dt>Papel</dt>
+          <dd>{{ roleLabel() }}</dd>
+          <dt>Identificador</dt>
+          <dd class="dash-id">{{ u.id }}</dd>
+        </dl>
+        <div class="selos">
+          <span class="selo" [class.selo--ok]="u.is_active">
+            <app-icone [nome]="u.is_active ? 'sucesso' : 'alerta'" />
+            {{ u.is_active ? 'Conta ativa' : 'Conta inativa' }}
+          </span>
+          <span class="selo" [class.selo--ok]="u.is_verified">
+            <app-icone [nome]="u.is_verified ? 'sucesso' : 'alerta'" />
+            {{ u.is_verified ? 'E-mail verificado' : 'E-mail não verificado' }}
+          </span>
+        </div>
+      </section>
+
+      <section class="cartao">
+        <h2>Sessão</h2>
+        <p class="dash-sessao">
+          <app-icone nome="relogio" />
+          @if (expiraEm()) {
+            <span>
+              Seu acesso expira às <strong>{{ expiraEm() }}</strong
+              >. Depois disso será preciso entrar de novo.
+            </span>
+          } @else {
+            <span>Sessão ativa.</span>
+          }
+        </p>
+      </section>
+    </div>
+
+    @if (pendentes().length) {
+      <section class="cartao dash-modulos">
+        <h2>Módulos em construção</h2>
+        <p class="dash-cartao-nota">
+          Estes módulos já têm lugar no menu, mas dependem de endpoints que a API ainda não publica.
+          Nenhum deles mostra dado de mentira enquanto isso.
+        </p>
+        <ul class="dash-pendentes">
+          @for (item of pendentes(); track item.rotulo) {
+            <li>
+              <app-icone [nome]="item.icone" />
+              <span class="dash-pendente-rotulo">{{ item.rotulo }}</span>
+              <span class="dash-pendente-motivo">{{ item.pendencia }}</span>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+  </app-painel>
+} @else {
+  <!-- Sem id="conteudo" de propósito: este bloco some assim que os dados
+       chegam, e mover o foco para ele faria o leitor de tela perder o lugar. -->
+  <main>
+    <p class="painel-carregando">Carregando...</p>
+  </main>
+}

@@ -1,0 +1,19 @@
+<main id="conteudo" tabindex="-1" class="auth-container">
+  <div class="auth-card">
+    <img class="auth-logo" src="logo.png" alt="TecCampos" width="584" height="162" />
+    <h2 class="auth-titulo">Página não encontrada</h2>
+    <p class="auth-subtitulo">O endereço que você abriu não existe nesta plataforma.</p>
+
+    <div class="error-message" role="alert">
+      <app-icone nome="alerta" />
+      Confira o link ou volte para uma página conhecida.
+    </div>
+
+    @if (logado()) {
+      <!-- Com sessão, o painel é acessível por uma rota que não depende do papel. -->
+      <a class="btn btn--azul btn--block" [routerLink]="rotas.minhaConta">Voltar ao painel</a>
+    } @else {
+      <a class="btn btn--azul btn--block" [routerLink]="rotas.login">Ir para o login</a>
+    }
+  </div>
+</main>

@@ -1,0 +1,258 @@
+@if (user(); as u) {
+  <app-painel [user]="u" ativo="Usuários">
+    <h1>Usuários</h1>
+    <p class="painel-subtitulo">
+      Escolha uma conta na lista para definir o papel e a situação dela.
+    </p>
+
+    @if (!semEndpoint() && !carregando()) {
+      <div class="selos usuarios-resumo">
+        @for (selo of resumo(); track selo.texto) {
+          <span class="selo" [class.selo--ok]="!selo.alerta">{{ selo.texto }}</span>
+        }
+      </div>
+    }
+
+    @if (mensagemErro()) {
+      <div class="error-message" role="alert"><app-icone nome="erro" />{{ mensagemErro() }}</div>
+    }
+
+    <!-- 404 na listagem não é falha: é o endpoint que ainda não existe. -->
+    @if (semEndpoint()) {
+      <div class="cartao usuarios-sem-endpoint">
+        <app-icone nome="alerta" />
+        <div>
+          <strong>A API ainda não tem a listagem de contas</strong>
+          <p>
+            O backend publica <code>GET /users/&#123;id&#125;</code>, mas não
+            <code>GET /users</code>. Em desenvolvimento essa chamada é respondida por um mock — se
+            você acabou de puxar as alterações, reinicie o <code>npm start</code>: a configuração do
+            ambiente mudou no <code>angular.json</code> e o servidor precisa subir de novo para
+            carregá-la.
+          </p>
+        </div>
+      </div>
+    }
+
+    <!-- Sem conta escolhida, a lista ocupa a largura inteira. -->
+    @if (!semEndpoint()) {
+      <div class="usuarios-area" [class.usuarios-area--com-painel]="selecionado()">
+        <section class="cartao">
+          <div class="form-group usuarios-busca">
+            <label for="busca-usuario">Buscar por e-mail</label>
+            <input
+              id="busca-usuario"
+              type="search"
+              [formControl]="busca"
+              placeholder="Digite parte do e-mail"
+            />
+          </div>
+
+          <div class="usuarios-filtros" role="group" aria-label="Filtrar contas">
+            @for (opcao of filtros; track opcao) {
+              <button
+                type="button"
+                class="usuarios-filtro"
+                [class.usuarios-filtro--ativo]="filtro() === opcao"
+                [attr.aria-pressed]="filtro() === opcao"
+                (click)="filtro.set(opcao)"
+              >
+                {{ rotuloFiltro[opcao] }}
+              </button>
+            }
+          </div>
+
+          @if (carregando()) {
+            <p class="usuarios-vazio">Carregando contas...</p>
+          } @else if (lista().length) {
+            <ul class="usuarios-lista">
+              @for (usuario of lista(); track usuario.id) {
+                <li>
+                  <button
+                    type="button"
+                    class="usuarios-linha"
+                    [class.usuarios-linha--aberta]="usuario.id === selecionadoId()"
+                    [attr.aria-current]="usuario.id === selecionadoId() ? 'true' : null"
+                    (click)="abrir(usuario)"
+                  >
+                    <span class="usuarios-email">{{ usuario.email }}</span>
+                    <span class="usuarios-tags">
+                      <span class="selo selo--neutro">{{ rotuloPapel[papel(usuario)] }}</span>
+                      <span class="selo" [class.selo--ok]="situacao(usuario).ok">
+                        {{ situacao(usuario).texto }}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="usuarios-vazio">Nenhuma conta encontrada.</p>
+          }
+        </section>
+
+        @if (selecionado(); as conta) {
+          <aside class="cartao usuarios-painel" aria-label="Conta selecionada">
+            <header class="usuarios-painel-topo">
+              <div>
+                <h2>{{ conta.email }}</h2>
+                @if (salvando()) {
+                  <span class="usuarios-estado">Salvando...</span>
+                } @else if (salvo() && !alterado()) {
+                  <span class="usuarios-estado usuarios-estado--ok">
+                    <app-icone nome="sucesso" />
+                    Alterações salvas
+                  </span>
+                }
+              </div>
+              <button type="button" class="close" aria-label="Fechar" (click)="fechar()">
+                &times;
+              </button>
+            </header>
+
+            @if (ehVoce(conta)) {
+              <p class="usuarios-aviso">
+                <app-icone nome="alerta" />
+                Esta é a sua conta. Para evitar que você perca o próprio acesso, ela não pode ser
+                editada nem excluída aqui.
+              </p>
+            } @else {
+              <fieldset class="usuarios-bloco">
+                <legend class="usuarios-titulo">Papel</legend>
+                <p class="usuarios-explica">O que esta pessoa pode fazer no sistema.</p>
+                @for (opcao of papeis; track opcao.papel) {
+                  <label
+                    class="usuarios-opcao"
+                    [class.usuarios-opcao--marcada]="rascunhoPapel() === opcao.papel"
+                  >
+                    <input
+                      type="radio"
+                      name="papel"
+                      [checked]="rascunhoPapel() === opcao.papel"
+                      [disabled]="salvando()"
+                      (change)="rascunhoPapel.set(opcao.papel)"
+                    />
+                    <span>
+                      <strong>{{ rotuloPapel[opcao.papel] }}</strong>
+                      <span class="usuarios-opcao-descricao">{{ opcao.descricao }}</span>
+                    </span>
+                  </label>
+                }
+              </fieldset>
+
+              <fieldset class="usuarios-bloco">
+                <legend class="usuarios-titulo">Situação</legend>
+                <p class="usuarios-explica">Se a conta pode ser usada para entrar.</p>
+                <label class="usuarios-opcao" [class.usuarios-opcao--marcada]="rascunhoAtiva()">
+                  <input
+                    type="checkbox"
+                    [checked]="rascunhoAtiva()"
+                    [disabled]="salvando()"
+                    (change)="rascunhoAtiva.set(!rascunhoAtiva())"
+                  />
+                  <span>
+                    <strong>Conta ativa</strong>
+                    <span class="usuarios-opcao-descricao">
+                      Sem isso a pessoa não consegue entrar no sistema.
+                    </span>
+                  </span>
+                </label>
+                <label
+                  class="usuarios-opcao"
+                  [class.usuarios-opcao--marcada]="rascunhoVerificada()"
+                >
+                  <input
+                    type="checkbox"
+                    [checked]="rascunhoVerificada()"
+                    [disabled]="salvando()"
+                    (change)="rascunhoVerificada.set(!rascunhoVerificada())"
+                  />
+                  <span>
+                    <strong>E-mail verificado</strong>
+                    <span class="usuarios-opcao-descricao">
+                      Marque para dispensar a confirmação por e-mail.
+                    </span>
+                  </span>
+                </label>
+              </fieldset>
+
+              <div class="usuarios-rodape">
+                @if (alterado()) {
+                  <button
+                    type="button"
+                    class="btn-texto"
+                    [disabled]="salvando()"
+                    (click)="descartar()"
+                  >
+                    Descartar
+                  </button>
+                }
+                <button
+                  type="button"
+                  class="btn btn--verde usuarios-salvar"
+                  [disabled]="!alterado() || salvando()"
+                  (click)="salvar()"
+                >
+                  {{ salvando() ? 'Salvando...' : 'Salvar alterações' }}
+                </button>
+              </div>
+
+              <div class="usuarios-risco">
+                <button
+                  type="button"
+                  class="btn-texto usuarios-excluir"
+                  [disabled]="salvando()"
+                  (click)="pedirExclusao()"
+                >
+                  Excluir conta
+                </button>
+              </div>
+            }
+          </aside>
+        }
+      </div>
+    }
+  </app-painel>
+} @else {
+  <main>
+    <p class="painel-carregando">Carregando...</p>
+  </main>
+}
+
+@if (confirmandoExclusao()) {
+  @if (selecionado(); as alvo) {
+    <div class="overlay">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="excluir-titulo">
+        <header class="modal-header">
+          <h2 id="excluir-titulo">Excluir conta</h2>
+          <button type="button" class="close" aria-label="Fechar" (click)="cancelarExclusao()">
+            &times;
+          </button>
+        </header>
+
+        <div class="modal-body">
+          <div class="error-message" role="alert">
+            <app-icone nome="alerta" />
+            Esta ação não pode ser desfeita.
+          </div>
+          <p>
+            A conta <strong>{{ alvo.email }}</strong> será removida do sistema, junto com o acesso
+            dela.
+          </p>
+        </div>
+
+        <footer class="modal-footer">
+          <button type="button" class="btn-texto" (click)="cancelarExclusao()">Cancelar</button>
+          <button
+            type="button"
+            class="btn btn--azul"
+            [disabled]="salvando()"
+            (click)="confirmarExclusao()"
+          >
+            {{ salvando() ? 'Excluindo...' : 'Excluir conta' }}
+          </button>
+        </footer>
+      </div>
+    </div>
+  }
+}

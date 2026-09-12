@@ -1,0 +1,742 @@
+/* ==========================================================================
+   TecCampos - identidade visual herdada do sistema antigo (frontend/)
+   Gradiente azul→verde, Roboto, card branco, labels em pílula azul.
+   A fonte é carregada por <link> no index.html (@import de CSS bloqueia render).
+   ========================================================================== */
+
+:root {
+  --azul: #2469b3;
+  /* Azul da marca rebaixado para fundo de menu; o gradiente vira só um detalhe. */
+  --azul-escuro: #143c68;
+  --verde: #6fb643;
+  --fundo-app: #f4f6f8;
+  --texto: #333;
+  --texto-suave: #666;
+  --borda-input: #e1e8ed;
+  --erro-fundo: #fee;
+  --erro-texto: #c33;
+  --sucesso-fundo: #efe;
+  --sucesso-texto: #3c3;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* A barra de rolagem vertical reserva lugar mesmo quando não aparece: sem
+   isto, uma tela alta some com ~15px de largura em relação a uma tela curta, e
+   o cartão do questionário mudava de tamanho de uma aba para outra. */
+html {
+  // scrollbar-gutter: stable;
+  scrollbar-gutter: auto;
+
+  /* No celular, arrastar de lado fazia o fundo (o gradiente) deslizar e voltar:
+     é o overscroll do toque, que a trilha rolável do questionário encadeia para
+     a página. Aqui o pan horizontal deixa de existir — a trilha segue rolando
+     normalmente, porque ela tem o próprio `overflow-x`. */
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+}
+
+body {
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+  font-family: 'Roboto', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: linear-gradient(135deg, #2469b3 0%, #6fb643 100%);
+  min-height: 100vh;
+  color: var(--texto);
+}
+
+/* Acessibilidade: atalho que só aparece ao receber foco, e o texto que existe
+   apenas para o leitor de tela (anúncio de troca de página). */
+.pular-conteudo {
+  position: absolute;
+  top: -100px;
+  left: 12px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: 0 0 8px 8px;
+  background: var(--azul);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: top 0.15s;
+}
+
+.pular-conteudo:focus {
+  top: 0;
+}
+
+.apenas-leitor-tela {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* O alvo do atalho não deve mostrar anel de foco ao receber foco por script. */
+[id='conteudo']:focus {
+  outline: none;
+}
+
+/* Telas de autenticação (login e registro) - o mesmo card sobre o gradiente.
+   Só o botão muda de cor: azul em Entrar, verde em Cadastrar. */
+.auth-container {
+  min-height: 100vh;
+  width: 100%;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-card {
+  position: relative;
+  overflow: hidden;
+  background: white;
+  border-radius: 12px;
+  padding: 40px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 450px;
+}
+
+/* A identidade azul→verde vira um detalhe: fita fina no topo do card. */
+.auth-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--azul), var(--verde));
+}
+
+.auth-logo {
+  width: 100%;
+  height: auto;
+  margin: 4px auto 26px;
+  display: block;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+}
+
+.auth-titulo {
+  font-size: 20px;
+  color: var(--texto);
+  margin-bottom: 4px;
+}
+
+.auth-subtitulo {
+  font-size: 14px;
+  color: var(--texto-suave);
+  margin-bottom: 24px;
+}
+
+/* Atalho discreto abaixo do campo de senha, no login. */
+.auth-esqueci {
+  display: block;
+  margin-top: 8px;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--azul);
+  text-decoration: none;
+}
+
+.auth-esqueci:hover {
+  text-decoration: underline;
+}
+
+.auth-rodape {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 14px;
+  color: var(--texto-suave);
+}
+
+.auth-rodape a {
+  color: var(--azul);
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.3s;
+}
+
+.auth-rodape a:hover {
+  color: var(--verde);
+}
+
+/* Modal: usada pela ativação de conta, pelo cadastro de membro e pela
+   confirmação de exclusão — por isso mora aqui, e não num componente. */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+}
+
+.modal {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--borda-input);
+}
+
+.modal-header h2 {
+  font-size: 18px;
+  color: var(--azul);
+}
+
+/* Botão de fechar: modal, painel lateral, o que precisar. */
+.close {
+  padding: 0;
+  background: none;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--texto-suave);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.close:hover {
+  color: var(--texto);
+}
+
+.modal-body {
+  padding: 24px;
+  font-size: 14px;
+  color: var(--texto);
+  display: grid;
+  gap: 10px;
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--borda-input);
+}
+
+/* Bloco da logo: o mesmo tratamento no topo do menu lateral e na barra do
+   questionário — fundo azul-escuro, logo arredondada, 240px de largura. */
+.marca {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 240px;
+  padding: 18px 16px;
+}
+
+.marca img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 8px;
+}
+
+/* Na barra superior o bloco ocupa a altura toda e a logo se ajusta por ela.
+   `flex: none` porque a logo não pode encolher: quem cede espaço é o e-mail. */
+.topbar .marca {
+  flex: none;
+  align-self: stretch;
+  padding: 8px 16px;
+}
+
+.topbar .marca img {
+  width: auto;
+  height: 100%;
+}
+
+/* Barra superior das telas internas: painel e questionário usam a mesma. */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 64px;
+  padding: 0 24px;
+  background: white;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+}
+
+/* Quando a barra traz o bloco da logo, ele encosta na borda. */
+.topbar:has(.marca) {
+  padding-left: 0;
+}
+
+.topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  margin-left: auto;
+}
+
+/* `min-width: 0` libera o encolhimento do flex item — sem ele o e-mail longo
+   empurra o botão Sair para fora da tela em vez de ser reticenciado. */
+.topbar-identidade {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.topbar-identidade strong {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--texto);
+}
+
+.topbar-papel {
+  font-size: 12px;
+  color: var(--texto-suave);
+}
+
+.topbar-sair {
+  flex: none;
+  padding: 8px 18px;
+  font-size: 14px;
+}
+
+@media (max-width: 520px) {
+  .topbar {
+    gap: 10px;
+    padding: 0 12px;
+  }
+
+  /* A largura fixa é a do menu lateral; na barra estreita a logo se mede pela
+     altura, senão sobra pouco espaço para o e-mail. */
+  .topbar .marca {
+    width: auto;
+    padding: 16px 12px;
+  }
+
+  .topbar-user {
+    gap: 10px;
+  }
+
+  .topbar-papel {
+    font-size: 11px;
+  }
+
+  .topbar-sair {
+    padding: 8px 12px;
+  }
+}
+
+/* Trecho de código no meio do texto (rota, nome de arquivo). */
+code {
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--fundo-app);
+  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', monospace;
+  font-size: 12.5px;
+}
+
+/* Ação secundária em texto, ao lado de um botão cheio. */
+.btn-texto {
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  color: var(--texto-suave);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.btn-texto:hover:not(:disabled) {
+  color: var(--azul);
+}
+
+.btn-texto:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Cartão branco - unidade de conteúdo dos painéis internos. */
+/* Cabeçalho e estado de carregamento das telas internas. Ficam aqui, e não no
+   painel, porque o conteúdo é projetado: regra encapsulada não alcança. */
+.painel-conteudo h1,
+.quest-conteudo h1 {
+  font-size: 24px;
+  color: var(--texto);
+}
+
+.painel-subtitulo,
+.quest-subtitulo {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--texto-suave);
+}
+
+.painel-carregando,
+.quest-carregando {
+  padding: 48px 0;
+  text-align: center;
+  color: var(--texto-suave);
+}
+
+.cartao {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+
+.cartao h2 {
+  font-size: 15px;
+  color: var(--texto);
+  margin-bottom: 16px;
+}
+
+/* Selo de situação em pílula: verde quando tudo certo, vermelho quando não. */
+.selos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.selo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--erro-fundo);
+  color: var(--erro-texto);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.selo--ok {
+  background: var(--sucesso-fundo);
+  color: var(--sucesso-texto);
+}
+
+/* Nem bom nem ruim — só informação, como o papel de uma conta. */
+.selo--neutro {
+  background: #eef1f5;
+  color: var(--texto-suave);
+}
+
+/* Formulários - identidade do legado, leitura moderna: label simples à
+   esquerda; o azul da marca aparece no estado de foco do campo. */
+.form-group {
+  margin-bottom: 18px;
+  text-align: left;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--texto);
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid var(--borda-input);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+/* Texto longo usa a mesma moldura do input de uma linha. */
+.form-group textarea {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid var(--borda-input);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  line-height: 1.55;
+  resize: vertical;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--azul);
+  box-shadow: 0 0 0 3px rgba(36, 105, 179, 0.12);
+}
+
+.form-group textarea:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.form-group textarea::placeholder,
+.form-group input::placeholder {
+  color: #a8b3bf;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--azul);
+  box-shadow: 0 0 0 3px rgba(36, 105, 179, 0.12);
+}
+
+.form-group input:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
+/* Campo de senha com botão de mostrar/ocultar (ícone de olho). */
+.input-senha {
+  position: relative;
+}
+
+.input-senha input {
+  padding-right: 46px;
+}
+
+.toggle-senha {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--texto-suave);
+  transition: color 0.2s;
+}
+
+.toggle-senha:hover {
+  color: var(--azul);
+}
+
+.toggle-senha svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ==========================================================================
+   Campo com erro — borda fina vermelha + a legenda `.field-error`.
+   Vale para toda tela de formulário: as de entrada (login, cadastro,
+   redefinir senha) e as nove abas do questionário. O Angular marca sozinho
+   `ng-invalid`/`ng-touched`; `.campo-invalido` existe para o que ele não
+   alcança (erro de grupo, como "as senhas não conferem", e o anexo, que não
+   é um controle de formulário).
+   ========================================================================== */
+
+.form-group input.ng-invalid.ng-touched,
+.form-group textarea.ng-invalid.ng-touched,
+.form-group input.campo-invalido,
+.form-group textarea.campo-invalido {
+  border-color: var(--erro-texto);
+}
+
+.form-group input.ng-invalid.ng-touched:focus,
+.form-group textarea.ng-invalid.ng-touched:focus,
+.form-group input.campo-invalido:focus,
+.form-group textarea.campo-invalido:focus {
+  border-color: var(--erro-texto);
+  box-shadow: 0 0 0 3px rgba(204, 51, 51, 0.12);
+}
+
+.field-error {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--erro-texto);
+}
+
+.error-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background-color: var(--erro-fundo);
+  color: var(--erro-texto);
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  border-left: 4px solid var(--erro-texto);
+  text-align: left;
+}
+
+.success-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background-color: var(--sucesso-fundo);
+  color: var(--sucesso-texto);
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  border-left: 4px solid var(--sucesso-texto);
+  text-align: left;
+}
+
+.error-message app-icone,
+.success-message app-icone {
+  font-size: 18px;
+  margin-top: 1px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--azul);
+  outline-offset: 2px;
+}
+
+/* Botões - família única para todo o app (login azul, cadastro verde). */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: inherit;
+  color: white;
+  cursor: pointer;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+
+.btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn--azul {
+  background: var(--azul);
+}
+
+.btn--azul:hover:not(:disabled) {
+  box-shadow: 0 5px 20px rgba(36, 105, 179, 0.4);
+}
+
+.btn--verde {
+  background: var(--verde);
+}
+
+.btn--verde:hover:not(:disabled) {
+  box-shadow: 0 5px 20px rgba(111, 182, 67, 0.4);
+}
+
+.btn--block {
+  display: flex;
+  width: 100%;
+}
+
+.btn app-icone {
+  font-size: 16px;
+}
+
+/* Saída oferecida no login quando a API recusa credenciais: a conta pode
+   apenas estar inativa, e o texto abre a modal de ativação. */
+.auth-ativacao {
+  margin: -6px 0 14px;
+  font-size: 14px;
+  color: var(--cinza-texto, #555);
+  text-align: center;
+}
+
+.auth-ativacao .btn-texto {
+  font-size: 14px;
+}
+
+.estado-container {
+  display: block;
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 40px 24px 64px;
+}
+
+/* O plano devolvido mostra as nove etapas: precisa de mais largura. */
+.estado-container--largo {
+  max-width: 860px;
+}
+
+.estado-cartao {
+  text-align: center;
+}
+
+.estado-icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 12px;
+  border-radius: 50%;
+  background: var(--fundo-app);
+  font-size: 26px;
+  color: var(--azul);
+}
+
+.estado-icone--alerta {
+  color: var(--erro-texto);
+}
+
+.estado-cartao h1 {
+  margin-bottom: 16px;
+  font-size: 22px;
+}
+
+.estado-texto {
+  margin-top: 14px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--texto-suave);
+}

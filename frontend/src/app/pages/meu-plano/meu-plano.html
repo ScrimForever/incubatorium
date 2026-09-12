@@ -1,0 +1,29 @@
+@if (user(); as u) {
+  <app-painel [user]="u" ativo="Meu plano">
+    <h1>Meu plano</h1>
+    <p class="painel-subtitulo">
+      O plano de negócios que você enviou, com a avaliação do consultor em cada etapa.
+    </p>
+
+    @if (mensagemErro()) {
+      <div class="error-message" role="alert"><app-icone nome="erro" />{{ mensagemErro() }}</div>
+    }
+
+    @if (plano(); as p) {
+      <div class="selos plano-situacao">
+        <span class="selo selo--ok">
+          <app-icone nome="sucesso" />
+          {{ rotuloStatus() }}
+        </span>
+      </div>
+
+      <app-plano-leitura [json]="p.json_questionario" />
+    } @else if (!mensagemErro()) {
+      <p class="painel-carregando">Carregando...</p>
+    }
+  </app-painel>
+} @else {
+  <main>
+    <p class="painel-carregando">Carregando...</p>
+  </main>
+}
