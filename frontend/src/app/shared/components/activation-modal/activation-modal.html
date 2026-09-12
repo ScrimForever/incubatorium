@@ -1,0 +1,58 @@
+@if (open()) {
+  <div class="overlay">
+    <div
+      #dialog
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ativacao-titulo"
+      tabindex="-1"
+      (keydown.tab)="onTab($event, false)"
+      (keydown.shift.tab)="onTab($event, true)"
+    >
+      <header class="modal-header">
+        <h2 id="ativacao-titulo">
+          {{ mode() === 'enviado' ? 'Ative sua conta' : 'Conta não ativada' }}
+        </h2>
+        <button type="button" class="close" aria-label="Fechar" (click)="closed.emit()">
+          &times;
+        </button>
+      </header>
+
+      <div class="modal-body">
+        <div class="modal-icone" [class.modal-icone--alerta]="mode() === 'nao-ativado'">
+          <app-icone [nome]="mode() === 'enviado' ? 'email' : 'alerta'" />
+        </div>
+
+        @if (mode() === 'enviado') {
+          <p>
+            Sua conta foi criada. Enviamos um e-mail de ativação para
+            <strong>{{ email() }}</strong
+            >.
+          </p>
+        } @else {
+          <p>
+            A conta <strong>{{ email() }}</strong> ainda não foi ativada.
+          </p>
+        }
+        <p>Abra o e-mail e clique no link para ativar. Depois disso, é só entrar.</p>
+
+        @if (erro()) {
+          <div class="error-message" role="alert"><app-icone nome="erro" />{{ erro() }}</div>
+        }
+        @if (sucesso()) {
+          <div class="success-message" role="status">
+            <app-icone nome="sucesso" />{{ sucesso() }}
+          </div>
+        }
+      </div>
+
+      <footer class="modal-footer">
+        <button type="button" class="btn-texto" [disabled]="sending()" (click)="resend.emit()">
+          {{ sending() ? 'Enviando...' : 'Reenviar e-mail de ativação' }}
+        </button>
+        <button type="button" class="btn btn--azul" (click)="closed.emit()">Entendi</button>
+      </footer>
+    </div>
+  </div>
+}

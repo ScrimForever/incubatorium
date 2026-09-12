@@ -1,0 +1,74 @@
+<div class="painel" [class.painel--aberto]="menuAberto()">
+  <aside class="painel-menu">
+    <div class="marca painel-menu-marca">
+      <img src="logo.png" alt="TecCampos" width="584" height="162" />
+    </div>
+
+    <nav class="painel-menu-lista" aria-label="Módulos">
+      @for (item of menu(); track item.rotulo) {
+        @if (item.rota; as rota) {
+          <a
+            class="painel-menu-item"
+            [class.painel-menu-item--ativo]="item.rotulo === ativo()"
+            [routerLink]="rota"
+            [attr.aria-current]="item.rotulo === ativo() ? 'page' : null"
+            (click)="menuAberto.set(false)"
+          >
+            <app-icone [nome]="item.icone" />
+            <span class="painel-menu-rotulo">{{ item.rotulo }}</span>
+          </a>
+        } @else {
+          <button
+            type="button"
+            class="painel-menu-item"
+            disabled
+            [attr.title]="'Em breve: ' + item.pendencia"
+          >
+            <app-icone [nome]="item.icone" />
+            <span class="painel-menu-rotulo">{{ item.rotulo }}</span>
+            <app-icone nome="cadeado" />
+          </button>
+        }
+      }
+    </nav>
+  </aside>
+
+  <!-- Fecha o menu ao tocar fora dele no celular. -->
+  @if (menuAberto()) {
+    <button
+      type="button"
+      class="painel-veu"
+      aria-label="Fechar menu"
+      (click)="alternarMenu()"
+    ></button>
+  }
+
+  <div class="painel-corpo">
+    <header class="topbar painel-topbar">
+      <button
+        type="button"
+        class="painel-hamburguer"
+        [attr.aria-expanded]="menuAberto()"
+        aria-label="Abrir menu"
+        (click)="alternarMenu()"
+      >
+        <app-icone nome="menu" />
+      </button>
+
+      <div class="topbar-user">
+        <span class="topbar-identidade">
+          <strong>{{ user().email }}</strong>
+          <span class="topbar-papel">{{ papelRotulo() }}</span>
+        </span>
+        <button type="button" class="btn btn--azul topbar-sair" (click)="sair()">
+          <app-icone nome="sair" />
+          Sair
+        </button>
+      </div>
+    </header>
+
+    <main id="conteudo" tabindex="-1" class="painel-conteudo">
+      <ng-content />
+    </main>
+  </div>
+</div>

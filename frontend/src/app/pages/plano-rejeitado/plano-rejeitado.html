@@ -1,0 +1,32 @@
+<app-topo-sessao />
+
+<main id="conteudo" tabindex="-1" class="estado-container estado-container--largo">
+  <div class="cartao estado-cartao">
+    <span class="estado-icone estado-icone--alerta" aria-hidden="true">
+      <app-icone nome="alerta" />
+    </span>
+
+    <h1>Plano devolvido para ajustes</h1>
+
+    <div class="error-message" role="alert">
+      <app-icone nome="erro" />
+      O avaliador não aprovou seu plano de negócios.
+    </div>
+
+    <p class="estado-texto">
+      Abaixo está o plano como você enviou, com o que foi apontado em cada etapa. Leia as
+      observações com atenção — <strong>a correção é liberada pelo avaliador</strong>, e você será
+      avisado quando o plano voltar a aceitar edição.
+    </p>
+  </div>
+
+  @if (mensagemErro()) {
+    <div class="error-message" role="alert"><app-icone nome="erro" />{{ mensagemErro() }}</div>
+  }
+
+  @if (json(); as documento) {
+    <app-plano-leitura [json]="documento" />
+  } @else if (!mensagemErro()) {
+    <p class="estado-texto">Carregando o plano...</p>
+  }
+</main>

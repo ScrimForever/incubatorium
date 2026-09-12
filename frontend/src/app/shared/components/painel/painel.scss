@@ -1,0 +1,161 @@
+/* Painel em tela cheia: menu lateral escuro + conteúdo claro.
+   O gradiente da marca fica nas telas de autenticação; aqui ele só aparece
+   como fita no item ativo do menu. */
+.painel {
+  display: flex;
+  min-height: 100vh;
+  background: var(--fundo-app);
+}
+
+/* ----- menu lateral ----- */
+
+.painel-menu {
+  flex: none;
+  width: 240px;
+  background: var(--azul-escuro);
+  display: flex;
+  flex-direction: column;
+}
+
+.painel-menu-marca {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.painel-menu-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 10px;
+}
+
+/* Item disponível é <a>, item cadeado é <button disabled> - mesma aparência. */
+.painel-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 14px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: rgba(255, 255, 255, 0.72);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
+}
+
+.painel-menu-item app-icone {
+  font-size: 17px;
+}
+
+.painel-menu-rotulo {
+  flex: 1;
+}
+
+.painel-menu-item:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+}
+
+.painel-menu-item:disabled {
+  color: rgba(255, 255, 255, 0.38);
+  cursor: not-allowed;
+}
+
+/* Item ativo: fundo claro e a fita azul→verde da marca à esquerda. */
+.painel-menu-item--ativo {
+  position: relative;
+  background: rgba(255, 255, 255, 0.14);
+  color: white;
+  font-weight: 600;
+}
+
+.painel-menu-item--ativo::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, var(--azul), var(--verde));
+}
+
+/* ----- barra superior ----- */
+
+.painel-corpo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.painel-hamburguer {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--texto);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.painel-hamburguer:hover {
+  background: var(--fundo-app);
+}
+
+/* ----- conteúdo projetado ----- */
+
+.painel-conteudo {
+  flex: 1;
+  width: 100%;
+  max-width: 1180px;
+  padding: 32px 24px 48px;
+  margin: 0 auto;
+}
+
+.painel-veu {
+  display: none;
+}
+
+/* ----- celular: menu vira gaveta ----- */
+
+@media (max-width: 900px) {
+  .painel-menu {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 20;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+  }
+
+  .painel--aberto .painel-menu {
+    transform: translateX(0);
+  }
+
+  .painel-hamburguer {
+    display: inline-flex;
+  }
+
+  .painel-veu {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    border: none;
+    padding: 0;
+    background: rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+  }
+}

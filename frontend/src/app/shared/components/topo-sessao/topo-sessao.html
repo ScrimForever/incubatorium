@@ -1,0 +1,18 @@
+<header class="topbar">
+  <div class="marca">
+    <img src="logo.png" alt="TecCampos" width="584" height="162" />
+  </div>
+
+  @if (user(); as u) {
+    <div class="topbar-user">
+      <span class="topbar-identidade">
+        <strong>{{ u.email }}</strong>
+        <span class="topbar-papel">{{ ROLE_LABEL[u.role] }}</span>
+      </span>
+      <button type="button" class="btn btn--azul topbar-sair" (click)="sair()">
+        <app-icone nome="sair" />
+        Sair
+      </button>
+    </div>
+  }
+</header>

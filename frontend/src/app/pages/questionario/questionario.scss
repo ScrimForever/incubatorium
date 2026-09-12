@@ -1,0 +1,402 @@
+/* Questionário em tela cheia, sem menu lateral — mas na identidade do nosso
+   sistema, não na do legado: fundo claro, cartão branco, trilha em pílulas e a
+   mesma família de botões das outras telas internas. */
+
+.quest {
+  min-height: 100vh;
+  background: var(--fundo-app);
+}
+
+/* ----- conteúdo ----- */
+
+.quest-conteudo {
+  /* O topo fixo usa margem negativa para encostar nas bordas do `main`; estas
+     variáveis mantêm os dois em sincronia quando o padding muda por breakpoint.
+     Sem isso, o cabeçalho grudado vazava 8px de cada lado no celular. */
+  --quest-pad-x: 24px;
+  --quest-pad-y: 32px;
+
+  width: 100%;
+  max-width: 1200px;
+  padding: var(--quest-pad-y) var(--quest-pad-x) 48px;
+  margin: 0 auto;
+}
+
+/* Título, progresso e trilha grudam no topo quando a página rola: nas etapas
+   de texto longo o cartão passa da altura da tela, e sem isto o incubado perde
+   de vista em que etapa está. O fundo é opaco para o conteúdo não aparecer por
+   baixo, e as margens negativas compensam o padding lateral do `main`. */
+.quest-topo {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: calc(var(--quest-pad-y) * -1) calc(var(--quest-pad-x) * -1) 0;
+  padding: var(--quest-pad-y) var(--quest-pad-x) 0;
+  background: var(--fundo-app);
+}
+
+.quest-progresso {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.quest-barra {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: #e3e8ee;
+  overflow: hidden;
+}
+
+.quest-barra span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--azul), var(--verde));
+  transition: width 0.3s ease;
+}
+
+.quest-progresso-numero {
+  min-width: 38px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: right;
+  color: var(--texto-suave);
+}
+
+/* ----- trilha das nove etapas ----- */
+
+/* As nove abas ficam sempre em UMA linha: quebrar em duas ou três fileiras
+   desmancha a leitura de progresso. Quando não cabem, a trilha rola na
+   horizontal e o passo atual é trazido à vista pelo componente. */
+.quest-trilha {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  margin: 12px 0 16px;
+  /* Folga para o brilho da aba ativa caber: com `overflow-x` qualquer sombra
+     que passe da caixa é cortada em linha reta — era o "quadrado". */
+  padding: 8px 4px 12px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+.quest-passo {
+  display: inline-flex;
+  flex: none;
+  scroll-snap-align: center;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px 7px 7px;
+  border: 1px solid var(--borda-input);
+  border-radius: 999px;
+  background: white;
+  color: var(--texto-suave);
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    color 0.2s,
+    box-shadow 0.2s;
+}
+
+.quest-passo:hover:not(:disabled) {
+  border-color: var(--azul);
+  color: var(--texto);
+}
+
+.quest-passo:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.quest-passo app-icone {
+  font-size: 13px;
+}
+
+.quest-passo-numero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #eef1f5;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.quest-passo--ok .quest-passo-numero {
+  background: var(--sucesso-fundo);
+  color: var(--sucesso-texto);
+}
+
+.quest-passo--atual {
+  border-color: var(--azul);
+  background: var(--azul);
+  color: white;
+  font-weight: 600;
+}
+
+.quest-passo--atual .quest-passo-numero {
+  background: rgba(255, 255, 255, 0.22);
+  color: white;
+}
+
+/* A aba aberta é azul como o botão "Voltar", então o hover dela é o mesmo:
+   o brilho azul, e o texto continua branco. A regra genérica acima pintava o
+   texto de var(--texto) — quase preto sobre azul, ilegível. */
+.quest-passo--atual:hover:not(:disabled) {
+  border-color: var(--azul);
+  color: white;
+  /* Dimensionada para caber no padding da trilha — ver `.quest-trilha`. */
+  box-shadow: 0 2px 8px rgba(36, 105, 179, 0.45);
+}
+
+/* ----- cartão da etapa ----- */
+
+.quest-cartao {
+  margin-bottom: 20px;
+}
+
+.quest-intro {
+  margin-bottom: 16px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--texto-suave);
+}
+
+/* Os tópicos que orientam a resposta, iguais aos do sistema antigo. */
+.quest-instrucao {
+  margin: 0 0 12px;
+  padding: 12px 16px 12px 32px;
+  border-left: 3px solid var(--borda-input);
+  border-radius: 0 8px 8px 0;
+  background: var(--fundo-app);
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--texto-suave);
+}
+
+.quest-instrucao li + li {
+  margin-top: 4px;
+}
+
+.quest-grade {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0 20px;
+}
+
+/* ----- equipe ----- */
+
+.quest-equipe-topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.quest-equipe-topo .quest-intro {
+  flex: 1;
+  min-width: 240px;
+  margin-bottom: 0;
+}
+
+.quest-membros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+  list-style: none;
+}
+
+.quest-membro {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--borda-input);
+  border-radius: 10px;
+  background: var(--fundo-app);
+  font-size: 14px;
+}
+
+.quest-membro strong {
+  display: block;
+  color: var(--texto);
+}
+
+.quest-membro span {
+  display: block;
+  font-size: 13px;
+  color: var(--texto-suave);
+}
+
+.quest-membro p {
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.quest-remover {
+  flex: none;
+  border: none;
+  background: none;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--texto-suave);
+  cursor: pointer;
+}
+
+.quest-remover:hover {
+  color: var(--erro-texto);
+}
+
+.quest-vazio {
+  margin-top: 16px;
+  font-size: 14px;
+  color: var(--texto-suave);
+}
+
+/* Sem membro nenhum e já tentou avançar: o vazio deixa de ser neutro. */
+.quest-vazio--invalido {
+  border: 1px solid var(--erro-texto);
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: var(--erro-texto);
+}
+
+/* ----- anexos ----- */
+
+.quest-anexos {
+  margin-top: 4px;
+}
+
+.quest-anexos input[type='file'] {
+  display: none;
+}
+
+.quest-anexo-botao {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px dashed var(--azul);
+  border-radius: 8px;
+  color: var(--azul);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.quest-anexo-botao:hover {
+  background: rgba(36, 105, 179, 0.06);
+}
+
+/* O anexo não é controle de formulário: a borda vermelha vem por classe. */
+.quest-anexo-botao--invalido {
+  border-color: var(--erro-texto);
+  color: var(--erro-texto);
+}
+
+.quest-anexo-botao--invalido:hover {
+  background: rgba(204, 51, 51, 0.06);
+}
+
+.quest-arquivos {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+  list-style: none;
+}
+
+.quest-arquivos li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--fundo-app);
+  font-size: 14px;
+}
+
+.quest-arquivos span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* ----- ações ----- */
+
+.quest-acoes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.quest-acoes-direita {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+}
+
+@media (max-width: 760px) {
+  .quest-passo-rotulo {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .quest-conteudo {
+    --quest-pad-x: 16px;
+    --quest-pad-y: 24px;
+
+    padding-bottom: 40px;
+  }
+
+  /* Numa tela de celular o cabeçalho grudado não pode comer meia tela: o
+     subtítulo sai, e o resto encolhe. */
+  .quest-subtitulo {
+    display: none;
+  }
+
+  .quest-topo {
+    padding-top: 16px;
+  }
+
+  .quest-conteudo h1 {
+    font-size: 20px;
+  }
+
+  .quest-instrucao {
+    padding: 12px 14px 12px 22px;
+  }
+
+  /* Empilhado, a ação principal fica no topo e "Voltar" no rodapé. */
+  .quest-acoes,
+  .quest-acoes-direita {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .quest-acoes-direita {
+    margin-left: 0;
+  }
+
+  .quest-membro {
+    flex-wrap: wrap;
+  }
+}
