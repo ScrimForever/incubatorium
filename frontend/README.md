@@ -66,7 +66,7 @@ npm run test:ci
 | `/minha-conta` | Troca de e-mail e de senha | incubado com plano aprovado; demais papéis |
 | `/usuarios` | Administração de contas | administrador |
 | `**` | Página não encontrada | pública |
-
+<!-- teste -->
 A tela do incubado logo após o login é decidida pelo status do plano: em preenchimento
 abre o questionário, enviado abre o acompanhamento, devolvido abre a tela de ajustes e
 aprovado libera o painel. Os demais papéis não passam por essa triagem.
