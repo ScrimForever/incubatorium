@@ -29,7 +29,8 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     async def on_after_forgot_password(
         self, user: User, token: str, request: Request | None = None
     ):
-        print(f"User {user.id} has forgot their password. Reset token: {token}")
+        email_service = EmailSetup()
+        await email_service.enviar_email_nova_senha(user.email, token)
 
     async def on_after_request_verify(
         self, user: User, token: str, request: Request | None = None

@@ -59,10 +59,10 @@ class UserRouter:
             )
             if ativacao:
                 logger.success(f"Usuário: {email}. Ativado com sucesso.")
-                return RedirectResponse(url="http://127.0.0.1:3000/login")
+                return RedirectResponse(url="http://localhost:3000/conta-ativada")
             else:
                 logger.warning(f"Usuário: {email}. Não pode ser ativado.")
-                return RedirectResponse(url="http://127.0.0.1:3000/notfound")
+                return RedirectResponse(url="http://localhost:3000/nao-encontrado")
 
         @self.app.post("/reenviar_codigo/{email}")
         async def reenviar_codigo(
