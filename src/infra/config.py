@@ -12,6 +12,11 @@ if not Path(env_file).exists():
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=env_file if ENV == "development" else None,
+        env_file_encoding="utf-8",
+    )
+
     pg_user: str = "postgres"
     pg_password: str = ""
     pg_host: str = "localhost"
@@ -20,11 +25,6 @@ class Settings(BaseSettings):
     secret_key: str = ""
     resend_api_key: str = ""
     enviroment: str = "development"
-
-    model_config = SettingsConfigDict(
-        env_file=env_file if ENV == "development" else None,
-        env_file_encoding="utf-8",
-    )
 
     @computed_field
     @property
