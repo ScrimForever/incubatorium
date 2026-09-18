@@ -19,7 +19,6 @@ const anexo = (nome: string): Anexo => ({
   nome,
   tipo: 'application/pdf',
   tamanho: 1024,
-  conteudo_base64: 'YWJj',
 });
 
 /** Uma resposta da API com o documento dado. */

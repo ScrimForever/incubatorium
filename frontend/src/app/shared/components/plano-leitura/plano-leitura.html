@@ -8,7 +8,8 @@
           <h3>{{ bloco.rotulo }}</h3>
         }
         @if (bloco.texto) {
-          <p>{{ bloco.texto }}</p>
+          <!-- quill-view e não [innerHTML]: o sanitizer do Angular apagaria cor e destaque. -->
+          <quill-view class="plano-texto" [content]="bloco.texto" format="html" theme="snow" />
         } @else {
           <p class="plano-vazio">Não preenchido.</p>
         }
@@ -16,15 +17,38 @@
     }
 
     @if (etapa.membros.length) {
-      <ul class="plano-membros">
+      <ul class="membros">
         @for (membro of etapa.membros; track membro.id) {
-          <li>
-            <strong>{{ membro.nome }}</strong>
-            <span>{{ membro.formacao_academica }}</span>
-            <span>{{ membro.email }}</span>
-            @if (membro.experiencia) {
-              <p>{{ membro.experiencia }}</p>
-            }
+          <li class="membro">
+            <div class="membro-topo">
+              <strong>{{ membro.nome }}</strong>
+            </div>
+            <dl class="membro-dados">
+              <div>
+                <dt>Formação acadêmica</dt>
+                <dd>{{ membro.formacao_academica }}</dd>
+              </div>
+              <div>
+                <dt>E-mail</dt>
+                <dd>{{ membro.email }}</dd>
+              </div>
+              <div>
+                <dt>Telefone</dt>
+                <dd [class.membro-ausente]="!membro.telefone">
+                  {{ membro.telefone || 'Não informado' }}
+                </dd>
+              </div>
+              <div class="membro-experiencia">
+                <dt>Experiência</dt>
+                <!-- tabindex: região rolável tem de ser alcançável pelo teclado. -->
+                <dd
+                  tabindex="0"
+                  [class.membro-ausente]="!membro.experiencia"
+                  [attr.aria-label]="'Experiência de ' + membro.nome"
+                  [textContent]="membro.experiencia || 'Não informada'"
+                ></dd>
+              </div>
+            </dl>
           </li>
         }
       </ul>
@@ -33,7 +57,10 @@
     @if (etapa.arquivos.length) {
       <ul class="plano-arquivos">
         @for (arquivo of etapa.arquivos; track arquivo.nome) {
-          <li><app-icone nome="documento" />{{ arquivo.nome }}</li>
+          <li>
+            <app-icone nome="documento" />
+            <span>{{ arquivo.nome }}</span>
+          </li>
         }
       </ul>
     }

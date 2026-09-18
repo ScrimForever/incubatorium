@@ -3,7 +3,6 @@ import { Observable, catchError, map, of, shareReplay, switchMap, tap, throwErro
 import { API_ROUTES } from '../constants/api-routes';
 import { Api } from '../http/api';
 import {
-  Anexo,
   JsonQuestionario,
   NUMEROS_ETAPA,
   NumeroEtapa,
@@ -126,6 +125,16 @@ export function normalizar(resposta: Questionario): Questionario {
       return [chave, { ...vazio[chave], ...(recebido[chave] ?? {}) }];
     }),
   ) as unknown as JsonQuestionario;
+  // Documento gravado antes da rota de upload traz o anexo em base64. Reduzir
+  // à ficha aqui tira esse peso do próximo PUT — o conteúdo era inalcançável
+  // de todo jeito, porque nunca houve tela para baixá-lo.
+  for (const chave of ['6', '9'] as const) {
+    json[chave].arquivos = json[chave].arquivos.map(({ nome, tipo, tamanho }) => ({
+      nome,
+      tipo,
+      tamanho,
+    }));
+  }
   return { ...resposta, json_questionario: json };
 }
 
@@ -230,27 +239,4 @@ export function progresso(json: JsonQuestionario): number {
 /** O formulário ainda está aberto? `iniciado` e `pendente` dizem que sim. */
 export function emPreenchimento(status: StatusQuestionario): boolean {
   return STATUS_EM_PREENCHIMENTO.includes(status);
-}
-
-/**
- * Lê o arquivo escolhido e devolve o anexo pronto para entrar no JSON.
- *
- * Base64 sem o prefixo `data:` — o prefixo é remontado na hora de baixar, a
- * partir de `tipo`, e guardá-lo duplicaria informação dentro do documento.
- */
-export function lerAnexo(arquivo: File): Promise<Anexo> {
-  return new Promise((resolve, reject) => {
-    const leitor = new FileReader();
-    leitor.onerror = (): void => reject(new Error('Não foi possível ler o arquivo.'));
-    leitor.onload = (): void => {
-      const resultado = String(leitor.result);
-      resolve({
-        nome: arquivo.name,
-        tipo: arquivo.type || 'application/octet-stream',
-        tamanho: arquivo.size,
-        conteudo_base64: resultado.slice(resultado.indexOf(',') + 1),
-      });
-    };
-    leitor.readAsDataURL(arquivo);
-  });
 }

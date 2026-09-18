@@ -1,9 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { APP_ROUTES, ROLE_LABEL } from '../../../core/constants/app-constants';
 import { Role, SessionUser } from '../../../core/models/auth';
-import { Auth } from '../../../core/services/auth';
+import { BotaoSair } from '../botao-sair/botao-sair';
 import { Icone, IconeNome } from '../icone/icone';
 
 /** Uma entrada do menu lateral. */
@@ -90,13 +90,11 @@ export function menuPara(role: Role): readonly ItemMenu[] {
 @Component({
   selector: 'app-painel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, Icone],
+  imports: [RouterLink, BotaoSair, Icone],
   templateUrl: './painel.html',
   styleUrl: './painel.scss',
 })
 export class Painel {
-  private readonly auth = inject(Auth);
-
   readonly user = input.required<SessionUser>();
   /** Rótulo do item de menu correspondente à página atual. */
   readonly ativo = input('');
@@ -107,9 +105,5 @@ export class Painel {
 
   protected alternarMenu(): void {
     this.menuAberto.set(!this.menuAberto());
-  }
-
-  protected sair(): void {
-    this.auth.sair();
   }
 }

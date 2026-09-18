@@ -3,7 +3,9 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  Injector,
   OnInit,
+  afterNextRender,
   computed,
   effect,
   inject,
@@ -13,6 +15,8 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { QuillEditorComponent } from 'ngx-quill';
+import type Quill from 'quill';
 
 import { APP_ROUTES } from '../../core/constants/app-constants';
 import { destinoPara } from '../../core/guards/plano-guard';
@@ -23,9 +27,11 @@ import {
   MembroEquipe,
   NUMEROS_ETAPA,
   NumeroEtapa,
+  MAXIMO_ANEXOS_POR_ETAPA,
   TAMANHO_MAXIMO_ANEXO,
   documentoVazio,
 } from '../../core/models/questionario';
+import { ArquivosService } from '../../core/services/arquivos';
 import { Auth } from '../../core/services/auth';
 import {
   QuestionarioService,
@@ -33,16 +39,34 @@ import {
   etapaAcessivel,
   etapaCompleta,
   etapaParaRetomar,
-  lerAnexo,
   progresso,
 } from '../../core/services/questionario';
 import { Icone } from '../../shared/components/icone/icone';
 import { TopoSessao } from '../../shared/components/topo-sessao/topo-sessao';
-import { CAMPOS_ETAPA_1, ETAPAS, Etapa, ROTULO_CURTO, etapaPorNumero } from './etapas';
+import {
+  acessibilizarEditor,
+  manterMenusNaTela,
+  valorDoEditor,
+} from '../../shared/editor/editor-config';
+import { textoParaHtml } from '../../shared/editor/texto-para-html';
+import { CAMPOS_ETAPA_1, CampoTexto, ETAPAS, Etapa, ROTULO_CURTO, etapaPorNumero } from './etapas';
+
+/** O que a modal de confirmação vai remover, já com o texto da pergunta. */
+interface Remocao {
+  readonly titulo: string;
+  /** Pergunta dividida em volta do nome, que aparece em negrito; `depois` traz o espaço inicial. */
+  readonly antes: string;
+  readonly nome: string;
+  readonly depois: string;
+  readonly remover: () => void;
+}
 
 /** Um passo na trilha de bolinhas do topo. */
 interface Passo {
   readonly numero: NumeroEtapa;
+  /** Rótulo curto da pílula, e o nome acessível ("5. Produto") que não some com ele. */
+  readonly rotulo: string;
+  readonly nome: string;
   readonly completa: boolean;
   readonly acessivel: boolean;
   readonly atual: boolean;
@@ -61,19 +85,22 @@ interface Passo {
 @Component({
   selector: 'app-questionario',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, Icone, TopoSessao],
+  imports: [ReactiveFormsModule, QuillEditorComponent, Icone, TopoSessao],
   templateUrl: './questionario.html',
   styleUrl: './questionario.scss',
   host: {
-    '(document:keydown.escape)': 'fecharMembro()',
+    '(document:keydown.escape)': 'fecharDialogos()',
   },
 })
 export class Questionario implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(Auth);
   private readonly service = inject(QuestionarioService);
+  private readonly arquivos = inject(ArquivosService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly injector = inject(Injector);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   protected readonly user = signal<SessionUser | null>(null);
   protected readonly json = signal<JsonQuestionario>(documentoVazio());
@@ -84,6 +111,12 @@ export class Questionario implements OnInit {
   protected readonly mensagemErro = signal('');
   protected readonly mensagemSucesso = signal('');
   protected readonly membroAberto = signal(false);
+  /** O membro aberto na modal para edição; `null` quando ela cadastra um novo. */
+  protected readonly membroEditando = signal<MembroEquipe | null>(null);
+  /** Membro ou anexo à espera da confirmação de remoção. */
+  protected readonly remocao = signal<Remocao | null>(null);
+  /** Etapa 9 completa e salva, esperando o "sim" antes de ir para análise. */
+  protected readonly confirmandoEnvio = signal(false);
   /**
    * Só depois de tentar avançar os campos vazios ficam vermelhos. Antes disso
    * a etapa recém-aberta apareceria toda em erro, o que assusta sem ajudar.
@@ -95,18 +128,39 @@ export class Questionario implements OnInit {
 
   private readonly trilha = viewChild<ElementRef<HTMLElement>>('trilha');
 
-  /* A trilha é uma linha só e rola na horizontal quando as nove abas não cabem
-     — sem isto o passo atual ficaria fora da vista em tela estreita. */
+  /* A trilha é uma linha só e, se as nove abas não couberem, rola na
+     horizontal — sem isto o passo atual ficaria fora da vista. A medida sai
+     depois da renderização, quando a aba aberta já tem o rótulo dela; e rola só
+     a trilha, porque `scrollIntoView` arrastava a página junto. */
   private readonly seguirPassoAtual = effect(() => {
     const numero = this.numero();
     const nav = this.trilha()?.nativeElement;
-    nav
-      ?.querySelector(`[data-passo='${numero}']`)
-      ?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+    if (!nav) {
+      return;
+    }
+    afterNextRender(
+      () => {
+        const passo = nav.querySelector<HTMLElement>(`[data-passo='${numero}']`);
+        if (!passo || nav.scrollWidth <= nav.clientWidth) {
+          return;
+        }
+        const deslocamento = passo.getBoundingClientRect().left - nav.getBoundingClientRect().left;
+        nav.scrollTo({
+          left: nav.scrollLeft + deslocamento - (nav.clientWidth - passo.offsetWidth) / 2,
+        });
+      },
+      { injector: this.injector },
+    );
   });
 
   protected readonly etapa = computed<Etapa>(() => etapaPorNumero(this.numero()));
+  /** Etapa de campo único e obrigatório: o asterisco vai no título, que é o rótulo dele. */
+  protected readonly tituloObrigatorio = computed(() =>
+    this.etapa().campos.some((campo) => !campo.rotulo && campo.obrigatorio),
+  );
   protected readonly camposEtapa1 = CAMPOS_ETAPA_1;
+  /** Editor vazio vira `''` (o `required` segue valendo) e sem `&nbsp;` no lugar de espaço. */
+  protected readonly valorDoEditor = valorDoEditor;
   protected readonly total = ETAPAS.length;
   protected readonly ehUltima = computed(() => this.numero() === 9);
   protected readonly ehPrimeira = computed(() => this.numero() === 1);
@@ -115,6 +169,8 @@ export class Questionario implements OnInit {
     const json = this.json();
     return NUMEROS_ETAPA.map((numero) => ({
       numero,
+      rotulo: ROTULO_CURTO[numero],
+      nome: `${numero}. ${ROTULO_CURTO[numero]}`,
       completa: etapaCompleta(json, numero),
       acessivel: etapaAcessivel(json, numero),
       atual: numero === this.numero(),
@@ -155,18 +211,24 @@ export class Questionario implements OnInit {
   });
 
   private readonly dialogoMembro = viewChild<ElementRef<HTMLElement>>('dialogoMembro');
+  private readonly dialogoRemocao = viewChild<ElementRef<HTMLElement>>('dialogoRemocao');
+  private readonly dialogoEnvio = viewChild<ElementRef<HTMLElement>>('dialogoEnvio');
   private ultimoFoco: HTMLElement | null = null;
 
   constructor() {
     // Abrir move o foco para a modal; fechar devolve para quem a abriu — o
     // mesmo contrato do `activation-modal`, senão `aria-modal` é promessa vazia.
     effect(() => {
-      const dialogo = this.dialogoMembro();
-      if (this.membroAberto() && dialogo) {
-        this.ultimoFoco = document.activeElement as HTMLElement | null;
+      const dialogo = this.dialogoMembro() ?? this.dialogoRemocao() ?? this.dialogoEnvio();
+      const aberto = this.membroAberto() || this.remocao() !== null || this.confirmandoEnvio();
+      if (aberto && dialogo) {
+        this.ultimoFoco ??= document.activeElement as HTMLElement | null;
         dialogo.nativeElement.focus();
-      } else if (!this.membroAberto() && this.ultimoFoco) {
-        this.ultimoFoco.focus();
+      } else if (!aberto && this.ultimoFoco) {
+        // Depois de remover, o botão que abriu a modal já saiu da tela.
+        if (this.ultimoFoco.isConnected) {
+          this.ultimoFoco.focus();
+        }
         this.ultimoFoco = null;
       }
     });
@@ -219,9 +281,20 @@ export class Questionario implements OnInit {
       }
     }
     for (const campo of this.etapa().campos) {
-      controles[campo.nome] = [String(aba[campo.nome] ?? ''), validadores(campo.obrigatorio)];
+      controles[campo.nome] = [
+        textoParaHtml(String(aba[campo.nome] ?? '')),
+        validadores(campo.obrigatorio),
+      ];
     }
     this.form.set(this.fb.group(controles));
+  }
+
+  /** Traduz a barra do editor, liga-o ao rótulo do campo e segura os menus na tela. */
+  protected aoCriarEditor(editor: Quill, campo: CampoTexto): void {
+    // Etapa de campo único não tem rótulo: o título do cartão faz esse papel.
+    acessibilizarEditor(editor, campo.rotulo ? `${campo.nome}-rotulo` : 'quest-titulo');
+    manterMenusNaTela(editor);
+    editor.root.setAttribute('aria-required', String(campo.obrigatorio));
   }
 
   /** A aba atual como mapa solto — as chaves variam de etapa para etapa. */
@@ -246,7 +319,41 @@ export class Questionario implements OnInit {
       this.montarFormulario();
       this.tentouAvancar.set(false);
       this.mensagemSucesso.set('');
+      this.voltarAoTopo();
     });
+  }
+
+  /**
+   * A etapa nova começa do topo. Sem isto, quem clicava "Próximo" no fim de
+   * uma etapa longa caía no meio — ou no fim — da seguinte.
+   */
+  private voltarAoTopo(): void {
+    window.scrollTo({ top: 0 });
+  }
+
+  /**
+   * Leva a tela até o que falta preencher, logo abaixo do topo grudado. No
+   * celular o "Próximo" fica no fim de uma etapa longa: o campo vazio, ou o
+   * aviso lá em cima, ficava fora da vista, e o toque parecia não fazer nada.
+   * Sem pendência no cartão (etapa anterior vazia), sobe até o aviso.
+   */
+  private mostrarPendencia(): void {
+    afterNextRender(
+      () => {
+        const raiz = this.host.nativeElement;
+        const erro = raiz.querySelector(
+          '.quest-cartao .field-error, .quest-cartao .quest-vazio--invalido',
+        );
+        const alvo = erro?.closest('.form-group, .quest-anexos') ?? erro;
+        if (!alvo) {
+          this.voltarAoTopo();
+          return;
+        }
+        const topo = raiz.querySelector('.quest-topo')?.getBoundingClientRect().height ?? 0;
+        window.scrollTo({ top: alvo.getBoundingClientRect().top + window.scrollY - topo - 16 });
+      },
+      { injector: this.injector },
+    );
   }
 
   protected voltar(): void {
@@ -259,19 +366,21 @@ export class Questionario implements OnInit {
     // Feedback imediato, antes de esperar a gravação: os campos vazios acendem.
     this.revelarPendencias();
     if (this.ehUltima()) {
-      this.enviarPlano();
+      this.pedirEnvio();
       return;
     }
     this.salvarEntao(() => {
       const proxima = (this.numero() + 1) as NumeroEtapa;
       if (!this.passos().find((passo) => passo.numero === proxima)?.acessivel) {
         this.mensagemErro.set('Preencha esta etapa antes de avançar.');
+        this.mostrarPendencia();
         return;
       }
       this.numero.set(proxima);
       this.montarFormulario();
       this.tentouAvancar.set(false);
       this.mensagemSucesso.set('');
+      this.voltarAoTopo();
     });
   }
 
@@ -301,21 +410,34 @@ export class Questionario implements OnInit {
 
   protected abrirMembro(): void {
     this.formMembro.reset();
+    this.membroEditando.set(null);
+    this.membroAberto.set(true);
+  }
+
+  /** A mesma modal do cadastro, já preenchida com o membro. */
+  protected editarMembro(membro: MembroEquipe): void {
+    const { nome, formacao_academica, experiencia, email, telefone } = membro;
+    this.formMembro.reset({ nome, formacao_academica, experiencia, email, telefone });
+    this.membroEditando.set(membro);
     this.membroAberto.set(true);
   }
 
   protected fecharMembro(): void {
     if (this.membroAberto()) {
       this.membroAberto.set(false);
+      this.membroEditando.set(null);
     }
   }
 
+  /** Esc fecha a modal que estiver aberta. */
+  protected fecharDialogos(): void {
+    this.fecharMembro();
+    this.cancelarRemocao();
+    this.cancelarEnvio();
+  }
+
   /** Prende o Tab dentro da modal. O `shift` vem do template, como no padrão. */
-  protected onTabMembro(evento: Event, shift: boolean): void {
-    const dialogo = this.dialogoMembro()?.nativeElement;
-    if (!dialogo) {
-      return;
-    }
+  protected prenderTab(evento: Event, shift: boolean, dialogo: HTMLElement): void {
     const focaveis = Array.from(
       dialogo.querySelectorAll<HTMLElement>(
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
@@ -337,33 +459,74 @@ export class Questionario implements OnInit {
     }
   }
 
-  protected adicionarMembro(): void {
+  /** Cadastra, ou substitui no mesmo lugar da lista quando a modal veio do lápis. */
+  protected salvarMembro(): void {
     if (this.formMembro.invalid) {
       this.formMembro.markAllAsTouched();
       return;
     }
-    const membro: MembroEquipe = { id: `m-${Date.now()}`, ...this.formMembro.getRawValue() };
-    this.gravar(this.documentoCom(4, { equipe: [...this.membros(), membro] }));
-    this.membroAberto.set(false);
+    const valores = this.formMembro.getRawValue();
+    const editando = this.membroEditando();
+    const equipe = editando
+      ? this.membros().map((membro) =>
+          membro.id === editando.id ? { id: editando.id, ...valores } : membro,
+        )
+      : [...this.membros(), { id: `m-${Date.now()}`, ...valores }];
+    this.gravar(this.documentoCom(4, { equipe }));
+    this.fecharMembro();
   }
 
-  protected removerMembro(id: string): void {
-    const equipe = this.membros().filter((membro) => membro.id !== id);
-    this.gravar(this.documentoCom(4, { equipe }));
+  protected pedirRemocaoMembro(alvo: MembroEquipe): void {
+    this.remocao.set({
+      titulo: 'Remover membro',
+      antes: 'Tem certeza que deseja remover',
+      nome: alvo.nome,
+      depois: ' da equipe?',
+      remover: () => {
+        const equipe = this.membros().filter((membro) => membro.id !== alvo.id);
+        this.gravar(this.documentoCom(4, { equipe }));
+      },
+    });
+  }
+
+  protected cancelarRemocao(): void {
+    if (this.remocao()) {
+      this.remocao.set(null);
+    }
+  }
+
+  protected confirmarRemocao(): void {
+    this.remocao()?.remover();
+    this.remocao.set(null);
   }
 
   // ----- anexos -----
 
   /**
-   * O arquivo vai embutido no JSON, em base64 — não existe rota de upload no
-   * backend. Daí o teto por arquivo: o documento inteiro sobe de novo a cada
-   * gravação, e base64 ainda infla o conteúdo em cerca de um terço.
+   * Envia primeiro, grava a ficha depois — assim a lista nunca exibe arquivo
+   * que o backend não recebeu.
    */
   protected anexar(evento: Event, numero: NumeroEtapa): void {
     const entrada = evento.target as HTMLInputElement;
     const arquivos = Array.from(entrada.files ?? []);
     entrada.value = '';
     if (!arquivos.length) {
+      return;
+    }
+
+    // Mesmo nome substitui o que já estava lá; o resto se soma à lista.
+    const nomesNovos = new Set(arquivos.map((arquivo) => arquivo.name));
+    const mantidos = this.json()[numero === 6 ? '6' : '9'].arquivos.filter(
+      (anexo) => !nomesNovos.has(anexo.nome),
+    );
+    if (mantidos.length + arquivos.length > MAXIMO_ANEXOS_POR_ETAPA) {
+      const vagas = MAXIMO_ANEXOS_POR_ETAPA - mantidos.length;
+      this.mensagemErro.set(
+        `Cada etapa aceita até ${MAXIMO_ANEXOS_POR_ETAPA} arquivos. ` +
+          (vagas > 0
+            ? `Ainda cabe${vagas > 1 ? 'm' : ''} ${vagas}.`
+            : 'Remova algum para enviar outro.'),
+      );
       return;
     }
 
@@ -379,23 +542,35 @@ export class Questionario implements OnInit {
 
     this.mensagemErro.set('');
     this.salvando.set(true);
-    void Promise.all(arquivos.map(lerAnexo))
-      .then((anexos) => {
-        // Um arquivo por etapa, nas duas que pedem anexo: enviar outro
-        // substitui o anterior, em vez de empilhar (decisão de 12/09/2026).
-        this.salvando.set(false);
-        this.gravar(this.documentoCom(numero, { arquivos: anexos.slice(0, 1) }));
-      })
-      .catch((erro: Error) => {
-        this.salvando.set(false);
-        this.mensagemErro.set(erro.message);
+    this.arquivos
+      .enviar(numero, arquivos)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (anexos) => {
+          this.salvando.set(false);
+          this.gravar(this.documentoCom(numero, { arquivos: [...mantidos, ...anexos] }));
+        },
+        error: (err: ApiError) => {
+          this.salvando.set(false);
+          this.mensagemErro.set(err.message);
+        },
       });
   }
 
-  protected removerAnexo(numero: NumeroEtapa, nome: string): void {
-    const chave = numero === 6 ? '6' : '9';
-    const arquivos = this.json()[chave].arquivos.filter((anexo) => anexo.nome !== nome);
-    this.gravar(this.documentoCom(numero, { arquivos }));
+  protected pedirRemocaoAnexo(numero: NumeroEtapa, nome: string): void {
+    this.remocao.set({
+      titulo: 'Remover arquivo',
+      antes: 'Tem certeza que deseja remover o arquivo',
+      nome,
+      depois: '?',
+      // Tira a ficha; o arquivo fica no disco do backend, que não tem rota
+      // para apagar.
+      remover: () => {
+        const chave = numero === 6 ? '6' : '9';
+        const arquivos = this.json()[chave].arquivos.filter((anexo) => anexo.nome !== nome);
+        this.gravar(this.documentoCom(numero, { arquivos }));
+      },
+    });
   }
 
   /** Tamanho legível, para a lista de anexos. */
@@ -426,7 +601,8 @@ export class Questionario implements OnInit {
 
   // ----- envio final -----
 
-  private enviarPlano(): void {
+  /** Salva e confere as nove; só então pergunta, porque depois de enviado não se edita mais. */
+  private pedirEnvio(): void {
     this.salvarEntao(() => {
       const incompletas = this.passos().filter((passo) => !passo.completa);
       const outras = incompletas.filter((passo) => passo.numero !== this.numero());
@@ -440,26 +616,38 @@ export class Questionario implements OnInit {
             ? `Faltam etapas para enviar: ${outras.map((passo) => passo.numero).join(', ')}.`
             : 'Preencha esta etapa antes de avançar.',
         );
+        this.mostrarPendencia();
         return;
       }
-      this.enviando.set(true);
-      this.service
-        .enviar(this.json())
-        .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe({
-          next: () => {
-            this.enviando.set(false);
-            void this.router.navigate([APP_ROUTES.aguardandoAprovacao], { replaceUrl: true });
-          },
-          error: (err: ApiError) => {
-            this.enviando.set(false);
-            this.mensagemErro.set(err.message);
-          },
-        });
+      this.confirmandoEnvio.set(true);
     });
   }
 
-  protected rotuloCurto(numero: NumeroEtapa): string {
-    return ROTULO_CURTO[numero];
+  protected cancelarEnvio(): void {
+    if (this.confirmandoEnvio() && !this.enviando()) {
+      this.confirmandoEnvio.set(false);
+    }
+  }
+
+  protected confirmarEnvio(): void {
+    if (this.enviando()) {
+      return;
+    }
+    this.enviando.set(true);
+    this.service
+      .enviar(this.json())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.enviando.set(false);
+          this.confirmandoEnvio.set(false);
+          void this.router.navigate([APP_ROUTES.aguardandoAprovacao], { replaceUrl: true });
+        },
+        error: (err: ApiError) => {
+          this.enviando.set(false);
+          this.confirmandoEnvio.set(false);
+          this.mensagemErro.set(err.message);
+        },
+      });
   }
 }

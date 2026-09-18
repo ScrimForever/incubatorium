@@ -2,15 +2,16 @@
   <app-topo-sessao />
 
   <main id="conteudo" tabindex="-1" class="quest-conteudo">
-    <!-- Título, progresso e trilha ficam grudados no topo: com a página rolada,
-         o incubado continua vendo em que etapa está e quanto falta. -->
-    <div class="quest-topo">
-      <h1>Plano de negócios</h1>
-      <p class="quest-subtitulo">
-        Nove etapas. O conteúdo é salvo a cada avanço, e você pode voltar quando quiser.
-      </p>
+    <h1>Plano de negócios</h1>
+    <p class="quest-subtitulo">
+      Nove etapas. O conteúdo é salvo a cada avanço, e você pode voltar quando quiser.
+    </p>
 
-      @if (carregado()) {
+    @if (carregado()) {
+      <!-- Progresso e trilha grudam no topo: com a página rolada, o incubado
+           continua vendo em que etapa está e quanto falta. O título fica de
+           fora — grudado, ele comia metade da altura de um celular deitado. -->
+      <div class="quest-topo">
         <div class="quest-progresso">
           <div class="quest-barra"><span [style.width.%]="progresso()"></span></div>
           <span class="quest-progresso-numero">{{ progresso() }}%</span>
@@ -18,6 +19,8 @@
 
         <nav class="quest-trilha" aria-label="Etapas do plano" #trilha>
           @for (passo of passos(); track passo.numero) {
+            <!-- O nome vai no aria-label: em tela menor o rótulo visível some, e o
+                 leitor de tela anunciaria só o número. -->
             <button
               type="button"
               class="quest-passo"
@@ -25,22 +28,21 @@
               [class.quest-passo--atual]="passo.atual"
               [class.quest-passo--ok]="passo.completa"
               [disabled]="!passo.acessivel"
+              [attr.aria-label]="passo.nome"
               [attr.aria-current]="passo.atual ? 'step' : null"
               [attr.title]="passo.acessivel ? null : 'Conclua a etapa anterior para abrir esta.'"
               (click)="irPara(passo.numero)"
             >
               <span class="quest-passo-numero">{{ passo.numero }}</span>
-              <span class="quest-passo-rotulo">{{ rotuloCurto(passo.numero) }}</span>
+              <span class="quest-passo-rotulo">{{ passo.rotulo }}</span>
               @if (!passo.acessivel) {
                 <app-icone nome="cadeado" />
               }
             </button>
           }
         </nav>
-      }
-    </div>
+      </div>
 
-    @if (carregado()) {
       @if (mensagemErro()) {
         <div class="error-message" role="alert"><app-icone nome="erro" />{{ mensagemErro() }}</div>
       }
@@ -51,7 +53,12 @@
       }
 
       <section class="cartao quest-cartao">
-        <h2>{{ etapa().titulo }}</h2>
+        <h2 id="quest-titulo">
+          {{ etapa().titulo }}
+          @if (tituloObrigatorio()) {
+            <span class="obrigatorio" aria-hidden="true">*</span>
+          }
+        </h2>
 
         @if (etapa().introducao) {
           <p class="quest-intro">{{ etapa().introducao }}</p>
@@ -63,12 +70,18 @@
             <div class="quest-grade">
               @for (campo of camposEtapa1; track campo.nome) {
                 <div class="form-group">
-                  <label [attr.for]="campo.nome">{{ campo.rotulo }}</label>
+                  <label [attr.for]="campo.nome"
+                    >{{ campo.rotulo }}
+                    @if (campo.obrigatorio) {
+                      <span class="obrigatorio" aria-hidden="true">*</span>
+                    }
+                  </label>
                   <input
                     [id]="campo.nome"
                     type="text"
                     [formControlName]="campo.nome"
                     [placeholder]="campo.placeholder"
+                    [attr.aria-required]="campo.obrigatorio"
                   />
                   @if (form().controls[campo.nome]; as controle) {
                     @if (controle.invalid && (controle.touched || tentouAvancar())) {
@@ -83,7 +96,13 @@
           @for (campo of etapa().campos; track campo.nome) {
             <div class="form-group quest-campo">
               @if (campo.rotulo) {
-                <label [attr.for]="campo.nome">{{ campo.rotulo }}</label>
+                <!-- Não é <label>: o editor é um contenteditable, ligado ao rótulo por aria-labelledby. -->
+                <span class="rotulo" [id]="campo.nome + '-rotulo'"
+                  >{{ campo.rotulo }}
+                  @if (campo.obrigatorio) {
+                    <span class="obrigatorio" aria-hidden="true">*</span>
+                  }
+                </span>
               }
               @if (campo.instrucao.length) {
                 <ul class="quest-instrucao">
@@ -92,12 +111,13 @@
                   }
                 </ul>
               }
-              <textarea
-                [id]="campo.nome"
+              <quill-editor
                 [formControlName]="campo.nome"
                 [placeholder]="campo.placeholder"
-                [rows]="campo.linhas"
-              ></textarea>
+                [attr.data-linhas]="campo.linhas"
+                [valueGetter]="valorDoEditor"
+                (onEditorCreated)="aoCriarEditor($event, campo)"
+              />
               @if (form().controls[campo.nome]; as controle) {
                 @if (controle.invalid && (controle.touched || tentouAvancar())) {
                   <span class="field-error">{{ campo.erro }}</span>
@@ -120,30 +140,58 @@
           </div>
 
           @if (membros().length) {
-            <ul class="quest-membros">
+            <ul class="membros">
               @for (membro of membros(); track membro.id) {
-                <li class="quest-membro">
-                  <div>
+                <li class="membro">
+                  <div class="membro-topo">
                     <strong>{{ membro.nome }}</strong>
-                    <span>{{ membro.formacao_academica }}</span>
-                    <span
-                      >{{ membro.email }}
-                      @if (membro.telefone) {
-                        · {{ membro.telefone }}
-                      }
-                    </span>
-                    @if (membro.experiencia) {
-                      <p>{{ membro.experiencia }}</p>
-                    }
+                    <div class="quest-membro-acoes">
+                      <button
+                        type="button"
+                        class="quest-editar"
+                        [attr.aria-label]="'Editar ' + membro.nome"
+                        title="Editar"
+                        (click)="editarMembro(membro)"
+                      >
+                        <app-icone nome="lapis" />
+                      </button>
+                      <button
+                        type="button"
+                        class="quest-remover"
+                        [attr.aria-label]="'Remover ' + membro.nome"
+                        title="Remover"
+                        (click)="pedirRemocaoMembro(membro)"
+                      >
+                        &times;
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    class="quest-remover"
-                    [attr.aria-label]="'Remover ' + membro.nome"
-                    (click)="removerMembro(membro.id)"
-                  >
-                    &times;
-                  </button>
+                  <dl class="membro-dados">
+                    <div>
+                      <dt>Formação acadêmica</dt>
+                      <dd>{{ membro.formacao_academica }}</dd>
+                    </div>
+                    <div>
+                      <dt>E-mail</dt>
+                      <dd>{{ membro.email }}</dd>
+                    </div>
+                    <div>
+                      <dt>Telefone</dt>
+                      <dd [class.membro-ausente]="!membro.telefone">
+                        {{ membro.telefone || 'Não informado' }}
+                      </dd>
+                    </div>
+                    <div class="membro-experiencia">
+                      <dt>Experiência</dt>
+                      <!-- tabindex: região rolável tem de ser alcançável pelo teclado. -->
+                      <dd
+                        tabindex="0"
+                        [class.membro-ausente]="!membro.experiencia"
+                        [attr.aria-label]="'Experiência de ' + membro.nome"
+                        [textContent]="membro.experiencia || 'Não informada'"
+                      ></dd>
+                    </div>
+                  </dl>
                 </li>
               }
             </ul>
@@ -157,7 +205,7 @@
           }
         }
 
-        <!-- Etapa 6: um anexo -->
+        <!-- Etapa 6: anexos da análise de mercado -->
         @if (etapa().anexoUnico) {
           <div class="quest-anexos">
             <label
@@ -166,9 +214,9 @@
               [class.quest-anexo-botao--invalido]="anexoFaltando()"
             >
               <app-icone nome="documento" />
-              Enviar arquivo
+              Enviar arquivos
             </label>
-            <input id="anexo-mercado" type="file" (change)="anexar($event, 6)" />
+            <input id="anexo-mercado" type="file" multiple (change)="anexar($event, 6)" />
             @if (anexoFaltando()) {
               <span class="field-error">Anexe o arquivo da análise de mercado.</span>
             }
@@ -183,7 +231,7 @@
                       type="button"
                       class="quest-remover"
                       [attr.aria-label]="'Remover ' + arquivo.nome"
-                      (click)="removerAnexo(6, arquivo.nome)"
+                      (click)="pedirRemocaoAnexo(6, arquivo.nome)"
                     >
                       &times;
                     </button>
@@ -203,9 +251,9 @@
               [class.quest-anexo-botao--invalido]="anexoFaltando()"
             >
               <app-icone nome="documento" />
-              Enviar planilha
+              Enviar planilhas
             </label>
-            <input id="anexo-planilhas" type="file" (change)="anexar($event, 9)" />
+            <input id="anexo-planilhas" type="file" multiple (change)="anexar($event, 9)" />
             @if (anexoFaltando()) {
               <span class="field-error">Anexe a planilha do planejamento financeiro.</span>
             }
@@ -220,7 +268,7 @@
                       type="button"
                       class="quest-remover"
                       [attr.aria-label]="'Remover ' + arquivo.nome"
-                      (click)="removerAnexo(9, arquivo.nome)"
+                      (click)="pedirRemocaoAnexo(9, arquivo.nome)"
                     >
                       &times;
                     </button>
@@ -275,23 +323,26 @@
       aria-modal="true"
       aria-labelledby="membro-titulo"
       tabindex="-1"
-      (keydown.tab)="onTabMembro($event, false)"
-      (keydown.shift.tab)="onTabMembro($event, true)"
+      (keydown.tab)="prenderTab($event, false, dialogoMembro)"
+      (keydown.shift.tab)="prenderTab($event, true, dialogoMembro)"
     >
       <header class="modal-header">
-        <h2 id="membro-titulo">Novo membro</h2>
+        <h2 id="membro-titulo">{{ membroEditando() ? 'Editar membro' : 'Novo membro' }}</h2>
         <button type="button" class="close" aria-label="Fechar" (click)="fecharMembro()">
           &times;
         </button>
       </header>
 
-      <form [formGroup]="formMembro" (ngSubmit)="adicionarMembro()" novalidate>
+      <form [formGroup]="formMembro" (ngSubmit)="salvarMembro()" novalidate>
         <div class="modal-body">
           <div class="form-group">
-            <label for="membro-nome">Nome</label>
+            <label for="membro-nome"
+              >Nome <span class="obrigatorio" aria-hidden="true">*</span></label
+            >
             <input
               id="membro-nome"
               type="text"
+              aria-required="true"
               formControlName="nome"
               placeholder="Ex.: João Paulo Ferreira"
             />
@@ -300,10 +351,13 @@
             }
           </div>
           <div class="form-group">
-            <label for="membro-formacao">Formação acadêmica</label>
+            <label for="membro-formacao"
+              >Formação acadêmica <span class="obrigatorio" aria-hidden="true">*</span></label
+            >
             <input
               id="membro-formacao"
               type="text"
+              aria-required="true"
               formControlName="formacao_academica"
               placeholder="Ex.: Engenharia de Produção"
             />
@@ -315,10 +369,13 @@
             }
           </div>
           <div class="form-group">
-            <label for="membro-email">E-mail</label>
+            <label for="membro-email"
+              >E-mail <span class="obrigatorio" aria-hidden="true">*</span></label
+            >
             <input
               id="membro-email"
               type="email"
+              aria-required="true"
               formControlName="email"
               placeholder="Ex.: joao.ferreira@teccampos.com"
             />
@@ -348,9 +405,107 @@
 
         <footer class="modal-footer">
           <button type="button" class="btn-texto" (click)="fecharMembro()">Cancelar</button>
-          <button type="submit" class="btn btn--verde">Adicionar</button>
+          <button type="submit" class="btn btn--verde">
+            {{ membroEditando() ? 'Salvar' : 'Adicionar' }}
+          </button>
         </footer>
       </form>
+    </div>
+  </div>
+}
+
+@if (confirmandoEnvio()) {
+  <div class="overlay">
+    <div
+      #dialogoEnvio
+      class="modal"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="envio-titulo"
+      aria-describedby="envio-texto"
+      tabindex="-1"
+      (keydown.tab)="prenderTab($event, false, dialogoEnvio)"
+      (keydown.shift.tab)="prenderTab($event, true, dialogoEnvio)"
+    >
+      <header class="modal-header">
+        <h2 id="envio-titulo">Enviar para análise</h2>
+        <button
+          type="button"
+          class="close"
+          aria-label="Fechar"
+          [disabled]="enviando()"
+          (click)="cancelarEnvio()"
+        >
+          &times;
+        </button>
+      </header>
+
+      <div class="modal-body" id="envio-texto">
+        <p>
+          Depois de enviado, o plano segue para a análise do consultor e
+          <strong>não poderá mais ser editado</strong>.
+        </p>
+        <p>
+          Se quiser, volte e confira as abas antes de enviar. Tudo o que você preencheu já está
+          salvo.
+        </p>
+      </div>
+
+      <footer class="modal-footer">
+        <button type="button" class="btn-texto" [disabled]="enviando()" (click)="cancelarEnvio()">
+          Voltar e conferir
+        </button>
+        <button
+          type="button"
+          class="btn btn--verde"
+          [disabled]="enviando()"
+          (click)="confirmarEnvio()"
+        >
+          {{ enviando() ? 'Enviando...' : 'Enviar para análise' }}
+        </button>
+      </footer>
+    </div>
+  </div>
+}
+
+@if (remocao(); as alvo) {
+  <div class="overlay">
+    <div
+      #dialogoRemocao
+      class="modal"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="remocao-titulo"
+      aria-describedby="remocao-texto"
+      tabindex="-1"
+      (keydown.tab)="prenderTab($event, false, dialogoRemocao)"
+      (keydown.shift.tab)="prenderTab($event, true, dialogoRemocao)"
+    >
+      <header class="modal-header">
+        <h2 id="remocao-titulo">{{ alvo.titulo }}</h2>
+        <button type="button" class="close" aria-label="Fechar" (click)="cancelarRemocao()">
+          &times;
+        </button>
+      </header>
+
+      <div class="modal-body">
+        <p id="remocao-texto">
+          {{ alvo.antes }} <strong>{{ alvo.nome }}</strong
+          >{{ alvo.depois }}
+        </p>
+      </div>
+
+      <footer class="modal-footer">
+        <button type="button" class="btn-texto" (click)="cancelarRemocao()">Cancelar</button>
+        <button
+          type="button"
+          class="btn btn--azul"
+          [disabled]="salvando()"
+          (click)="confirmarRemocao()"
+        >
+          Remover
+        </button>
+      </footer>
     </div>
   </div>
 }

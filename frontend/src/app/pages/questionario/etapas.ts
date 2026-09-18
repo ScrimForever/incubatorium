@@ -1,7 +1,7 @@
 import { NumeroEtapa } from '../../core/models/questionario';
 
 /** Um campo de texto longo dentro de uma etapa. */
-interface CampoTexto {
+export interface CampoTexto {
   /** Nome do campo dentro da aba, no JSON do questionário. */
   readonly nome: string;
   /** Rótulo acima do campo. Vazio quando a etapa tem um campo só. */

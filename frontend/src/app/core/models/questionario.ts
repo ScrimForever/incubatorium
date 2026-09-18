@@ -6,7 +6,7 @@
  * formato é definido aqui.
  *
  * O documento é um mapa por aba, de `"1"` a `"9"`, e cada aba carrega os seus
- * campos, os seus anexos em base64 e a sua nota:
+ * campos, a ficha dos seus anexos e a sua nota:
  *
  * ```json
  * {
@@ -24,29 +24,25 @@ export type NumeroEtapa = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 export const NUMEROS_ETAPA: readonly NumeroEtapa[] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
 /**
- * Arquivo anexado a uma etapa, embutido no próprio JSON.
- *
- * Não existe rota de upload no backend, e o documento inteiro trafega a cada
- * gravação — por isso o conteúdo vem em base64 aqui dentro, e por isso há um
- * teto por arquivo (`TAMANHO_MAXIMO_ANEXO`). Quando o endpoint de upload
- * nascer, `conteudo_base64` vira uma URL e o resto da estrutura não muda.
+ * Arquivo anexado a uma etapa — só o registro, não o conteúdo: este vai por
+ * `POST /arquivos/questionario/{aba}` e fica no disco do backend. A API não
+ * devolve id nem URL, então o vínculo com o arquivo gravado é (dono do token,
+ * aba) mais o nome.
  */
 export interface Anexo {
   nome: string;
   tipo: string;
-  /** Tamanho do arquivo original, em bytes — antes do base64. */
   tamanho: number;
-  /** Conteúdo puro em base64, sem o prefixo `data:`. */
-  conteudo_base64: string;
 }
 
 /**
- * Teto por arquivo. Base64 infla ~33%, e o JSON inteiro vai em todo PUT.
- * As etapas 6 e 9 aceitam **um arquivo cada** — `arquivos` é lista porque o
- * legado guardava `multiple_files`, e manter o formato evita migrar o JSONB
- * quando o upload de verdade existir.
+ * Teto por arquivo. O backend não impõe nenhum — este existe para o upload não
+ * virar espera sem fim, já que a tela não tem barra de progresso.
  */
-export const TAMANHO_MAXIMO_ANEXO = 2 * 1024 * 1024;
+export const TAMANHO_MAXIMO_ANEXO = 10 * 1024 * 1024;
+
+/** Nove fecha três linhas de três cartões — e segura o tamanho do documento. */
+export const MAXIMO_ANEXOS_POR_ETAPA = 9;
 
 /** Avaliação do consultor numa etapa: nota de 1 a 5, observações e autor. */
 export interface NotaEtapa {

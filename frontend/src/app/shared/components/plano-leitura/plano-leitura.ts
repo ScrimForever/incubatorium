@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { QuillViewComponent } from 'ngx-quill';
 
 import {
   Anexo,
@@ -9,6 +10,7 @@ import {
   ROTULO_NOTA,
 } from '../../../core/models/questionario';
 import { CAMPOS_ETAPA_1, ETAPAS } from '../../../pages/questionario/etapas';
+import { textoParaHtml } from '../../editor/texto-para-html';
 import { Icone } from '../icone/icone';
 
 /** Uma etapa preenchida, pronta para leitura. */
@@ -31,7 +33,7 @@ interface EtapaLida {
 @Component({
   selector: 'app-plano-leitura',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icone],
+  imports: [QuillViewComponent, Icone],
   templateUrl: './plano-leitura.html',
   styleUrl: './plano-leitura.scss',
 })
@@ -62,16 +64,17 @@ function blocosDe(
   if (numero === 1) {
     return CAMPOS_ETAPA_1.map((campo) => ({
       rotulo: campo.rotulo,
-      texto: String(aba[campo.nome] ?? ''),
+      texto: textoParaHtml(String(aba[campo.nome] ?? '')),
     }));
   }
   if (numero === 4) {
     return [];
   }
   // Rótulo vazio em etapa de campo único: o título do cartão já diz o que é.
+  // O texto vem do editor, em HTML; o gravado antes dele é convertido.
   return ETAPAS[numero - 1].campos.map((campo) => ({
     rotulo: campo.rotulo,
-    texto: String(aba[campo.nome] ?? ''),
+    texto: textoParaHtml(String(aba[campo.nome] ?? '')),
   }));
 }
 

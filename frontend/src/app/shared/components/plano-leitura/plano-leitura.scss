@@ -32,34 +32,14 @@
   font-style: italic;
 }
 
-.plano-membros,
+/* `minmax(0, 1fr)`: a coluna automática crescia até o nome de arquivo mais
+   comprido e empurrava a lista para fora da tela do celular. */
 .plano-arquivos {
   margin-top: 14px;
   list-style: none;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
-}
-
-.plano-membros li {
-  padding: 12px 14px;
-  border-radius: 8px;
-  background: var(--fundo-app);
-  font-size: 14px;
-}
-
-.plano-membros strong {
-  display: block;
-}
-
-.plano-membros span {
-  display: block;
-  font-size: 13px;
-  color: var(--texto-suave);
-}
-
-.plano-membros p {
-  margin-top: 6px;
-  font-size: 13px;
 }
 
 .plano-arquivos li {
@@ -67,6 +47,15 @@
   align-items: center;
   gap: 8px;
   font-size: 14px;
+}
+
+.plano-arquivos app-icone {
+  flex: none;
+}
+
+.plano-arquivos span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* A avaliação fica destacada do conteúdo do incubado. */

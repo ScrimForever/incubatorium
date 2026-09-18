@@ -32,4 +32,8 @@ export const API_ROUTES = {
    * O usuário vem do token — não entra na URL nem no corpo.
    */
   questionario: '/questionario',
+  /** Anexos do questionário — só o envio existe. O dono vem do token. */
+  arquivos: {
+    questionario: (aba: number): string => `/arquivos/questionario/${aba}`,
+  },
 } as const;

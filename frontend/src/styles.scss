@@ -4,6 +4,11 @@
    A fonte é carregada por <link> no index.html (@import de CSS bloqueia render).
    ========================================================================== */
 
+/* Tema do editor de texto rico. Vem antes de tudo para as regras deste arquivo
+   ganharem na cascata; entra por aqui, e não pelo angular.json, para o
+   `ng serve` já rodando pegar sem reiniciar. */
+@use 'quill/dist/quill.snow';
+
 :root {
   --azul: #2469b3;
   /* Azul da marca rebaixado para fundo de menu; o gradiente vira só um detalhe. */
@@ -40,13 +45,20 @@ html {
   overscroll-behavior-x: none;
 }
 
+/* `clip`, e não `hidden`, no body: `hidden` o transforma num contêiner de
+   rolagem que nunca rola, e todo `position: sticky` da página passa a grudar
+   nele — o topo do questionário deixava de grudar em qualquer tela. O
+   `hidden` fica só de reserva para navegador sem `clip`. */
 body {
   overflow-x: hidden;
+  overflow-x: clip;
   overscroll-behavior-x: none;
   font-family: 'Roboto', sans-serif;
   -webkit-font-smoothing: antialiased;
   background: linear-gradient(135deg, #2469b3 0%, #6fb643 100%);
+  /* `dvh` desconta a barra de endereço do celular; `vh` fica de reserva. */
   min-height: 100vh;
+  min-height: 100dvh;
   color: var(--texto);
 }
 
@@ -84,7 +96,8 @@ body {
 }
 
 /* O alvo do atalho não deve mostrar anel de foco ao receber foco por script. */
-[id='conteudo']:focus {
+[id='conteudo']:focus,
+.modal:focus {
   outline: none;
 }
 
@@ -92,6 +105,7 @@ body {
    Só o botão muda de cor: azul em Entrar, verde em Cadastrar. */
 .auth-container {
   min-height: 100vh;
+  min-height: 100dvh;
   width: 100%;
   padding: 20px;
   display: flex;
@@ -188,20 +202,35 @@ body {
   z-index: 1000;
 }
 
+/* Quem rola é só o corpo: numa tela baixa (celular deitado) cabeçalho e botões
+   continuam à vista, em vez de o "Salvar" sumir junto com o formulário. */
 .modal {
+  display: flex;
+  flex-direction: column;
   background: white;
   border-radius: 12px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
   width: 100%;
   max-width: 480px;
   max-height: 90vh;
-  overflow-y: auto;
+  max-height: calc(100dvh - 40px);
+  overflow: hidden;
+}
+
+/* A modal de membro embrulha corpo e rodapé num <form>: ele repassa a coluna. */
+.modal > form {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-header {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   padding: 18px 24px;
   border-bottom: 1px solid var(--borda-input);
 }
@@ -211,11 +240,20 @@ body {
   color: var(--azul);
 }
 
-/* Botão de fechar: modal, painel lateral, o que precisar. */
+/* Botão de fechar: modal, painel lateral, o que precisar. A área de toque tem
+   40px; a margem negativa devolve o espaço, e o cabeçalho não cresce. */
 .close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: -8px -10px -8px 0;
   padding: 0;
   background: none;
   border: none;
+  border-radius: 8px;
   font-size: 24px;
   line-height: 1;
   color: var(--texto-suave);
@@ -228,20 +266,59 @@ body {
 }
 
 .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 24px;
   font-size: 14px;
   color: var(--texto);
   display: grid;
+  align-content: start;
   gap: 10px;
 }
 
 .modal-footer {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
   padding: 16px 24px;
   border-top: 1px solid var(--borda-input);
+}
+
+.modal-footer .btn-texto {
+  padding: 10px 6px;
+}
+
+/* No celular a modal ganha a largura quase toda, e os botões empilham: lado a
+   lado, "Enviar para análise" quebrava em duas linhas numa tela de 320px. A
+   ação principal fica em cima, onde o polegar alcança primeiro. */
+@media (max-width: 520px) {
+  .overlay {
+    padding: 12px;
+  }
+
+  .modal {
+    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
+  }
+
+  .modal-header {
+    padding: 12px 16px;
+  }
+
+  .modal-body {
+    padding: 18px 16px;
+  }
+
+  .modal-footer {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 4px;
+    padding: 12px 16px;
+  }
 }
 
 /* Bloco da logo: o mesmo tratamento no topo do menu lateral e na barra do
@@ -422,6 +499,14 @@ code {
   margin-bottom: 16px;
 }
 
+/* No celular os 24px de cada lado, somados à margem da página, deixavam o
+   texto do cartão com 224px numa tela de 320. */
+@media (max-width: 520px) {
+  .cartao {
+    padding: 18px 16px;
+  }
+}
+
 /* Selo de situação em pílula: verde quando tudo certo, vermelho quando não. */
 .selos {
   display: flex;
@@ -452,6 +537,111 @@ code {
   color: var(--texto-suave);
 }
 
+/* Cartões da equipe: o questionário (com editar/remover) e a leitura do plano.
+   Cada dado leva o rótulo do formulário, senão ninguém sabe o que está lendo.
+   Altura fixa para a grade ficar alinhada; quem cresce é só a experiência,
+   que rola dentro do próprio cartão. */
+/* Até três colunas, nenhuma abaixo de 280px — medidas na largura da própria
+   lista, e não da tela: a mesma grade vive no questionário, no plano devolvido
+   (860px no máximo) e no painel, que perde 240px para o menu. Com breakpoint
+   de tela, o painel em 1024px espremia três cartões de 221px. `auto-fill`, e
+   não `auto-fit`, para um ou dois cartões não esticarem pela linha inteira. */
+.membros {
+  --membros-gap: 12px;
+
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fill,
+    minmax(min(100%, max(280px, calc((100% - 2 * var(--membros-gap)) / 3))), 1fr)
+  );
+  gap: var(--membros-gap);
+  margin-top: 18px;
+  list-style: none;
+}
+
+.membro {
+  display: flex;
+  flex-direction: column;
+  height: 340px;
+  padding: 14px 16px;
+  border: 1px solid var(--borda-input);
+  border-radius: 10px;
+  background: var(--fundo-app);
+}
+
+.membro-topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--borda-input);
+}
+
+.membro-topo strong {
+  min-width: 0;
+  font-size: 15px;
+  color: var(--texto);
+  overflow-wrap: anywhere;
+}
+
+.membro-dados {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+/* Rótulo em cinza, informação no azul da marca: é o que separa um do outro
+   quando os dois ficam empilhados dentro do cartão. */
+.membro-dados dt {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--texto-suave);
+}
+
+.membro-dados dd {
+  margin: 2px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--azul);
+  overflow-wrap: anywhere;
+}
+
+/* A experiência ocupa o que sobra do cartão e rola sozinha. */
+.membro-experiencia {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.membro-experiencia dd {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 6px;
+  white-space: pre-wrap;
+}
+
+/* "Não informado" não é informação: fica cinza, fora do azul dos dados. */
+.membro-dados .membro-ausente {
+  font-style: italic;
+  color: var(--texto-suave);
+}
+
+/* No celular, formação e e-mail quebram em mais linhas: com 340px sobravam
+   duas linhas para a experiência num aparelho de 320px. */
+@media (max-width: 600px) {
+  .membro {
+    height: 380px;
+  }
+}
+
 /* Formulários - identidade do legado, leitura moderna: label simples à
    esquerda; o azul da marca aparece no estado de foco do campo. */
 .form-group {
@@ -459,12 +649,20 @@ code {
   text-align: left;
 }
 
-.form-group label {
+.form-group label,
+.form-group .rotulo {
   display: block;
   margin-bottom: 6px;
   font-weight: 600;
   font-size: 13px;
   color: var(--texto);
+}
+
+/* O asterisco é só visual (`aria-hidden`); para o leitor de tela quem avisa é o
+   `aria-required` do próprio campo. */
+.obrigatorio {
+  margin-left: 2px;
+  color: var(--erro-texto);
 }
 
 .form-group input {
@@ -519,6 +717,16 @@ code {
 .form-group input:disabled {
   background-color: #f5f5f5;
   cursor: not-allowed;
+}
+
+/* Tela de toque: com fonte abaixo de 16px o Safari do iPhone amplia a página
+   ao focar o campo, e ela continua ampliada depois de sair dele. */
+@media (pointer: coarse) {
+  .form-group input,
+  .form-group textarea,
+  quill-editor .ql-container {
+    font-size: 16px;
+  }
 }
 
 /* Campo de senha com botão de mostrar/ocultar (ícone de olho). */
@@ -580,6 +788,203 @@ code {
   box-shadow: 0 0 0 3px rgba(204, 51, 51, 0.12);
 }
 
+/* ==========================================================================
+   Editor de texto rico (Quill, tema snow) — campos longos do questionário.
+   A moldura fica no host `quill-editor`, para barra e texto formarem um campo
+   só, com a mesma borda, foco e erro do `textarea`.
+   ========================================================================== */
+
+/* `.form-group` na frente para vencer o `:host { display: inline-block }` que o
+   ngx-quill declara — sem isso o editor encolhe para a largura do conteúdo. */
+.form-group quill-editor {
+  display: block;
+  width: 100%;
+  border: 2px solid var(--borda-input);
+  border-radius: 8px;
+  background: #fff;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+quill-editor:focus-within {
+  border-color: var(--azul);
+  box-shadow: 0 0 0 3px rgba(36, 105, 179, 0.12);
+}
+
+.form-group quill-editor.ng-invalid.ng-touched {
+  border-color: var(--erro-texto);
+}
+
+.form-group quill-editor.ng-invalid.ng-touched:focus-within {
+  box-shadow: 0 0 0 3px rgba(204, 51, 51, 0.12);
+}
+
+quill-editor .ql-toolbar.ql-snow {
+  border: none;
+  border-bottom: 1px solid var(--borda-input);
+  border-radius: 6px 6px 0 0;
+  background: var(--fundo-app);
+  font-family: inherit;
+}
+
+quill-editor .ql-container.ql-snow {
+  border: none;
+}
+
+.ql-container {
+  font-family: inherit;
+  font-size: 14px;
+}
+
+/* O anel de foco é a moldura do host (`:focus-within`); o contorno global de
+   `:focus-visible` desenharia uma segunda borda por dentro dela. */
+quill-editor .ql-editor:focus-visible {
+  outline: none;
+}
+
+quill-editor .ql-editor {
+  min-height: 10em;
+  padding: 12px 16px;
+  line-height: 1.55;
+  color: var(--texto);
+}
+
+quill-editor[data-linhas='8'] .ql-editor {
+  min-height: 13em;
+}
+
+quill-editor[data-linhas='15'] .ql-editor {
+  min-height: 24em;
+}
+
+quill-editor .ql-editor.ql-blank::before {
+  left: 16px;
+  right: 16px;
+  font-style: normal;
+  color: #a8b3bf;
+}
+
+.ql-snow.ql-toolbar button:hover,
+.ql-snow.ql-toolbar button:focus-visible,
+.ql-snow.ql-toolbar button.ql-active,
+.ql-snow .ql-picker-label:hover,
+.ql-snow .ql-picker-label.ql-active {
+  color: var(--azul);
+}
+
+.ql-snow.ql-toolbar button:hover .ql-stroke,
+.ql-snow.ql-toolbar button:focus-visible .ql-stroke,
+.ql-snow.ql-toolbar button.ql-active .ql-stroke,
+.ql-snow .ql-picker-label:hover .ql-stroke,
+.ql-snow .ql-picker-label.ql-active .ql-stroke {
+  stroke: var(--azul);
+}
+
+.ql-snow.ql-toolbar button:hover .ql-fill,
+.ql-snow.ql-toolbar button:focus-visible .ql-fill,
+.ql-snow.ql-toolbar button.ql-active .ql-fill {
+  fill: var(--azul);
+}
+
+.navegando-teclado .ql-snow.ql-toolbar button:focus-visible,
+.navegando-teclado .ql-snow .ql-picker-label:focus-visible {
+  outline: 2px solid var(--azul);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
+/* O tema snow escreve os textos da barra e do link em CSS, em inglês. */
+.ql-snow .ql-picker.ql-header .ql-picker-label::before,
+.ql-snow .ql-picker.ql-header .ql-picker-item::before {
+  content: 'Parágrafo';
+}
+
+.ql-snow .ql-picker.ql-header .ql-picker-label[data-value='2']::before,
+.ql-snow .ql-picker.ql-header .ql-picker-item[data-value='2']::before {
+  content: 'Título 2';
+}
+
+.ql-snow .ql-picker.ql-header .ql-picker-label[data-value='3']::before,
+.ql-snow .ql-picker.ql-header .ql-picker-item[data-value='3']::before {
+  content: 'Título 3';
+}
+
+.ql-snow .ql-picker.ql-header .ql-picker-label[data-value='4']::before,
+.ql-snow .ql-picker.ql-header .ql-picker-item[data-value='4']::before {
+  content: 'Título 4';
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value='small']::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value='small']::before {
+  content: 'Pequeno';
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value='large']::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value='large']::before {
+  content: 'Grande';
+}
+
+.ql-snow .ql-picker.ql-size .ql-picker-label[data-value='huge']::before,
+.ql-snow .ql-picker.ql-size .ql-picker-item[data-value='huge']::before {
+  content: 'Enorme';
+}
+
+.ql-snow .ql-tooltip::before {
+  content: 'Abrir link:';
+}
+
+.ql-snow .ql-tooltip[data-mode='link']::before {
+  content: 'Endereço do link:';
+}
+
+.ql-snow .ql-tooltip a.ql-action::after {
+  content: 'Editar';
+}
+
+.ql-snow .ql-tooltip a.ql-remove::before {
+  content: 'Remover';
+}
+
+.ql-snow .ql-tooltip.ql-editing a.ql-action::after {
+  content: 'Salvar';
+}
+
+/* Tela estreita: os grupos da barra encostam mais, para ela quebrar em menos
+   linhas; e a caixa do link, que tem 365px fixos no tema, passa a quebrar em
+   vez de sair pela lateral da tela. */
+@media (max-width: 520px) {
+  quill-editor .ql-toolbar.ql-snow {
+    padding: 6px;
+  }
+
+  quill-editor .ql-toolbar.ql-snow .ql-formats {
+    margin-right: 6px;
+  }
+
+  .ql-snow .ql-tooltip {
+    max-width: calc(100vw - 24px);
+    white-space: normal;
+  }
+
+  .ql-snow .ql-tooltip input[type='text'] {
+    width: 150px;
+    max-width: 100%;
+  }
+}
+
+/* Leitura do plano: o mesmo HTML, sem moldura e no corpo de texto da página. */
+quill-view .ql-container.ql-snow {
+  border: none;
+}
+
+quill-view .ql-editor {
+  padding: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--texto);
+}
+
 .field-error {
   display: block;
   margin-top: 6px;
@@ -621,9 +1026,15 @@ code {
   margin-top: 1px;
 }
 
-:focus-visible {
+/* Anel de foco só para quem navega pelo teclado: a classe vem da `App` (Tab e
+   setas ligam, clique desliga). Sem teclado, nem o anel padrão do navegador. */
+.navegando-teclado :focus-visible {
   outline: 2px solid var(--azul);
   outline-offset: 2px;
+}
+
+:root:not(.navegando-teclado) :focus-visible {
+  outline: none;
 }
 
 /* Botões - família única para todo o app (login azul, cadastro verde). */
@@ -645,8 +1056,20 @@ code {
     box-shadow 0.2s;
 }
 
-.btn:hover:not(:disabled) {
-  transform: translateY(-2px);
+/* Só com mouse de verdade: no toque o `:hover` gruda depois do toque, e o
+   botão ficava suspenso e com sombra até o próximo toque em outro lugar. */
+@media (hover: hover) {
+  .btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+  }
+
+  .btn--azul:hover:not(:disabled) {
+    box-shadow: 0 5px 20px rgba(36, 105, 179, 0.4);
+  }
+
+  .btn--verde:hover:not(:disabled) {
+    box-shadow: 0 5px 20px rgba(111, 182, 67, 0.4);
+  }
 }
 
 .btn:active:not(:disabled) {
@@ -662,16 +1085,8 @@ code {
   background: var(--azul);
 }
 
-.btn--azul:hover:not(:disabled) {
-  box-shadow: 0 5px 20px rgba(36, 105, 179, 0.4);
-}
-
 .btn--verde {
   background: var(--verde);
-}
-
-.btn--verde:hover:not(:disabled) {
-  box-shadow: 0 5px 20px rgba(111, 182, 67, 0.4);
 }
 
 .btn--block {
@@ -706,6 +1121,12 @@ code {
 /* O plano devolvido mostra as nove etapas: precisa de mais largura. */
 .estado-container--largo {
   max-width: 860px;
+}
+
+@media (max-width: 520px) {
+  .estado-container {
+    padding: 24px 12px 40px;
+  }
 }
 
 .estado-cartao {

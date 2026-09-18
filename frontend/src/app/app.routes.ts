@@ -1,4 +1,7 @@
-import { Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { Router, Routes } from '@angular/router';
+import { APP_ROUTES } from './core/constants/app-constants';
+import { pareceJwt } from './core/auth/token-store';
 import { authGuard } from './core/guards/auth-guard';
 import { guestGuard } from './core/guards/guest-guard';
 import { adminGuard } from './core/guards/admin-guard';
@@ -94,6 +97,20 @@ export const routes: Routes = [
     title: 'TecCampos - Minha conta',
     canActivate: [authGuard, planoAprovadoGuard],
     loadComponent: () => import('./pages/minha-conta/minha-conta').then((m) => m.MinhaConta),
+  },
+  {
+    /**
+     * O e-mail de redefinição manda o token na raiz — `localhost:3000/<token>`,
+     * sem nome de rota. Última antes do `**`, então só pega segmento que não
+     * seja nenhuma rota nomeada; sem cara de JWT, segue para a não encontrada.
+     */
+    path: ':token',
+    redirectTo: (rota) => {
+      const token = rota.params['token'] ?? '';
+      return pareceJwt(token)
+        ? inject(Router).createUrlTree([APP_ROUTES.redefinirSenha], { queryParams: { token } })
+        : 'nao-encontrado';
+    },
   },
   { path: '', pathMatch: 'full', redirectTo: 'login' },
   {
