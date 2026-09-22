@@ -1,11 +1,11 @@
 import os
+from pathlib import Path
 
 import aiofiles
 from fastapi import APIRouter, Depends, FastAPI, File, UploadFile
 from loguru import logger
-from sqlalchemy.ext.asyncio import AsyncSession
 from src.domain.models.user_model import current_active_user
-from src.infra.db import User, get_async_session
+from src.infra.db import User
 
 UPLOAD_DIR = "questionarios"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -25,7 +25,6 @@ class ArquivosRouter:
         async def inserir_arquivo_questionario(
             aba: int,
             arquivos: list[UploadFile] = File(...),
-            db: AsyncSession = Depends(get_async_session),
             user: User = Depends(current_active_user),
         ):
 
@@ -57,3 +56,17 @@ class ArquivosRouter:
                     }
                 )
             return {"arquivos_recebidos": nome_arquivos}
+
+        @self.router.get("/questionario/{aba}/listar")
+        async def listar_arquivos_questionario(
+            aba: int,
+            user: User = Depends(current_active_user),
+        ):
+            files = [
+                p
+                for p in Path(
+                    f"{UPLOAD_DIR}/{user.email.replace('@', '').replace('.', '')}/{aba}"
+                ).iterdir()
+                if p.is_file()
+            ]
+            return files
