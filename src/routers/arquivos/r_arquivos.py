@@ -1,9 +1,12 @@
+import mimetypes
 import os
 from pathlib import Path
 
 import aiofiles
 from fastapi import APIRouter, Depends, FastAPI, File, UploadFile
+from fastapi.responses import FileResponse
 from loguru import logger
+from pydantic import BaseModel
 from src.domain.models.user_model import current_active_user
 from src.infra.db import User
 
@@ -11,6 +14,10 @@ UPLOAD_DIR = "questionarios"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 CHUNK_SIZE = 1024 * 1024  # 1MB
+
+
+class BaixarArquivo(BaseModel):
+    nome_arquivo: str
 
 
 class ArquivosRouter:
@@ -27,7 +34,6 @@ class ArquivosRouter:
             arquivos: list[UploadFile] = File(...),
             user: User = Depends(current_active_user),
         ):
-
             nome_arquivos = []
             for arquivo in arquivos:
                 try:
@@ -57,8 +63,37 @@ class ArquivosRouter:
                 )
             return {"arquivos_recebidos": nome_arquivos}
 
-        @self.router.get("/questionario/{aba}/listar")
+        @self.router.get("/questionario/nome-arquivo/{aba}")
+        async def listar_arquivos_aba_questionario(
+            aba: int,
+            user: User = Depends(current_active_user),
+        ):
+            files = [
+                p.name.split("/")[-1]
+                for p in Path(
+                    f"{UPLOAD_DIR}/{user.email.replace('@', '').replace('.', '')}/{aba}"
+                ).iterdir()
+                if p.is_file()
+            ]
+            return files
+
+        @self.router.get("/questionario/download/{aba}")
+        async def baixar_arquivos_aba_questionario(
+            aba: int,
+            nome: BaixarArquivo,
+            user: User = Depends(current_active_user),
+        ):
+            nome_arquivo = nome.model_dump().get("nome_arquivo")
+            caminho = f"{UPLOAD_DIR}/{user.email.replace('@', '').replace('.', '')}/{aba}/{nome_arquivo}"
+            return FileResponse(
+                path=caminho,
+                filename=nome_arquivo,
+                media_type=mimetypes.guess_type(nome_arquivo)[0],
+            )
+
+        @self.router.delete("/questionario/{aba}")
         async def listar_arquivos_questionario(
+            delecao: list[str],
             aba: int,
             user: User = Depends(current_active_user),
         ):
