@@ -38,8 +38,55 @@ services:
     networks:
       - app_network
 
+  db_test:
+    image: bitnami/postgresql:latest
+    container_name: app_db_test
+    environment:
+      POSTGRESQL_USERNAME: "test_user"
+      POSTGRESQL_PASSWORD: "test_password"
+      POSTGRESQL_DATABASE: "test_db"
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d test_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app_network
+
+  tests:
+    build: .
+    container_name: app_tests
+    volumes:
+      - .:/app
+      - test_venv:/app/src/.venv
+      - test_pytest_cache:/app/src/.pytest_cache
+    environment:
+      PYTHONPATH: /app
+      DATABASE_URL: "postgresql+asyncpg://test_user:test_password@db_test:5432/test_db"
+      ENVIRONMENT: "test"
+    working_dir: /app/src
+    depends_on:
+      db_test:
+        condition: service_healthy
+    networks:
+      - app_network
+    command: |
+      sh -c "
+        echo '=== Installing test dependencies ===' &&
+        uv pip install -r requirements-test.txt &&
+        echo '=== Running tests ===' &&
+        uv run pytest tests/ -v --cov=. --cov-report=html --cov-report=term-missing &&
+        echo '=== Tests completed successfully ===' &&
+        exit 0 ||
+        (echo '=== Tests failed ===' && exit 1)
+      "
+
 volumes:
   postgres_data:
+  test_venv:
+  test_pytest_cache:
 
 networks:
   app_network:

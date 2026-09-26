@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 
 from fastapi import Depends, FastAPI
-from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.domain.models.user_model import (
     auth_backend,
@@ -10,6 +9,7 @@ from src.domain.models.user_model import (
 )
 from src.domain.schemas.user_schema import UserCreate, UserRead, UserUpdate
 from src.infra.db import User, get_async_session
+from src.logger import logger
 from src.services.verificacoes.usuario import UserService
 from starlette.responses import JSONResponse, RedirectResponse
 
@@ -61,7 +61,7 @@ class UserRouter:
                 logger.success(f"Usuário: {email}. Ativado com sucesso.")
                 return RedirectResponse(url="http://localhost:3000/conta-ativada")
             else:
-                logger.warning(f"Usuário: {email}. Não pode ser ativado.")
+                logger.warning(f"UsuÃ¡rio: {email}. NÃ£o pode ser ativado.")
                 return RedirectResponse(url="http://localhost:3000/nao-encontrado")
 
         @self.app.post("/reenviar_codigo/{email}")
@@ -71,7 +71,7 @@ class UserRouter:
             codigo = await UserService(db).reenviar_codigo_para_email(email)
             if not codigo:
                 return JSONResponse(
-                    status_code=403, content={"mensagem": "Email ou código inválido."}
+                    status_code=403, content={"mensagem": "Email ou Código Inválido."}
                 )
             else:
                 return JSONResponse(

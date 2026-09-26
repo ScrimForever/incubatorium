@@ -1,12 +1,12 @@
 from typing import Literal
 
-from loguru import logger
 from sqlalchemy import select, update
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.domain.models.questionarios.questionario import Questionario
 from src.domain.schemas.questionario_schema import QuestionarioInputSchema
 from src.infra.db import User
+from src.logger import logger
 
 
 class QuestionarioRepository:

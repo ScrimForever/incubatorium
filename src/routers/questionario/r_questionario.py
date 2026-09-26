@@ -6,6 +6,7 @@ from src.domain.schemas.questionario_schema import (
     QuestionarioOutputSchema,
 )
 from src.infra.db import User, get_async_session
+from src.logger import logger
 from src.repository.questionario.questionario_rep import QuestionarioRepository
 from starlette.responses import JSONResponse
 
@@ -24,16 +25,21 @@ class QuestionarioRouter:
             user: User = Depends(current_active_user),
             db: AsyncSession = Depends(get_async_session),
         ):
+            logger.info(f"Gravando novo questionário para usuário: {user.email}")
             gravacao_questionario = await QuestionarioRepository(
                 user, db
             ).gravar_questionario(questionario)
             if not gravacao_questionario:
+                logger.warning(f"Questionário existe para usuário: {user.email}")
                 return JSONResponse(
                     status_code=409,
                     content={
                         "mensagem": "Questionario já existe. Não é possível criar um novo questionario."
                     },
                 )
+            logger.success(
+                f"Questionario gravado com sucesso para usuário: {user.email}"
+            )
             return gravacao_questionario
 
         @self.router.get("")

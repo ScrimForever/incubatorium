@@ -1,8 +1,8 @@
 from typing import Any
 
-from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.domain.models.user_model import User
+from src.logger import logger
 from src.repository.questionario.questionario_rep import QuestionarioRepository
 from src.repository.user.user_rep import UserRepository
 from src.services.email.setup import EmailSetup
@@ -27,7 +27,7 @@ class UserService:
         )
         if not gerar_questionario:
             logger.warning(
-                "Não foi possível gerar o questionario para o usuário: {email}"
+                f"Não foi possível gerar o questionario para o usuário: {email}"
             )
             return False
         logger.success(f"Questionario gerado com sucesso para o usuário: {email}")
