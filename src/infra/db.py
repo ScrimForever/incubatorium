@@ -3,7 +3,6 @@ from collections.abc import AsyncGenerator
 
 from fastapi import Depends
 from fastapi_users.db import SQLAlchemyBaseUserTableUUID, SQLAlchemyUserDatabase
-from loguru import logger
 from sqlalchemy import Boolean, String, event
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -14,6 +13,7 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import Mapped, mapped_column
 from src.domain.models.base_models import Base
 from src.infra.config import settings
+from src.logger import logger
 
 
 def gerar_codigo_ativacao() -> str:
@@ -30,7 +30,8 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
 
 @event.listens_for(User, "before_insert")
 def force_codigo_ativacao(mapper, connection, target):
-    target.codigo_ativacao = gerar_codigo_ativacao()
+    if not target.codigo_ativacao:
+        target.codigo_ativacao = gerar_codigo_ativacao()
     target.is_active = False
 
 

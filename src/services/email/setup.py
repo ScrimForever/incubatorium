@@ -5,11 +5,11 @@ from typing import Literal
 
 import resend
 from jinja2 import Environment, FileSystemLoader
-from loguru import logger
 from resend.exceptions import ResendError
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.infra.config import settings
 from src.infra.db import get_async_session
+from src.logger import logger
 from src.repository.user.user_rep import UserRepository
 
 resend.api_key = settings.resend_api_key
@@ -70,7 +70,7 @@ class EmailSetup:
         params: resend.Emails.SendParams = {
             "from": "Acme <onboarding@resend.dev>",
             "to": "thiago.salgado.monteiro@gmail.com",
-            "subject": "Tec Campos - Email de ativação.",
+            "subject": "Tec Campos - Email de Ativação.",
             "html": html_renderizado,
         }
 

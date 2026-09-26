@@ -1,10 +1,10 @@
 from typing import Any, Literal
 
-from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.infra.db import User, gerar_codigo_ativacao
+from src.logger import logger
 
 
 class UserRepository:
@@ -22,7 +22,7 @@ class UserRepository:
             return False
 
     async def verificar_codigo_usuario(self, email: str) -> str | Literal[False]:
-        logger.info("Buscando código gerado para o usuário.")
+        logger.info(f"Buscando códiogo gerado para o usuário: {email}.")
         query = select(User).where(User.email == email)
         result = await self.db.execute(query)
         user = result.scalar_one_or_none()
@@ -32,7 +32,7 @@ class UserRepository:
             return user.codigo_ativacao
 
     async def ativar_usuario_por_codigo_gerado(self, email: str, codigo: str) -> bool:
-        logger.info("Buscando usuário no banco.")
+        logger.info(f"Buscando usuários: {email}, no banco.")
         query = select(User).where(User.email == email)
         result = await self.db.execute(query)
         user = result.scalar_one_or_none()
@@ -47,7 +47,7 @@ class UserRepository:
         return await self._commit_or_rollback()
 
     async def verificar_email(self, email: str) -> Any | bool:
-        logger.info("Buscando email.")
+        logger.info(f"Buscando email:  {email}.")
         query = select(User).where(User.email == email)
         result = await self.db.execute(query)
         user = result.scalar_one_or_none()

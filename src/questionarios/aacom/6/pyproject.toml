@@ -1,0 +1,13 @@
+[project]
+name = "testesgi"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.141.1",
+    "granian>=2.8.1",
+    "locust>=2.46.3",
+    "memray>=1.20.0",
+    "rsgiadapter>=0.0.6",
+    "uvicorn>=0.52.1",
+]
