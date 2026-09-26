@@ -11,7 +11,7 @@ from infra.db import User, gerar_codigo_ativacao
 
 class TestStatusEnum:
     def test_status_enum_values(self):
-        """Teste dos valores vÃ¡lidos de StatusEnum"""
+        """Teste dos valores válidos de StatusEnum"""
         assert StatusEnum.iniciado.value == "iniciado"
         assert StatusEnum.pendente.value == "pendente"
         assert StatusEnum.aguardando_aprovacao.value == "aguardando_aprovacao"
@@ -26,7 +26,7 @@ class TestStatusEnum:
 class TestUserModel:
     @pytest.mark.asyncio
     async def test_criar_user(self, async_db: AsyncSession, sample_email):
-        """Teste de criaÃ§Ã£o de usuÃ¡rio"""
+        """Teste de criação de usuário"""
         user = User(
             email=sample_email,
             hashed_password="hashed_pwd",
@@ -49,7 +49,7 @@ class TestUserModel:
     async def test_user_codigo_ativacao_gerado_automaticamente(
         self, async_db: AsyncSession, sample_email
     ):
-        """Teste se cÃ³digo de ativaÃ§Ã£o Ã© gerado automaticamente"""
+        """Teste se código de ativação é gerado automaticamente"""
         user = User(
             email=sample_email,
             hashed_password="hashed_pwd",
@@ -68,7 +68,7 @@ class TestUserModel:
     async def test_user_criado_inativo_por_padrao(
         self, async_db: AsyncSession, sample_email
     ):
-        """Teste se usuÃ¡rio Ã© criado inativo por padrÃ£o"""
+        """Teste se usuário é criado inativo por padrão"""
         user = User(
             email=sample_email,
             hashed_password="hashed_pwd",
@@ -81,26 +81,24 @@ class TestUserModel:
         assert user.is_active is False
 
     def test_gerar_codigo_ativacao_formato(self):
-        """Teste do formato do cÃ³digo gerado"""
+        """Teste do formato do código gerado"""
         codigo = gerar_codigo_ativacao()
 
         assert len(codigo) == 6
         assert codigo.isdigit()
 
     def test_gerar_codigo_ativacao_aleatorio(self):
-        """Teste se cÃ³digos gerados sÃ£o diferentes"""
+        """Teste se códigos gerados são diferentes"""
         codigo1 = gerar_codigo_ativacao()
         codigo2 = gerar_codigo_ativacao()
 
-        # Alta probabilidade de serem diferentes
-        # (nÃ£o Ã© garantido, mas Ã© muito provÃ¡vel)
-        assert codigo1 != codigo2  # Aceita ambos os casos
+        assert codigo1 != codigo2
 
 
 class TestQuestionarioModel:
     @pytest.mark.asyncio
     async def test_criar_questionario(self, async_db: AsyncSession, sample_email):
-        """Teste de criaÃ§Ã£o de questionÃ¡rio"""
+        """Teste de criação de questionário"""
         questionario = Questionario(
             usuario_email=sample_email,
             status_questionario=StatusEnum.iniciado,
@@ -117,7 +115,7 @@ class TestQuestionarioModel:
 
     @pytest.mark.asyncio
     async def test_questionario_sem_json(self, async_db: AsyncSession, sample_email):
-        """Teste de questionÃ¡rio sem JSON"""
+        """Teste de questionário sem JSON"""
         questionario = Questionario(
             usuario_email=sample_email,
             status_questionario=StatusEnum.iniciado,
@@ -132,7 +130,7 @@ class TestQuestionarioModel:
 
     @pytest.mark.asyncio
     async def test_questionario_timestamps(self, async_db: AsyncSession, sample_email):
-        """Teste de timestamps automÃ¡ticos"""
+        """Teste de timestamps automáticos"""
         questionario = Questionario(
             usuario_email=sample_email,
             status_questionario=StatusEnum.iniciado,
@@ -143,7 +141,6 @@ class TestQuestionarioModel:
         await async_db.commit()
         await async_db.refresh(questionario)
 
-        # Verificar se criado_em e atualizado_em foram definidos
         assert hasattr(questionario, "criado_em")
         assert hasattr(questionario, "atualizado_em")
         assert questionario.criado_em is not None
@@ -152,7 +149,7 @@ class TestQuestionarioModel:
     async def test_questionario_usuario_email_primary_key(
         self, async_db: AsyncSession, sample_email
     ):
-        """Teste se usuario_email Ã© primary key"""
+        """Teste se usuario_email é primary key"""
         questionario = Questionario(
             usuario_email=sample_email,
             status_questionario=StatusEnum.iniciado,
@@ -162,7 +159,6 @@ class TestQuestionarioModel:
         async_db.add(questionario)
         await async_db.commit()
 
-        # Tentar adicionar outro com mesmo email deve falhar
         questionario2 = Questionario(
             usuario_email=sample_email,
             status_questionario=StatusEnum.pendente,

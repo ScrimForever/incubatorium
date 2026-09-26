@@ -11,7 +11,7 @@ from routers.users.r_user import UserRouter
 
 @pytest.fixture
 async def setup_user_router(async_db: AsyncSession, sample_email):
-    """Setup para router de usuÃ¡rio"""
+    """Setup para router de usuário"""
     user = User(
         email=sample_email,
         hashed_password="hashed_pwd",
@@ -48,6 +48,8 @@ class TestUserRouter:
         """Teste para validar email com sucesso"""
         router, app, user = setup_user_router
         codigo = user.codigo_ativacao
+
+        assert codigo is not None
 
         client = TestClient(app)
 

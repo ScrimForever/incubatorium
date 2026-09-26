@@ -1,1 +1,1 @@
-# Repository tests
+"""Repository tests"""

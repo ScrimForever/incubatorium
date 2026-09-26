@@ -12,7 +12,7 @@ from repository.questionario.questionario_rep import QuestionarioRepository
 
 @pytest.fixture
 async def user_with_email(async_db: AsyncSession, sample_email):
-    """Cria um usuÃ¡rio para os testes"""
+    """Cria um usuário para os testes"""
     user = User(
         email=sample_email,
         hashed_password="hashed_pwd",
@@ -28,7 +28,7 @@ class TestQuestionarioRepository:
     async def test_buscar_questionario_encontrado(
         self, async_db: AsyncSession, user_with_email, sample_email
     ):
-        """Teste para buscar questionÃ¡rio existente"""
+        """Teste para buscar questionário existente"""
         questionario = Questionario(
             usuario_email=sample_email,
             status_questionario=StatusEnum.iniciado,
@@ -48,7 +48,7 @@ class TestQuestionarioRepository:
     async def test_buscar_questionario_nao_encontrado(
         self, async_db: AsyncSession, user_with_email
     ):
-        """Teste quando questionÃ¡rio nÃ£o existe"""
+        """Teste quando questionário não existe"""
         repo = QuestionarioRepository(user_with_email, async_db)
         resultado = await repo.buscar_questionario()
 
@@ -58,7 +58,7 @@ class TestQuestionarioRepository:
     async def test_gravar_questionario_novo(
         self, async_db: AsyncSession, user_with_email, sample_email
     ):
-        """Teste para criar novo questionÃ¡rio"""
+        """Teste para criar novo questionário"""
         input_schema = QuestionarioInputSchema(
             status_questionario=StatusEnum.iniciado,
             json_questionario={"pergunta_1": "resposta_1"},
@@ -75,7 +75,7 @@ class TestQuestionarioRepository:
     async def test_gravar_questionario_ja_existe(
         self, async_db: AsyncSession, user_with_email, sample_email
     ):
-        """Teste quando questionÃ¡rio jÃ¡ existe"""
+        """Teste quando questionário já existe"""
         questionario = Questionario(
             usuario_email=sample_email,
             status_questionario=StatusEnum.iniciado,
@@ -98,7 +98,7 @@ class TestQuestionarioRepository:
     async def test_atualizar_questionario(
         self, async_db: AsyncSession, user_with_email, sample_email
     ):
-        """Teste para atualizar questionÃ¡rio existente"""
+        """Teste para atualizar questionário existente"""
         questionario = Questionario(
             usuario_email=sample_email,
             status_questionario=StatusEnum.iniciado,
@@ -123,7 +123,7 @@ class TestQuestionarioRepository:
     async def test_atualizar_questionario_nao_existe(
         self, async_db: AsyncSession, user_with_email
     ):
-        """Teste quando questionÃ¡rio nÃ£o existe"""
+        """Teste quando questionário não existe"""
         input_schema = QuestionarioInputSchema(
             status_questionario=StatusEnum.pendente,
         )
@@ -137,13 +137,12 @@ class TestQuestionarioRepository:
     async def test_inicializar_questionario(
         self, async_db: AsyncSession, user_with_email, sample_email
     ):
-        """Teste para inicializar questionÃ¡rio"""
+        """Teste para inicializar questionário"""
         repo = QuestionarioRepository(user_with_email, async_db)
         resultado = await repo.inicializar_questionario(sample_email)
 
         assert resultado is True
 
-        # Verificar que foi criado
         questionario = await repo.buscar_questionario()
         assert questionario.usuario_email == sample_email
         assert questionario.status_questionario == StatusEnum.iniciado
@@ -152,7 +151,7 @@ class TestQuestionarioRepository:
     async def test_inicializar_questionario_ja_existe(
         self, async_db: AsyncSession, user_with_email, sample_email
     ):
-        """Teste quando questionÃ¡rio jÃ¡ existe"""
+        """Teste quando questionário já existe"""
         questionario = Questionario(
             usuario_email=sample_email,
             status_questionario=StatusEnum.iniciado,

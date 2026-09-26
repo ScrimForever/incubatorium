@@ -1,1 +1,1 @@
-# Domain tests
+"""Domain tests"""

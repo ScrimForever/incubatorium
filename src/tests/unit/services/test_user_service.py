@@ -9,7 +9,7 @@ from services.verificacoes.usuario import UserService
 
 @pytest.fixture
 async def user_in_db(async_db: AsyncSession, sample_email):
-    """Cria um usuÃ¡rio no banco para os testes"""
+    """Cria um usuário no banco para os testes"""
     user = User(
         email=sample_email,
         hashed_password="hashed_pwd",
@@ -25,7 +25,7 @@ class TestUserService:
     async def test_verificar_usuario_encontrado(
         self, async_db: AsyncSession, user_in_db, sample_email
     ):
-        """Teste para verificar usuÃ¡rio existente"""
+        """Teste para verificar usuário existente"""
         service = UserService(db=async_db)
         resultado = await service.verificar_usuario(sample_email)
 
@@ -33,7 +33,7 @@ class TestUserService:
 
     @pytest.mark.asyncio
     async def test_verificar_usuario_nao_encontrado(self, async_db: AsyncSession):
-        """Teste quando usuÃ¡rio nÃ£o existe"""
+        """Teste quando usuário não existe"""
         service = UserService(db=async_db)
         resultado = await service.verificar_usuario("nao@existe.com")
 
@@ -43,12 +43,11 @@ class TestUserService:
     async def test_ativar_usuario_com_codigo_verificacao_sucesso(
         self, async_db: AsyncSession, user_in_db, sample_email
     ):
-        """Teste para ativar usuÃ¡rio com cÃ³digo correto"""
+        """Teste para ativar usuário com código correto"""
         codigo = user_in_db.codigo_ativacao
 
         service = UserService(db=async_db)
 
-        # Mock do mÃ©todo _auto_criar_questionario para evitar dependÃªncias
         with patch.object(
             service, "_auto_criar_questionario", new_callable=AsyncMock
         ) as mock_criar:
@@ -63,7 +62,7 @@ class TestUserService:
     async def test_ativar_usuario_codigo_incorreto(
         self, async_db: AsyncSession, user_in_db, sample_email
     ):
-        """Teste com cÃ³digo incorreto"""
+        """Teste com código incorreto"""
         service = UserService(db=async_db)
         resultado = await service.ativar_usuario_com_codigo_verificacao(
             sample_email, "999999"
@@ -75,7 +74,7 @@ class TestUserService:
     async def test_reativar_codigo_sucesso(
         self, async_db: AsyncSession, user_in_db, sample_email
     ):
-        """Teste para reativar cÃ³digo"""
+        """Teste para reativar código"""
         service = UserService(db=async_db)
 
         with patch("services.verificacoes.usuario.EmailSetup") as mock_email:
@@ -91,7 +90,7 @@ class TestUserService:
     async def test_reenviar_codigo_para_email_sucesso(
         self, async_db: AsyncSession, user_in_db, sample_email
     ):
-        """Teste para reenviar cÃ³digo"""
+        """Teste para reenviar código"""
         service = UserService(db=async_db)
 
         with patch("services.verificacoes.usuario.EmailSetup") as mock_email:
@@ -107,7 +106,7 @@ class TestUserService:
     async def test_reenviar_codigo_para_email_nao_encontrado(
         self, async_db: AsyncSession
     ):
-        """Teste quando usuÃ¡rio nÃ£o existe"""
+        """Teste quando usuário não existe"""
         service = UserService(db=async_db)
         resultado = await service.reenviar_codigo_para_email("nao@existe.com")
 

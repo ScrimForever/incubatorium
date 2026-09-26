@@ -15,7 +15,7 @@ from routers.questionario.r_questionario import QuestionarioRouter
 
 @pytest.fixture
 async def setup_questionario_router(async_db: AsyncSession, sample_email):
-    """Setup para router de questionÃ¡rio"""
+    """Setup para router de questionário"""
     user = User(
         email=sample_email,
         hashed_password="hashed_pwd",
@@ -47,7 +47,7 @@ async def setup_questionario_router(async_db: AsyncSession, sample_email):
 
 @pytest.mark.asyncio
 async def test_criar_questionario(setup_questionario_router, sample_email):
-    """Teste para criar novo questionÃ¡rio"""
+    """Teste para criar novo questionário"""
     router, app = setup_questionario_router
 
     client = TestClient(app)
@@ -71,7 +71,6 @@ async def test_criar_questionario(setup_questionario_router, sample_email):
 
         mock_repo.gravar_questionario = AsyncMock(return_value=questionario)
 
-        # Iniciar router
         await router.iniciar()
 
         response = client.post("/questionario", json=payload)
@@ -81,7 +80,7 @@ async def test_criar_questionario(setup_questionario_router, sample_email):
 
 @pytest.mark.asyncio
 async def test_buscar_questionario(setup_questionario_router, sample_email):
-    """Teste para buscar questionÃ¡rio"""
+    """Teste para buscar questionário"""
     router, app = setup_questionario_router
 
     client = TestClient(app)
@@ -109,7 +108,7 @@ async def test_buscar_questionario(setup_questionario_router, sample_email):
 
 @pytest.mark.asyncio
 async def test_atualizar_questionario(setup_questionario_router, sample_email):
-    """Teste para atualizar questionÃ¡rio"""
+    """Teste para atualizar questionário"""
     router, app = setup_questionario_router
 
     client = TestClient(app)

@@ -11,7 +11,7 @@ class TestUserRepository:
     async def test_verificar_codigo_usuario_encontrado(
         self, async_db: AsyncSession, sample_email
     ):
-        """Teste para verificar cÃ³digo quando usuÃ¡rio existe"""
+        """Teste para verificar código quando usuário existe"""
         codigo = gerar_codigo_ativacao()
         user = User(
             email=sample_email,
@@ -31,7 +31,7 @@ class TestUserRepository:
     async def test_verificar_codigo_usuario_nao_encontrado(
         self, async_db: AsyncSession
     ):
-        """Teste quando usuÃ¡rio nÃ£o existe"""
+        """Teste quando usuário não existe"""
         repo = UserRepository(async_db)
         resultado = await repo.verificar_codigo_usuario("nao@existe.com")
 
@@ -41,7 +41,7 @@ class TestUserRepository:
     async def test_ativar_usuario_por_codigo_gerado_sucesso(
         self, async_db: AsyncSession, sample_email
     ):
-        """Teste para ativar usuÃ¡rio com cÃ³digo correto"""
+        """Teste para ativar usuário com código correto"""
         codigo = gerar_codigo_ativacao()
         user = User(
             email=sample_email,
@@ -57,7 +57,6 @@ class TestUserRepository:
 
         assert resultado is True
 
-        # Verificar que usuÃ¡rio foi ativado
         query = select(User).where(User.email == sample_email)
         result = await async_db.execute(query)
         user_atualizado = result.scalar_one()
@@ -68,7 +67,7 @@ class TestUserRepository:
     async def test_ativar_usuario_codigo_incorreto(
         self, async_db: AsyncSession, sample_email
     ):
-        """Teste com cÃ³digo incorreto"""
+        """Teste com código incorreto"""
         codigo = gerar_codigo_ativacao()
         user = User(
             email=sample_email,
@@ -86,7 +85,7 @@ class TestUserRepository:
 
     @pytest.mark.asyncio
     async def test_ativar_usuario_nao_encontrado(self, async_db: AsyncSession):
-        """Teste quando usuÃ¡rio nÃ£o existe"""
+        """Teste quando usuário não existe"""
         repo = UserRepository(async_db)
         resultado = await repo.ativar_usuario_por_codigo_gerado(
             "nao@existe.com", "123456"
@@ -114,7 +113,7 @@ class TestUserRepository:
 
     @pytest.mark.asyncio
     async def test_verificar_email_nao_encontrado(self, async_db: AsyncSession):
-        """Teste quando email nÃ£o existe"""
+        """Teste quando email não existe"""
         repo = UserRepository(async_db)
         resultado = await repo.verificar_email("nao@existe.com")
 
@@ -122,7 +121,7 @@ class TestUserRepository:
 
     @pytest.mark.asyncio
     async def test_reativar_codigo(self, async_db: AsyncSession, sample_email):
-        """Teste para reativar cÃ³digo de ativaÃ§Ã£o"""
+        """Teste para reativar código de ativação"""
         user = User(
             email=sample_email,
             hashed_password="hashed_pwd",
@@ -137,7 +136,6 @@ class TestUserRepository:
 
         assert resultado is True
 
-        # Verificar que novo cÃ³digo foi gerado
         query = select(User).where(User.email == sample_email)
         result = await async_db.execute(query)
         user_atualizado = result.scalar_one()
@@ -146,7 +144,7 @@ class TestUserRepository:
 
     @pytest.mark.asyncio
     async def test_buscar_usuario(self, async_db: AsyncSession, sample_email):
-        """Teste para buscar usuÃ¡rio por email"""
+        """Teste para buscar usuário por email"""
         user = User(
             email=sample_email,
             hashed_password="hashed_pwd",
@@ -162,7 +160,7 @@ class TestUserRepository:
 
     @pytest.mark.asyncio
     async def test_buscar_usuario_nao_encontrado(self, async_db: AsyncSession):
-        """Teste quando usuÃ¡rio nÃ£o existe"""
+        """Teste quando usuário não existe"""
         repo = UserRepository(async_db)
         resultado = await repo.buscar_usuario("nao@existe.com")
 

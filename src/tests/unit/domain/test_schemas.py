@@ -18,10 +18,10 @@ class TestUserCreate:
 
         assert user.email == sample_email
         assert user.password == sample_password
-        assert user.is_incubado is True  # validator forÃ§a True
+        assert user.is_incubado is True
 
     def test_is_incubado_validator_forces_true(self, sample_email, sample_password):
-        """Verifica que o validador forÃ§a is_incubado para True"""
+        """Verifica que o validador força is_incubado para True"""
         user_data = {
             "email": sample_email,
             "password": sample_password,

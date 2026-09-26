@@ -7,7 +7,7 @@ from infra.db import User, gerar_codigo_ativacao
 
 class TestGerarCodigoAtivacao:
     def test_gerar_codigo_formato_correto(self):
-        """Teste se o cÃ³digo gerado tem formato correto"""
+        """Teste se o código gerado tem formato correto"""
         codigo = gerar_codigo_ativacao()
 
         assert isinstance(codigo, str)
@@ -15,16 +15,15 @@ class TestGerarCodigoAtivacao:
         assert codigo.isdigit()
 
     def test_gerar_codigo_variacao(self):
-        """Teste mÃºltiplas geraÃ§Ãµes de cÃ³digo"""
+        """Teste múltiplas gerações de código"""
         codigos = [gerar_codigo_ativacao() for _ in range(10)]
 
-        # Verificar que todos tÃªm formato correto
         for codigo in codigos:
             assert len(codigo) == 6
             assert codigo.isdigit()
 
     def test_gerar_codigo_entre_0_e_999999(self):
-        """Teste se cÃ³digo estÃ¡ no intervalo correto"""
+        """Teste se código está no intervalo correto"""
         codigo = gerar_codigo_ativacao()
         valor = int(codigo)
 
@@ -34,7 +33,7 @@ class TestGerarCodigoAtivacao:
 class TestUserModel:
     @pytest.mark.asyncio
     async def test_user_default_values(self, async_db: AsyncSession, sample_email):
-        """Teste valores padrÃ£o do usuÃ¡rio"""
+        """Teste valores padrão do usuário"""
         user = User(
             email=sample_email,
             hashed_password="pwd",
@@ -55,7 +54,7 @@ class TestUserModel:
     async def test_user_codigo_ativacao_auto_generated(
         self, async_db: AsyncSession, sample_email
     ):
-        """Teste se cÃ³digo Ã© gerado automaticamente no INSERT"""
+        """Teste se código é gerado automaticamente no INSERT"""
         user = User(
             email=sample_email,
             hashed_password="pwd",
@@ -72,7 +71,7 @@ class TestUserModel:
     async def test_user_is_active_false_on_insert(
         self, async_db: AsyncSession, sample_email
     ):
-        """Teste se is_active Ã© False ao inserir"""
+        """Teste se is_active é False ao inserir"""
         user = User(
             email=sample_email,
             hashed_password="pwd",
@@ -86,7 +85,7 @@ class TestUserModel:
 
     @pytest.mark.asyncio
     async def test_user_query_by_email(self, async_db: AsyncSession, sample_email):
-        """Teste query de usuÃ¡rio por email"""
+        """Teste query de usuário por email"""
         user = User(
             email=sample_email,
             hashed_password="pwd",
@@ -104,7 +103,7 @@ class TestUserModel:
 
     @pytest.mark.asyncio
     async def test_user_update(self, async_db: AsyncSession, sample_email):
-        """Teste atualizaÃ§Ã£o de usuÃ¡rio"""
+        """Teste atualização de usuário"""
         user = User(
             email=sample_email,
             hashed_password="pwd",
@@ -122,7 +121,7 @@ class TestUserModel:
 
     @pytest.mark.asyncio
     async def test_user_delete(self, async_db: AsyncSession, sample_email):
-        """Teste deleÃ§Ã£o de usuÃ¡rio"""
+        """Teste deleção de usuário"""
         user = User(
             email=sample_email,
             hashed_password="pwd",
