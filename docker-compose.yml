@@ -60,8 +60,8 @@ services:
     container_name: app_tests
     volumes:
       - .:/app
-      - /app/src/.venv
-      - /app/src/.pytest_cache
+      - test_venv:/app/src/.venv
+      - test_pytest_cache:/app/src/.pytest_cache
     environment:
       PYTHONPATH: /app
       DATABASE_URL: "postgresql+asyncpg://test_user:test_password@db_test:5432/test_db"
@@ -77,11 +77,16 @@ services:
         echo '=== Installing test dependencies ===' &&
         uv pip install -r requirements-test.txt &&
         echo '=== Running tests ===' &&
-        uv run pytest tests/ -v --cov=. --cov-report=html --cov-report=term-summary
+        uv run pytest tests/ -v --cov=. --cov-report=html --cov-report=term-missing &&
+        echo '=== Tests completed successfully ===' &&
+        exit 0 ||
+        (echo '=== Tests failed ===' && exit 1)
       "
 
 volumes:
   postgres_data:
+  test_venv:
+  test_pytest_cache:
 
 networks:
   app_network:
