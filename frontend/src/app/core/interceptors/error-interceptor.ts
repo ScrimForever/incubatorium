@@ -35,6 +35,12 @@ const MESSAGES: Record<string, string> = {
   REGISTER_INVALID_PASSWORD: 'A senha não atende aos requisitos mínimos.',
   RESET_PASSWORD_BAD_TOKEN: 'Link de redefinição inválido ou expirado.',
   RESET_PASSWORD_INVALID_PASSWORD: 'A senha não atende aos requisitos mínimos.',
+  // Da avaliação de planos — recusas do servidor, não da interface.
+  ETAPA_JA_AVALIADA: 'Esta etapa já foi avaliada por outro consultor.',
+  AVALIACAO_RESTRITA_CONSULTOR: 'Quem avalia as etapas é o consultor, não a coordenação.',
+  DECISAO_RESTRITA_COORDENACAO: 'Só a coordenação pode aprovar ou devolver um plano.',
+  ETAPAS_PENDENTES: 'Avalie as nove etapas antes de decidir o plano.',
+  JUSTIFICATIVA_OBRIGATORIA: 'Escreva o motivo para devolver o plano.',
 };
 
 function normalize(error: unknown): ApiError {
@@ -53,7 +59,9 @@ function normalize(error: unknown): ApiError {
   // As rotas de ativação por código são do projeto, não do fastapi-users:
   // recusam com 403 e corpo { "mensagem": ... }, sem `detail` nem código. Cada
   // tela dá o texto certo, porque só ela sabe se pediu validação ou reenvio.
-  if (error.status === 403) {
+  // Um 403 que **traz** código (a decisão restrita à coordenação, por exemplo)
+  // segue pelo caminho normal — senão toda recusa viraria "erro de ativação".
+  if (error.status === 403 && lerDetail(error.error).code === 'UNKNOWN') {
     return { code: 'ATIVACAO_RECUSADA', message: 'Não foi possível concluir a ativação.' };
   }
   // A API responde 404 com {"detail":"Not Found"} quando a rota não existe —

@@ -253,7 +253,15 @@ describe('temConteudo', () => {
 
   it('a nota do avaliador nao conta como conteudo do incubado', () => {
     const json = documentoVazio();
-    json['1'].nota = { valor: 5, texto: 'otimo', avaliador: 'consultor@teccampos.com' };
+    json['1'].notas = [
+      {
+        avaliador: 'consultor@teccampos.com',
+        especialidade: 'Mercado',
+        valor: 5,
+        texto: 'otimo',
+        em: '2026-09-23T18:00:00.000Z',
+      },
+    ];
     expect(temConteudo(json)).toBeFalse();
   });
 });
@@ -267,8 +275,60 @@ describe('normalizar', () => {
 
     const json = normalizar(parcial).json_questionario;
     expect(json['2'].business_canvas).toBe('texto');
-    expect(json['2'].nota).toEqual({ valor: null, texto: '', avaliador: null });
+    expect(json['2'].notas).toEqual([]);
     expect(json['9'].arquivos).toEqual([]);
+  });
+
+  it('migra a nota singular do formato antigo para a lista', () => {
+    const antigo = {
+      status_questionario: 'rejeitado',
+      json_questionario: {
+        '3': {
+          sumario_executivo: 'texto',
+          nota: { valor: 4, texto: 'bom', avaliador: 'consultor@teccampos.com' },
+        },
+      },
+    } as unknown as Questionario;
+
+    const json = normalizar(antigo).json_questionario;
+    expect(json['3'].notas).toEqual([
+      {
+        avaliador: 'consultor@teccampos.com',
+        especialidade: '',
+        valor: 4,
+        texto: 'bom',
+        em: '',
+      },
+    ]);
+    // O campo velho não pode sobrar: ele voltaria no próximo PUT.
+    expect((json['3'] as unknown as Record<string, unknown>)['nota']).toBeUndefined();
+  });
+
+  it('nota antiga vazia nao virou avaliacao nenhuma', () => {
+    const antigo = {
+      status_questionario: 'pendente',
+      json_questionario: {
+        '5': { planejamento_produto: 'x', nota: { valor: null, texto: '  ', avaliador: null } },
+      },
+    } as unknown as Questionario;
+
+    expect(normalizar(antigo).json_questionario['5'].notas).toEqual([]);
+  });
+
+  it('documento no formato novo passa sem mexer nas notas', () => {
+    const nota = {
+      avaliador: 'ana@teccampos.com',
+      especialidade: 'Mercado',
+      valor: 3 as const,
+      texto: 'ok',
+      em: '2026-09-23T18:00:00.000Z',
+    };
+    const novo = {
+      status_questionario: 'aguardando_aprovacao',
+      json_questionario: { '6': { fornecedores: 'x', notas: [nota] } },
+    } as unknown as Questionario;
+
+    expect(normalizar(novo).json_questionario['6'].notas).toEqual([nota]);
   });
 
   it('aguenta json_questionario nulo', () => {

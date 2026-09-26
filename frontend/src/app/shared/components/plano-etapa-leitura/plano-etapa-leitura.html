@@ -1,0 +1,117 @@
+@let etapaAtual = etapa();
+
+<section class="cartao plano-etapa">
+  <h2>{{ etapaAtual.numero }}. {{ etapaAtual.titulo }}</h2>
+
+  @for (bloco of etapaAtual.blocos; track $index) {
+    <div class="plano-bloco">
+      @if (bloco.rotulo) {
+        <h3>{{ bloco.rotulo }}</h3>
+      }
+      @if (bloco.texto) {
+        <!-- quill-view e não [innerHTML]: o sanitizer do Angular apagaria cor e destaque. -->
+        <quill-view class="plano-texto" [content]="bloco.texto" format="html" theme="snow" />
+      } @else {
+        <p class="plano-vazio">Não preenchido.</p>
+      }
+    </div>
+  }
+
+  @if (etapaAtual.membros.length) {
+    <ul class="membros">
+      @for (membro of etapaAtual.membros; track membro.id) {
+        <li class="membro">
+          <div class="membro-topo">
+            <strong>{{ membro.nome }}</strong>
+          </div>
+          <dl class="membro-dados">
+            <div>
+              <dt>Formação acadêmica</dt>
+              <dd>{{ membro.formacao_academica }}</dd>
+            </div>
+            <div>
+              <dt>E-mail</dt>
+              <dd>{{ membro.email }}</dd>
+            </div>
+            <div>
+              <dt>Telefone</dt>
+              <dd [class.membro-ausente]="!membro.telefone">
+                {{ membro.telefone || 'Não informado' }}
+              </dd>
+            </div>
+            <div class="membro-experiencia">
+              <dt>Experiência</dt>
+              <!-- tabindex: região rolável tem de ser alcançável pelo teclado. -->
+              <dd
+                tabindex="0"
+                [class.membro-ausente]="!membro.experiencia"
+                [attr.aria-label]="'Experiência de ' + membro.nome"
+                [textContent]="membro.experiencia || 'Não informada'"
+              ></dd>
+            </div>
+          </dl>
+        </li>
+      }
+    </ul>
+  }
+
+  @if (etapaAtual.arquivos.length) {
+    <ul class="plano-arquivos">
+      @for (arquivo of etapaAtual.arquivos; track arquivo.nome) {
+        <li>
+          <app-icone nome="documento" />
+          <span>{{ arquivo.nome }}</span>
+        </li>
+      }
+    </ul>
+  }
+
+  <!-- As avaliações da etapa: uma por consultor, cada um na sua especialidade. -->
+  @if (etapaAtual.notas.length) {
+    <div class="plano-notas">
+      <h3>
+        Avaliações
+        @if (etapaAtual.media !== null) {
+          <span [class]="'selo plano-nota-valor ' + classeMedia()">
+            média {{ etapaAtual.media }}
+          </span>
+        }
+      </h3>
+      @for (nota of etapaAtual.notas; track nota.avaliador) {
+        <div [class]="'plano-nota ' + (nota.valor ? classeNota[nota.valor] : '')">
+          <div class="plano-nota-cabeca">
+            @if (nota.valor; as valor) {
+              <span [class]="'selo plano-nota-valor ' + classeNota[valor]">
+                {{ valor }} — {{ rotuloNota[valor] }}
+              </span>
+            } @else {
+              <span class="selo plano-nota-valor">apenas comentário</span>
+            }
+            <span class="plano-nota-autor">
+              <app-icone nome="usuario" />
+              @if (nota.nome) {
+                <strong>{{ nota.nome }}</strong>
+              }
+              {{ nota.avaliador }}
+              @if (quando(nota.em)) {
+                · {{ quando(nota.em) }}
+              }
+            </span>
+          </div>
+          @if (nota.texto) {
+            <p>{{ nota.texto }}</p>
+          }
+        </div>
+      }
+    </div>
+  } @else {
+    <p class="plano-sem-nota">Esta etapa ainda não foi avaliada.</p>
+  }
+
+  <!-- Quem avalia passa aqui o formulário da própria nota; nas telas de
+       leitura o rodapé não vem e a etapa termina nas avaliações. -->
+  <ng-container
+    [ngTemplateOutlet]="rodapeEtapa() ?? null"
+    [ngTemplateOutletContext]="{ $implicit: etapaAtual.numero }"
+  />
+</section>

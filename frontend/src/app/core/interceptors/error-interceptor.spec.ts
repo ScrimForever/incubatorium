@@ -73,6 +73,12 @@ describe('errorInterceptor', () => {
     expect(erro.code).toBe('ATIVACAO_RECUSADA');
   });
 
+  it('403 com código no detail mantém o código, em vez de virar ativação', () => {
+    const erro = capturar(403, { detail: 'DECISAO_RESTRITA_COORDENACAO' });
+    expect(erro.code).toBe('DECISAO_RESTRITA_COORDENACAO');
+    expect(erro.message).toBe('Só a coordenação pode aprovar ou devolver um plano.');
+  });
+
   it('marca API fora do ar como OFFLINE', () => {
     expect(capturar(503, {}).code).toBe('OFFLINE');
   });

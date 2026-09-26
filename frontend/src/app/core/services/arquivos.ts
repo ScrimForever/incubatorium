@@ -1,14 +1,13 @@
 import { Injectable, inject } from '@angular/core';
-import { Observable, map } from 'rxjs';
+import { Observable, catchError, map, of } from 'rxjs';
 import { API_ROUTES } from '../constants/api-routes';
 import { Api } from '../http/api';
 import { RespostaEnvioArquivos } from '../models/arquivo';
 import { Anexo, NumeroEtapa } from '../models/questionario';
 
 /**
- * Anexos do questionário. O backend só sabe receber — não lista, não devolve e
- * não apaga arquivo (limitações em `docs/contrato-arquivos.md`), então a lista
- * da tela vive no `json_questionario`.
+ * Anexos do questionário: enviar e listar. Baixar e apagar não existem de forma
+ * consumível — limitações medidas em `docs/contrato-arquivos.md`.
  */
 @Injectable({ providedIn: 'root' })
 export class ArquivosService {
@@ -32,5 +31,18 @@ export class ArquivosService {
           })),
         ),
       );
+  }
+
+  /**
+   * Os nomes que existem no disco do backend para uma aba — é só isso que a
+   * rota devolve, sem tamanho nem tipo.
+   *
+   * Falha nunca sobe: aba que nunca recebeu arquivo responde `500` (a pasta não
+   * existe e o `iterdir()` estoura), e para a tela isso é "nenhum arquivo". O
+   * `401` também morre aqui sem prejuízo, porque derrubar a sessão é efeito do
+   * error-interceptor, que já aconteceu antes desta linha.
+   */
+  listar(aba: NumeroEtapa): Observable<string[]> {
+    return this.api.get<string[]>(API_ROUTES.arquivos.nomes(aba)).pipe(catchError(() => of([])));
   }
 }

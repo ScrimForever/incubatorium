@@ -9,30 +9,40 @@ import {
   computed,
   effect,
   inject,
+  input,
   signal,
   viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { QuillEditorComponent } from 'ngx-quill';
 import type Quill from 'quill';
+import { forkJoin } from 'rxjs';
 
 import { APP_ROUTES } from '../../core/constants/app-constants';
 import { destinoPara } from '../../core/guards/plano-guard';
 import { ApiError, SessionUser } from '../../core/models/auth';
 import {
   Anexo,
+  CLASSE_NOTA,
+  ChaveEtapa,
+  DecisaoPlano,
   JsonQuestionario,
+  MAXIMO_ANEXOS_POR_ETAPA,
   MembroEquipe,
   NUMEROS_ETAPA,
+  NotaEtapa,
   NumeroEtapa,
-  MAXIMO_ANEXOS_POR_ETAPA,
+  ROTULO_NOTA,
+  ROTULO_STATUS,
+  StatusQuestionario,
   TAMANHO_MAXIMO_ANEXO,
   documentoVazio,
 } from '../../core/models/questionario';
 import { ArquivosService } from '../../core/services/arquivos';
 import { Auth } from '../../core/services/auth';
+import { PlanosService } from '../../core/services/planos';
 import {
   QuestionarioService,
   emPreenchimento,
@@ -43,11 +53,13 @@ import {
 } from '../../core/services/questionario';
 import { Icone } from '../../shared/components/icone/icone';
 import { TopoSessao } from '../../shared/components/topo-sessao/topo-sessao';
+import { VisualizadorArquivo } from '../../shared/components/visualizador-arquivo/visualizador-arquivo';
 import {
   acessibilizarEditor,
   manterMenusNaTela,
   valorDoEditor,
 } from '../../shared/editor/editor-config';
+import { formatarQuando } from '../../shared/data-hora';
 import { textoParaHtml } from '../../shared/editor/texto-para-html';
 import { CAMPOS_ETAPA_1, CampoTexto, ETAPAS, Etapa, ROTULO_CURTO, etapaPorNumero } from './etapas';
 
@@ -85,7 +97,14 @@ interface Passo {
 @Component({
   selector: 'app-questionario',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, QuillEditorComponent, Icone, TopoSessao],
+  imports: [
+    ReactiveFormsModule,
+    QuillEditorComponent,
+    Icone,
+    TopoSessao,
+    RouterLink,
+    VisualizadorArquivo,
+  ],
   templateUrl: './questionario.html',
   styleUrl: './questionario.scss',
   host: {
@@ -97,10 +116,22 @@ export class Questionario implements OnInit {
   private readonly auth = inject(Auth);
   private readonly service = inject(QuestionarioService);
   private readonly arquivos = inject(ArquivosService);
+  private readonly planos = inject(PlanosService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+
+  /**
+   * `'edicao'` (padrão): o incubado preenchendo o próprio plano. `'avaliacao'`:
+   * um consultor lendo o plano de outra pessoa — a mesma tela, bloqueada para
+   * edição, com o card de nota por etapa. Vem do `data.modo` da rota.
+   */
+  readonly modo = input<'edicao' | 'avaliacao'>('edicao');
+  /** No modo avaliação, o e-mail do dono do plano (`:email` da rota). */
+  readonly email = input('');
+  protected readonly ehAvaliacao = computed(() => this.modo() === 'avaliacao');
+  protected readonly voltarLista = APP_ROUTES.planosDeNegocio;
 
   protected readonly user = signal<SessionUser | null>(null);
   protected readonly json = signal<JsonQuestionario>(documentoVazio());
@@ -117,6 +148,8 @@ export class Questionario implements OnInit {
   protected readonly remocao = signal<Remocao | null>(null);
   /** Etapa 9 completa e salva, esperando o "sim" antes de ir para análise. */
   protected readonly confirmandoEnvio = signal(false);
+  /** Anexo aberto no modal de pré-visualização; `null` quando fechado. */
+  protected readonly arquivoPreview = signal<Anexo | null>(null);
   /**
    * Só depois de tentar avançar os campos vazios ficam vermelhos. Antes disso
    * a etapa recém-aberta apareceria toda em erro, o que assusta sem ajudar.
@@ -125,6 +158,247 @@ export class Questionario implements OnInit {
   protected readonly tentouAvancar = signal(false);
 
   protected readonly form = signal<FormGroup>(this.fb.group({}));
+
+  // ----- avaliação (só no modo 'avaliacao') -----
+
+  protected readonly valores: readonly (1 | 2 | 3 | 4 | 5)[] = [1, 2, 3, 4, 5];
+  protected readonly rotuloNota = ROTULO_NOTA;
+  protected readonly classeNota = CLASSE_NOTA;
+  /** A especialidade que assina as notas; vem do `UserRead` e é editável aqui. */
+  protected readonly especialidade = signal('');
+  /** Rascunho local da nota por etapa, antes de gravar. */
+  protected readonly escolhido = signal<Record<string, 1 | 2 | 3 | 4 | 5 | null>>({});
+  protected readonly comentario = signal<Record<string, string>>({});
+  /** Etapa cuja nota está sendo gravada (separado do `salvando` do documento). */
+  protected readonly salvandoNota = signal<NumeroEtapa | null>(null);
+  /** Etapa cuja nota já gravada foi reaberta para edição. */
+  protected readonly editandoNota = signal<NumeroEtapa | null>(null);
+
+  /** A minha nota em cada etapa, para o card abrir preenchido. */
+  protected readonly minhas = computed<Map<string, NotaEtapa>>(() => {
+    const email = this.user()?.email;
+    const json = this.json();
+    const minhas = new Map<string, NotaEtapa>();
+    for (const numero of NUMEROS_ETAPA) {
+      const chave = String(numero);
+      const minha = json[chave as ChaveEtapa].notas.find((nota) => nota.avaliador === email);
+      if (minha) {
+        minhas.set(chave, minha);
+      }
+    }
+    return minhas;
+  });
+
+  /**
+   * Todas as avaliações da etapa aberta — inclusive a minha, que passa a aparecer
+   * na lista assim que é salva (o formulário abaixo segue editável para trocá-la).
+   */
+  protected readonly avaliacoesDaEtapa = computed<readonly NotaEtapa[]>(() => {
+    const chave = String(this.numero()) as ChaveEtapa;
+    return this.json()[chave].notas;
+  });
+
+  /** A minha nota da etapa aberta, quando já gravada. */
+  protected readonly minhaDaEtapa = computed<NotaEtapa | null>(
+    () => this.minhas().get(String(this.numero())) ?? null,
+  );
+
+  /**
+   * O formulário aparece quando ainda não avaliei esta etapa ou quando pedi para
+   * editar. Com a nota gravada e fora da edição, o card mostra só a leitura — os
+   * dois juntos faziam a mesma nota parecer duas.
+   */
+  protected readonly formularioAberto = computed(
+    () =>
+      // A coordenação decide, não avalia: para ela o card é sempre leitura.
+      !this.ehCoordenacao() &&
+      !this.etapaBloqueada() &&
+      (this.minhaDaEtapa() === null || this.editandoNota() === this.numero()),
+  );
+
+  /** Reabre a própria nota para edição, já preenchida com o que foi gravado. */
+  protected editarNota(): void {
+    this.editandoNota.set(this.numero());
+  }
+
+  /** Desiste da edição: o rascunho vai fora e a nota gravada volta à leitura. */
+  protected cancelarEdicao(): void {
+    const numero = this.numero();
+    this.escolhido.set(semEtapa(this.escolhido(), numero));
+    this.comentario.set(semEtapa(this.comentario(), numero));
+    this.editandoNota.set(null);
+  }
+
+  /** A nota desta etapa: a minha, ou a de quem avaliou antes — a etapa tem uma só. */
+  protected readonly notaDaEtapa = computed<NotaEtapa | null>(
+    () => this.avaliacoesDaEtapa()[0] ?? null,
+  );
+
+  /**
+   * O que a escala e o campo mostram: o rascunho enquanto edito, a nota gravada
+   * quando o card está travado — inclusive a de outro consultor, que não passa
+   * pelo rascunho.
+   */
+  protected readonly valorEmTela = computed<1 | 2 | 3 | 4 | 5 | null>(() =>
+    this.formularioAberto() ? this.valorDe(this.numero()) : (this.notaDaEtapa()?.valor ?? null),
+  );
+
+  protected readonly textoEmTela = computed(() =>
+    this.formularioAberto() ? this.textoDe(this.numero()) : (this.notaDaEtapa()?.texto ?? ''),
+  );
+
+  /** Os dois rótulos do card: é por eles que se sabe em que estado ele está. */
+  protected readonly rotuloAvaliacao = computed(() => {
+    if (this.formularioAberto()) {
+      return this.minhaDaEtapa() ? 'Editando sua avaliação' : 'Avaliação';
+    }
+    // Fora a minha, o rótulo é neutro: quem avaliou vai na assinatura, no
+    // rodapé do card, com nome e e-mail — não no título.
+    return this.minhaDaEtapa() && !this.ehCoordenacao() ? 'Sua avaliação' : 'Avaliação';
+  });
+
+  protected readonly rotuloComentario = computed(() => {
+    if (this.formularioAberto()) {
+      return 'Notas e observações';
+    }
+    return this.minhaDaEtapa() && !this.ehCoordenacao()
+      ? 'Suas notas e observações'
+      : 'Notas e observações';
+  });
+
+  /** Campo travado e sem texto não é um convite a escrever: é um "não houve". */
+  protected readonly placeholderComentario = computed(() => {
+    if (this.formularioAberto()) {
+      return 'Adicione suas notas e observações sobre esta etapa…';
+    }
+    // Etapa sem nota nenhuma não tem comentário "faltando": quem explica é o
+    // aviso no rodapé do card.
+    return this.notaDaEtapa() ? 'Sem comentário.' : '';
+  });
+
+  /**
+   * Cada etapa só pode ser avaliada uma vez: se já existe nota de **outro**
+   * consultor e eu não tenho a minha, a etapa vira só leitura (sem formulário).
+   * O autor da nota continua podendo editar a dele.
+   */
+  protected readonly etapaBloqueada = computed(() => {
+    const notas = this.avaliacoesDaEtapa();
+    if (notas.length === 0) {
+      return false;
+    }
+    const eu = this.user()?.email;
+    return !notas.some((nota) => nota.avaliador === eu);
+  });
+
+  // ----- decisão da coordenação (aprovar / devolver) -----
+
+  /** Situação do plano lido, para a barra saber se já houve decisão. */
+  protected readonly statusPlano = signal<StatusQuestionario | null>(null);
+  /** Qual decisão está em confirmação na modal; `null` com a modal fechada. */
+  protected readonly decidindo = signal<'aprovado' | 'rejeitado' | null>(null);
+  protected readonly justificativa = signal('');
+  protected readonly salvandoDecisao = signal(false);
+
+  /** Só a coordenação decide — e a trava que vale é a do servidor. */
+  protected readonly ehCoordenacao = computed(
+    () => this.ehAvaliacao() && this.user()?.role === 'admin',
+  );
+
+  /** Quantas das nove etapas já receberam nota, de qualquer avaliador. */
+  protected readonly etapasAvaliadas = computed(
+    () =>
+      NUMEROS_ETAPA.filter((numero) => this.json()[String(numero) as ChaveEtapa].notas.length > 0)
+        .length,
+  );
+
+  protected readonly totalEtapas = NUMEROS_ETAPA.length;
+
+  /** Aprovar ou devolver só depois de o plano inteiro ter sido lido. */
+  protected readonly podeDecidir = computed(
+    () => this.etapasAvaliadas() === NUMEROS_ETAPA.length && this.salvandoDecisao() === false,
+  );
+
+  /** Média das notas pontuadas do plano, para a barra resumir a leitura. */
+  protected readonly mediaDoPlano = computed(() => {
+    const json = this.json();
+    const valores = NUMEROS_ETAPA.flatMap((numero) =>
+      json[String(numero) as ChaveEtapa].notas
+        .map((nota) => nota.valor)
+        .filter((valor): valor is 1 | 2 | 3 | 4 | 5 => valor !== null),
+    );
+    if (!valores.length) {
+      return null;
+    }
+    const media = Math.round((valores.reduce((a, b) => a + b, 0) / valores.length) * 10) / 10;
+    // Vírgula decimal: é número lido por gente, em PT-BR.
+    return media.toLocaleString('pt-BR');
+  });
+
+  /** A decisão já tomada, quando houve — quem, quando e por quê. */
+  protected readonly decisao = computed<DecisaoPlano | null>(() => this.json().decisao ?? null);
+
+  protected readonly rotuloStatusPlano = computed(() => {
+    const status = this.statusPlano();
+    return status ? ROTULO_STATUS[status] : '';
+  });
+
+  /** Devolver exige motivo; aprovar, não. */
+  protected readonly decisaoValida = computed(
+    () => this.decidindo() === 'aprovado' || this.justificativa().trim().length > 0,
+  );
+
+  protected abrirDecisao(status: 'aprovado' | 'rejeitado'): void {
+    this.justificativa.set('');
+    this.decidindo.set(status);
+  }
+
+  protected fecharDecisao(): void {
+    if (this.decidindo() !== null) {
+      this.decidindo.set(null);
+    }
+  }
+
+  protected escreverJustificativa(evento: Event): void {
+    this.justificativa.set((evento.target as HTMLTextAreaElement).value);
+  }
+
+  /** Confirma a decisão. O `por` e o `em` são do servidor, não daqui. */
+  protected confirmarDecisao(): void {
+    const status = this.decidindo();
+    if (status === null || !this.decisaoValida() || this.salvandoDecisao()) {
+      return;
+    }
+    this.salvandoDecisao.set(true);
+    this.mensagemErro.set('');
+    this.planos
+      .decidir(this.email(), { status, justificativa: this.justificativa().trim() })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (plano) => {
+          this.json.set(plano.json_questionario);
+          this.statusPlano.set(plano.status_questionario);
+          this.salvandoDecisao.set(false);
+          this.decidindo.set(null);
+          this.mensagemSucesso.set(
+            status === 'aprovado' ? 'Plano aprovado.' : 'Plano devolvido para ajustes.',
+          );
+        },
+        error: (err: ApiError) => {
+          this.salvandoDecisao.set(false);
+          this.decidindo.set(null);
+          this.mensagemErro.set(err.message);
+        },
+      });
+  }
+
+  /**
+   * Quando a nota foi dada, em dd/mm/aaaa hh:mm — a hora importa porque a mesma
+   * etapa pode ser regravada no mesmo dia.
+   */
+  protected readonly dataNota = formatarQuando;
+
+  /** Etapa cuja saída está pendente de confirmação (rascunho não salvo). */
+  protected readonly saidaPendente = signal<NumeroEtapa | null>(null);
 
   private readonly trilha = viewChild<ElementRef<HTMLElement>>('trilha');
 
@@ -167,17 +441,39 @@ export class Questionario implements OnInit {
 
   protected readonly passos = computed<Passo[]>(() => {
     const json = this.json();
+    // Avaliação: trilha destravada (o avaliador navega livre) e o verde marca as
+    // etapas que ele já avaliou, não a completude do incubado.
+    const avaliacao = this.ehAvaliacao();
+    const minhas = this.minhas();
+    // Para a coordenação, "completa" é etapa avaliada por qualquer consultor —
+    // ela não dá nota, então marcar só as dela deixaria a trilha sempre cinza.
+    const coordenacao = this.ehCoordenacao();
     return NUMEROS_ETAPA.map((numero) => ({
       numero,
       rotulo: ROTULO_CURTO[numero],
       nome: `${numero}. ${ROTULO_CURTO[numero]}`,
-      completa: etapaCompleta(json, numero),
-      acessivel: etapaAcessivel(json, numero),
+      completa: avaliacao
+        ? coordenacao
+          ? json[String(numero) as ChaveEtapa].notas.length > 0
+          : minhas.has(String(numero))
+        : etapaCompleta(json, numero),
+      acessivel: avaliacao ? true : etapaAcessivel(json, numero),
       atual: numero === this.numero(),
     }));
   });
 
-  protected readonly progresso = computed(() => progresso(this.json()));
+  /**
+   * Na avaliação a barra mede o avanço de quem está na tela: as notas do
+   * consultor, ou — para a coordenação, que não dá nota — as etapas já
+   * avaliadas por qualquer um, o mesmo que a barra de decisão conta.
+   */
+  protected readonly progresso = computed(() => {
+    if (!this.ehAvaliacao()) {
+      return progresso(this.json());
+    }
+    const feitas = this.ehCoordenacao() ? this.etapasAvaliadas() : this.minhas().size;
+    return Math.round((feitas / NUMEROS_ETAPA.length) * 100);
+  });
 
   /** Etapa 4 sem nenhum membro, depois de tentar avançar. */
   protected readonly equipeFaltando = computed(
@@ -213,14 +509,26 @@ export class Questionario implements OnInit {
   private readonly dialogoMembro = viewChild<ElementRef<HTMLElement>>('dialogoMembro');
   private readonly dialogoRemocao = viewChild<ElementRef<HTMLElement>>('dialogoRemocao');
   private readonly dialogoEnvio = viewChild<ElementRef<HTMLElement>>('dialogoEnvio');
+  private readonly dialogoSaida = viewChild<ElementRef<HTMLElement>>('dialogoSaida');
+  private readonly dialogoDecisao = viewChild<ElementRef<HTMLElement>>('dialogoDecisao');
   private ultimoFoco: HTMLElement | null = null;
 
   constructor() {
     // Abrir move o foco para a modal; fechar devolve para quem a abriu — o
     // mesmo contrato do `activation-modal`, senão `aria-modal` é promessa vazia.
     effect(() => {
-      const dialogo = this.dialogoMembro() ?? this.dialogoRemocao() ?? this.dialogoEnvio();
-      const aberto = this.membroAberto() || this.remocao() !== null || this.confirmandoEnvio();
+      const dialogo =
+        this.dialogoMembro() ??
+        this.dialogoRemocao() ??
+        this.dialogoEnvio() ??
+        this.dialogoSaida() ??
+        this.dialogoDecisao();
+      const aberto =
+        this.membroAberto() ||
+        this.remocao() !== null ||
+        this.confirmandoEnvio() ||
+        this.saidaPendente() !== null ||
+        this.decidindo() !== null;
       if (aberto && dialogo) {
         this.ultimoFoco ??= document.activeElement as HTMLElement | null;
         dialogo.nativeElement.focus();
@@ -239,12 +547,20 @@ export class Questionario implements OnInit {
       .me()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (user) => this.user.set(user),
+        next: (user) => {
+          this.user.set(user);
+          this.especialidade.set(user.especialidade ?? '');
+        },
         error: () => {
           this.auth.clearSession();
           void this.router.navigate([APP_ROUTES.login]);
         },
       });
+
+    if (this.ehAvaliacao()) {
+      this.carregarParaAvaliacao();
+      return;
+    }
 
     this.service
       .meu()
@@ -264,8 +580,64 @@ export class Questionario implements OnInit {
           this.numero.set(etapaParaRetomar(plano.json_questionario));
           this.carregado.set(true);
           this.montarFormulario();
+          this.conferirAnexosNoDisco();
         },
         error: (err: ApiError) => this.mensagemErro.set(err.message),
+      });
+  }
+
+  /**
+   * Modo avaliação: lê o plano de outra pessoa (mesma tela, bloqueada). Sem
+   * redirecionar por status, sem conferir anexo no disco (o disco é do avaliado,
+   * não do avaliador) e sem gravar nada do documento — só as notas.
+   */
+  private carregarParaAvaliacao(): void {
+    this.planos
+      .plano(this.email())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (plano) => {
+          this.json.set(plano.json_questionario);
+          this.statusPlano.set(plano.status_questionario);
+          this.numero.set(1);
+          this.carregado.set(true);
+          this.montarFormulario();
+        },
+        error: (err: ApiError) => this.mensagemErro.set(err.message),
+      });
+  }
+
+  /**
+   * O documento e o disco do backend podem discordar: o `POST` grava o arquivo,
+   * mas nada garante que ele siga lá depois. Quem manda é o disco — ficha sem
+   * arquivo correspondente sai da lista e da próxima gravação.
+   *
+   * Roda depois de a tela abrir, não antes: conferir dois `GET` na frente do
+   * formulário atrasaria a primeira pintura por nada.
+   */
+  private conferirAnexosNoDisco(): void {
+    forkJoin({ '6': this.arquivos.listar(6), '9': this.arquivos.listar(9) })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((noDisco) => {
+        const json = this.json();
+        const semArquivo = (chave: '6' | '9'): Anexo[] =>
+          json[chave].arquivos.filter((anexo) => !noDisco[chave].includes(anexo.nome));
+
+        if (!semArquivo('6').length && !semArquivo('9').length) {
+          return;
+        }
+        const limpo: JsonQuestionario = {
+          ...json,
+          '6': {
+            ...json['6'],
+            arquivos: json['6'].arquivos.filter((a) => noDisco['6'].includes(a.nome)),
+          },
+          '9': {
+            ...json['9'],
+            arquivos: json['9'].arquivos.filter((a) => noDisco['9'].includes(a.nome)),
+          },
+        };
+        this.gravar(limpo);
       });
   }
 
@@ -299,18 +671,31 @@ export class Questionario implements OnInit {
 
   /** A aba atual como mapa solto — as chaves variam de etapa para etapa. */
   private abaAtual(): Record<string, unknown> {
-    const chave = String(this.numero()) as keyof JsonQuestionario;
+    const chave = String(this.numero()) as ChaveEtapa;
     return this.json()[chave] as unknown as Record<string, unknown>;
   }
 
   /** Mescla campos numa aba e devolve o documento inteiro, pronto para o PUT. */
   private documentoCom(numero: NumeroEtapa, campos: Record<string, unknown>): JsonQuestionario {
-    const chave = String(numero) as keyof JsonQuestionario;
+    const chave = String(numero) as ChaveEtapa;
     const json = this.json();
     return { ...json, [chave]: { ...json[chave], ...campos } };
   }
 
   protected irPara(numero: NumeroEtapa): void {
+    // Avaliação: navegação livre, sem gravar o documento (o avaliador não edita).
+    if (this.ehAvaliacao()) {
+      if (numero === this.numero()) {
+        return;
+      }
+      // Rascunho de nota não salvo: pergunta antes de sair, senão ele se perde.
+      if (this.etapaSuja(this.numero())) {
+        this.saidaPendente.set(numero);
+        return;
+      }
+      this.navegarAvaliacao(numero);
+      return;
+    }
     if (!this.passos().find((passo) => passo.numero === numero)?.acessivel) {
       return;
     }
@@ -362,7 +747,55 @@ export class Questionario implements OnInit {
     }
   }
 
+  /** Troca de etapa no modo avaliação (sem gravar o documento). */
+  private navegarAvaliacao(numero: NumeroEtapa): void {
+    this.editandoNota.set(null);
+    this.numero.set(numero);
+    this.montarFormulario();
+    this.mensagemSucesso.set('');
+    this.voltarAoTopo();
+  }
+
+  /** A etapa tem rascunho de nota diferente do que está salvo? */
+  private etapaSuja(numero: NumeroEtapa): boolean {
+    const chave = String(numero);
+    const rascunhoValor = this.escolhido()[chave];
+    const rascunhoTexto = this.comentario()[chave];
+    if (rascunhoValor === undefined && rascunhoTexto === undefined) {
+      return false;
+    }
+    const salva = this.minhas().get(chave);
+    const valor = rascunhoValor === undefined ? (salva?.valor ?? null) : rascunhoValor;
+    const texto = rascunhoTexto === undefined ? (salva?.texto ?? '') : rascunhoTexto;
+    return valor !== (salva?.valor ?? null) || texto.trim() !== (salva?.texto ?? '').trim();
+  }
+
+  /** "Sair sem salvar": descarta o rascunho e vai para a etapa pendente. */
+  protected confirmarSaida(): void {
+    const destino = this.saidaPendente();
+    if (destino === null) {
+      return;
+    }
+    this.escolhido.set(semEtapa(this.escolhido(), this.numero()));
+    this.comentario.set(semEtapa(this.comentario(), this.numero()));
+    this.saidaPendente.set(null);
+    this.navegarAvaliacao(destino);
+  }
+
+  protected cancelarSaida(): void {
+    if (this.saidaPendente() !== null) {
+      this.saidaPendente.set(null);
+    }
+  }
+
   protected avancar(): void {
+    // Avaliação: só navega para a próxima etapa, sem validar nem gravar.
+    if (this.ehAvaliacao()) {
+      if (!this.ehUltima()) {
+        this.irPara((this.numero() + 1) as NumeroEtapa);
+      }
+      return;
+    }
     // Feedback imediato, antes de esperar a gravação: os campos vazios acendem.
     this.revelarPendencias();
     if (this.ehUltima()) {
@@ -434,6 +867,20 @@ export class Questionario implements OnInit {
     this.fecharMembro();
     this.cancelarRemocao();
     this.cancelarEnvio();
+    this.fecharPreview();
+    this.cancelarSaida();
+  }
+
+  // ----- pré-visualização de anexo -----
+
+  protected abrirPreview(arquivo: Anexo): void {
+    this.arquivoPreview.set(arquivo);
+  }
+
+  protected fecharPreview(): void {
+    if (this.arquivoPreview()) {
+      this.arquivoPreview.set(null);
+    }
   }
 
   /** Prende o Tab dentro da modal. O `shift` vem do template, como no padrão. */
@@ -650,4 +1097,76 @@ export class Questionario implements OnInit {
         },
       });
   }
+
+  // ----- nota do avaliador (card no modo 'avaliacao') -----
+
+  /** Valor escolhido na etapa, ou `null` para quem só quer comentar. */
+  protected valorDe(numero: NumeroEtapa): 1 | 2 | 3 | 4 | 5 | null {
+    const escolhido = this.escolhido()[String(numero)];
+    return escolhido === undefined ? (this.minhas().get(String(numero))?.valor ?? null) : escolhido;
+  }
+
+  protected textoDe(numero: NumeroEtapa): string {
+    const digitado = this.comentario()[String(numero)];
+    return digitado === undefined ? (this.minhas().get(String(numero))?.texto ?? '') : digitado;
+  }
+
+  protected escolher(numero: NumeroEtapa, valor: 1 | 2 | 3 | 4 | 5): void {
+    const atual = this.valorDe(numero);
+    // Clicar de novo no mesmo valor desmarca: é como se comenta sem pontuar.
+    this.escolhido.set({ ...this.escolhido(), [String(numero)]: atual === valor ? null : valor });
+  }
+
+  protected escrever(numero: NumeroEtapa, evento: Event): void {
+    const texto = (evento.target as HTMLTextAreaElement).value;
+    this.comentario.set({ ...this.comentario(), [String(numero)]: texto });
+  }
+
+  protected podeAvaliar(numero: NumeroEtapa): boolean {
+    return (
+      this.salvandoNota() === null &&
+      (this.valorDe(numero) !== null || this.textoDe(numero).trim().length > 0)
+    );
+  }
+
+  /** Grava a nota desta etapa. Uma requisição por etapa, como o contrato prevê. */
+  protected avaliar(numero: NumeroEtapa): void {
+    if (!this.podeAvaliar(numero)) {
+      return;
+    }
+    this.salvandoNota.set(numero);
+    this.mensagemErro.set('');
+    this.mensagemSucesso.set('');
+
+    this.planos
+      .avaliar(this.email(), {
+        aba: numero,
+        valor: this.valorDe(numero),
+        texto: this.textoDe(numero).trim(),
+        especialidade: this.especialidade().trim(),
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (plano) => {
+          this.json.set(plano.json_questionario);
+          // O que foi digitado já voltou no documento: limpar o rascunho local
+          // evita que ele mascare a nota gravada.
+          this.escolhido.set(semEtapa(this.escolhido(), numero));
+          this.comentario.set(semEtapa(this.comentario(), numero));
+          this.salvandoNota.set(null);
+          this.editandoNota.set(null);
+          this.mensagemSucesso.set(`Avaliação da etapa ${numero} registrada.`);
+        },
+        error: (err: ApiError) => {
+          this.salvandoNota.set(null);
+          this.mensagemErro.set(err.message);
+        },
+      });
+  }
+}
+
+function semEtapa<T>(mapa: Record<string, T>, numero: NumeroEtapa): Record<string, T> {
+  const copia = { ...mapa };
+  delete copia[String(numero)];
+  return copia;
 }

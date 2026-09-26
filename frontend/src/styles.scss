@@ -18,10 +18,72 @@
   --texto: #333;
   --texto-suave: #666;
   --borda-input: #e1e8ed;
+  /* Borda um tom mais firme que a de input, para caixas (chips, botões de nota)
+     terem contorno visível sobre fundo claro. */
+  --borda: #d5dde3;
+  --fundo-cartao: #ffffff;
+  /* Cor de placeholder: mais fraca que o texto, para não competir com o valor. */
+  --placeholder: #9aa4ad;
   --erro-fundo: #fee;
   --erro-texto: #c33;
   --sucesso-fundo: #efe;
   --sucesso-texto: #3c3;
+  /* Card de avaliação do consultor: fundo lavanda translúcido (alpha 2b ≈ 17%) e
+     borda lavanda, para destacá-lo do conteúdo (branco) do incubado. */
+  --aval-fundo: #edecf72b;
+  --aval-borda: #d9d5ec;
+  /* Escala das notas 1–5: vermelho (Ruim) → verde (Excelente). Três tons por
+     nota — `forte` para texto e fundo cheio, `fundo`/`borda` para o estado
+     apagado. Os tons fortes têm contraste >= 4.5:1 com branco, porque o botão
+     escolhido fica branco sobre eles. */
+  --nota-1-forte: #b3261e;
+  --nota-1-fundo: #fdecea;
+  --nota-1-borda: #f2b7b1;
+  --nota-2-forte: #a2540b;
+  --nota-2-fundo: #fff2e4;
+  --nota-2-borda: #f2c99f;
+  --nota-3-forte: #8a6300;
+  --nota-3-fundo: #fff8e1;
+  --nota-3-borda: #ecd68b;
+  --nota-4-forte: #46790f;
+  --nota-4-fundo: #f2f8e8;
+  --nota-4-borda: #c2de9c;
+  --nota-5-forte: #2f7d1f;
+  --nota-5-fundo: #eaf6e4;
+  --nota-5-borda: #a9d792;
+}
+
+/* As classes da escala só apontam as variáveis locais (`CLASSE_NOTA`, em
+   `core/models/questionario.ts`): assim a mesma nota pinta igual no botão da
+   votação e no selo da leitura, e uma nota nova é só um bloco a mais aqui. */
+.nota-1 {
+  --nota-forte: var(--nota-1-forte);
+  --nota-fundo: var(--nota-1-fundo);
+  --nota-borda: var(--nota-1-borda);
+}
+
+.nota-2 {
+  --nota-forte: var(--nota-2-forte);
+  --nota-fundo: var(--nota-2-fundo);
+  --nota-borda: var(--nota-2-borda);
+}
+
+.nota-3 {
+  --nota-forte: var(--nota-3-forte);
+  --nota-fundo: var(--nota-3-fundo);
+  --nota-borda: var(--nota-3-borda);
+}
+
+.nota-4 {
+  --nota-forte: var(--nota-4-forte);
+  --nota-fundo: var(--nota-4-fundo);
+  --nota-borda: var(--nota-4-borda);
+}
+
+.nota-5 {
+  --nota-forte: var(--nota-5-forte);
+  --nota-fundo: var(--nota-5-fundo);
+  --nota-borda: var(--nota-5-borda);
 }
 
 * {
@@ -34,8 +96,10 @@
    isto, uma tela alta some com ~15px de largura em relação a uma tela curta, e
    o cartão do questionário mudava de tamanho de uma aba para outra. */
 html {
-  // scrollbar-gutter: stable;
-  scrollbar-gutter: auto;
+  /* Ligado de novo em 26/09/2026: com `auto`, trocar de aba no questionário
+     mexia na largura do cartão (aba alta tem barra, aba curta não), e a página
+     "pulava" de um lado para o outro a cada passo. */
+  scrollbar-gutter: stable;
 
   /* No celular, arrastar de lado fazia o fundo (o gradiente) deslizar e voltar:
      é o overscroll do toque, que a trilha rolável do questionário encadeia para
@@ -486,11 +550,14 @@ code {
   color: var(--texto-suave);
 }
 
+/* O cartão do sistema: branco, borda cinza fina e canto de 10px — o mesmo
+   desenho dos itens de lista, para as telas não terem dois tipos de cartão. A
+   sombra saiu: sobre o fundo claro do painel ela só embaçava a borda. */
 .cartao {
-  background: white;
-  border-radius: 12px;
+  background: var(--fundo-cartao);
+  border: 1px solid var(--borda-input);
+  border-radius: 10px;
   padding: 24px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
 }
 
 .cartao h2 {
@@ -514,6 +581,42 @@ code {
   gap: 8px;
 }
 
+/* Filtros em pílula — o padrão do sistema, nascido na tela de usuários e
+   subido para cá quando a lista de planos passou a usar o mesmo desenho. */
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.filtro {
+  padding: 7px 14px;
+  border: 1px solid var(--borda-input);
+  border-radius: 999px;
+  background: var(--fundo-cartao);
+  color: var(--texto-suave);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    color 0.2s;
+}
+
+.filtro:hover {
+  border-color: var(--azul);
+  color: var(--texto);
+}
+
+.filtro--ativo,
+.filtro--ativo:hover {
+  border-color: var(--azul);
+  background: var(--azul);
+  color: #fff;
+  font-weight: 600;
+}
+
 .selo {
   display: inline-flex;
   align-items: center;
@@ -535,6 +638,194 @@ code {
 .selo--neutro {
   background: #eef1f5;
   color: var(--texto-suave);
+}
+
+/* ==========================================================================
+   Listagem — o padrão das telas que listam coisas (Usuários, Planos de
+   negócio). Título e subtítulo vêm do painel; daqui para baixo, as duas telas
+   usam as MESMAS classes: barra de busca/filtros, cartão por item, selos à
+   direita e o vazio em caixa tracejada. Item novo numa tela nasce igual ao da
+   outra, sem copiar CSS.
+   ========================================================================== */
+
+.lista-barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin: 20px 0 16px;
+}
+
+/* A busca fica acima dos filtros, com largura própria: ela filtra por texto, os
+   filtros por categoria — dois passos diferentes, não um par. */
+.lista-busca {
+  max-width: 360px;
+  margin: 20px 0 0;
+}
+
+.lista-busca + .lista-barra {
+  margin-top: 12px;
+}
+
+.lista-barra .filtros {
+  margin: 0;
+}
+
+.lista {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+}
+
+/* O item inteiro é o alvo do clique — `<a>` quando leva a outra tela,
+   `<button>` quando abre um painel ao lado. O desenho é o mesmo nos dois.
+
+   Cartão **neutro**: sem faixa colorida na lateral e sem cor na borda. A cor da
+   lista fica só nos selos, que são informação; o cartão é papel. */
+.lista-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px 18px;
+  width: 100%;
+  padding: 16px 18px;
+  border: 1px solid var(--borda-input);
+  border-radius: 10px;
+  background: var(--fundo-cartao);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  color: var(--texto);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.lista-item:hover {
+  border-color: var(--borda);
+  background: var(--fundo-app);
+}
+
+.lista-item:focus-visible {
+  outline: 2px solid var(--azul);
+  outline-offset: 2px;
+}
+
+/* Item aberto no painel ao lado: precisa se distinguir do hover, e para isso
+   basta o contraste do fundo — continua sem cor de marca. */
+.lista-item--ativo,
+.lista-item--ativo:hover {
+  border-color: var(--texto-suave);
+  background: var(--fundo-app);
+}
+
+.lista-item > app-icone {
+  color: var(--borda);
+  transition: color 0.15s ease;
+}
+
+.lista-item:hover > app-icone {
+  color: var(--texto-suave);
+}
+
+.lista-identidade {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lista-titulo {
+  font-size: 16px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.lista-secundaria {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--texto-suave);
+  overflow-wrap: anywhere;
+}
+
+/* Selos e data, empilhados à direita. */
+.lista-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.lista-meta-linha {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.lista-detalhe {
+  font-size: 12px;
+  color: var(--texto-suave);
+}
+
+.lista-aviso {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 22px 18px;
+  border: 1px dashed var(--borda);
+  border-radius: 10px;
+  font-size: 14px;
+  color: var(--texto-suave);
+}
+
+.lista-aviso app-icone {
+  font-size: 16px;
+}
+
+/* Selo de situação do plano: uma cor por estado, na escala das notas. Os dois
+   estados que ainda estão com o incubado (`iniciado`, `pendente`) ficam
+   neutros: não são bom nem ruim, são "ainda não chegou". */
+.selo--iniciado,
+.selo--pendente {
+  background: #eef1f5;
+  color: var(--texto-suave);
+}
+
+.selo--aguardando_aprovacao {
+  background: var(--nota-3-fundo);
+  color: var(--nota-3-forte);
+}
+
+.selo--aprovado {
+  background: var(--nota-5-fundo);
+  color: var(--nota-5-forte);
+}
+
+.selo--rejeitado {
+  background: var(--nota-1-fundo);
+  color: var(--nota-1-forte);
+}
+
+@media (max-width: 640px) {
+  /* Selos e data descem para baixo do nome; a seta sai, porque o cartão
+     inteiro já é o alvo do toque. */
+  .lista-item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lista-meta {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .lista-item > app-icone {
+    display: none;
+  }
 }
 
 /* Cartões da equipe: o questionário (com editar/remover) e a leitura do plano.
@@ -837,6 +1128,18 @@ quill-editor .ql-container.ql-snow {
   font-size: 14px;
 }
 
+/* Modo avaliação: o editor fica só leitura (Quill em readOnly), sem barra de
+   ferramentas e sem o anel de foco azul — é conteúdo, não campo editável. */
+.quest--avaliacao quill-editor .ql-toolbar.ql-snow {
+  display: none;
+}
+
+.quest--avaliacao quill-editor,
+.quest--avaliacao quill-editor:focus-within {
+  border-color: var(--borda-input);
+  box-shadow: none;
+}
+
 /* O anel de foco é a moldura do host (`:focus-within`); o contorno global de
    `:focus-visible` desenharia uma segunda borda por dentro dela. */
 quill-editor .ql-editor:focus-visible {
@@ -1129,6 +1432,41 @@ quill-view .ql-editor {
   }
 }
 
+/* Motivo da devolução, na tela do incubado: destaque de aviso dentro do cartão
+   de estado, porque é o que ele precisa ler antes das notas. */
+.estado-motivo {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--nota-1-borda);
+  border-left: 4px solid var(--nota-1-forte);
+  border-radius: 0 8px 8px 0;
+  background: var(--nota-1-fundo);
+  text-align: left;
+}
+
+.estado-motivo h2 {
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--nota-1-forte);
+}
+
+.estado-motivo p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--texto);
+  white-space: pre-wrap;
+}
+
+.estado-motivo small {
+  display: block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--texto-suave);
+}
+
 .estado-cartao {
   text-align: center;
 }
@@ -1160,4 +1498,594 @@ quill-view .ql-editor {
   font-size: 14px;
   line-height: 1.7;
   color: var(--texto-suave);
+}
+
+/* ==========================================================================
+   Questionário / avaliação — trilha, progresso e rodapé de ações
+   Global (fora do budget de estilo por componente); usado pelo `Questionario`
+   nos dois modos (incubado e avaliador).
+   ========================================================================== */
+
+/* ===== trilha, progresso e ações =====
+   Servem tanto o incubado quanto o avaliador (mesma tela, modo leitura).
+   `--quest-pad-x` vem de `.quest-conteudo`; o fallback é só defensivo. */
+
+/* Progresso e trilha grudam no topo quando a página rola: nas etapas de texto
+   longo o cartão passa da altura da tela. O fundo é opaco, e as margens
+   negativas estendem esse fundo até as bordas do container. */
+.quest-topo {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: 10px calc(var(--quest-pad-x, 0px) * -1) 0;
+  padding: 12px var(--quest-pad-x, 0px) 0;
+  background: var(--fundo-app);
+}
+
+.quest-progresso {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.quest-barra {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: #e3e8ee;
+  overflow: hidden;
+}
+
+.quest-barra span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--azul), var(--verde));
+  transition: width 0.3s ease;
+}
+
+.quest-progresso-numero {
+  min-width: 38px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: right;
+  color: var(--texto-suave);
+}
+
+/* As nove abas ficam sempre em UMA linha: quebrar em duas ou três fileiras
+   desmancha a leitura de progresso. Para caberem sem rolar, os rótulos
+   encolhem com a tela; a rolagem horizontal fica de reserva. */
+.quest-trilha {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  margin: 12px 0 16px;
+  padding: 8px 4px 12px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+}
+
+.quest-passo {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px 7px 7px;
+  border: 1px solid var(--borda-input);
+  border-radius: 999px;
+  background: white;
+  color: var(--texto-suave);
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    color 0.2s,
+    box-shadow 0.2s;
+}
+
+.quest-passo:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.quest-passo app-icone {
+  font-size: 13px;
+}
+
+.quest-passo-numero {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #eef1f5;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.quest-passo--ok .quest-passo-numero {
+  background: var(--sucesso-fundo);
+  color: var(--sucesso-texto);
+}
+
+.quest-passo--atual {
+  border-color: var(--azul);
+  background: var(--azul);
+  color: white;
+  font-weight: 600;
+}
+
+.quest-passo--atual .quest-passo-numero {
+  background: rgba(255, 255, 255, 0.22);
+  color: white;
+}
+
+/* Hover só com mouse: no toque ele gruda na aba tocada. */
+@media (hover: hover) {
+  .quest-passo:hover:not(:disabled) {
+    border-color: var(--azul);
+    color: var(--texto);
+  }
+
+  .quest-passo--atual:hover:not(:disabled) {
+    border-color: var(--azul);
+    color: white;
+    box-shadow: 0 2px 8px rgba(36, 105, 179, 0.45);
+  }
+}
+
+/* ----- ações (rodapé Voltar / Próximo) ----- */
+
+.quest-acoes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.quest-acoes-direita {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+}
+
+.quest-acoes .btn-texto {
+  padding: 12px 6px;
+}
+
+@media (max-width: 1279px) {
+  .quest-passo:not(.quest-passo--atual) {
+    padding-right: 7px;
+  }
+
+  .quest-passo:not(.quest-passo--atual) .quest-passo-rotulo {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  /* Celular: nove números repartindo a largura, todos à vista. */
+  .quest-trilha {
+    display: grid;
+    grid-template-columns: repeat(9, minmax(0, 1fr));
+    gap: 2px;
+    margin-top: 8px;
+    padding: 4px 0 8px;
+  }
+
+  .quest-trilha .quest-passo {
+    justify-content: center;
+    min-width: 0;
+    height: 40px;
+    padding: 0;
+    border-color: transparent;
+    background: none;
+  }
+
+  .quest-passo-numero {
+    width: min(28px, 100%);
+    height: auto;
+    aspect-ratio: 1;
+    font-size: 13px;
+  }
+
+  .quest-passo--atual .quest-passo-numero {
+    background: var(--azul);
+  }
+
+  .quest-passo-rotulo,
+  .quest-passo app-icone {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .quest-topo {
+    margin-top: 4px;
+  }
+
+  /* Empilhado, a ação principal fica no topo e "Voltar" no rodapé. */
+  .quest-acoes,
+  .quest-acoes-direita {
+    flex-direction: column-reverse;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .quest-acoes-direita {
+    margin-left: 0;
+  }
+}
+
+/* Tela baixa (celular deitado): o bloco grudado aperta. */
+@media (max-height: 500px) {
+  .quest-topo {
+    padding-top: 8px;
+  }
+
+  .quest-trilha {
+    margin: 6px 0 10px;
+    padding-top: 4px;
+    padding-bottom: 6px;
+  }
+
+  .quest-passo {
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+}
+
+@media (max-width: 760px) and (max-height: 500px) {
+  .quest-trilha {
+    padding-top: 2px;
+    padding-bottom: 4px;
+  }
+
+  .quest-trilha .quest-passo {
+    height: 34px;
+  }
+}
+
+/* ==========================================================================
+   Card de avaliação do consultor (modo avaliação do Questionario)
+   Global (fora do budget de estilo por componente).
+   ========================================================================== */
+
+/* ===== card de nota do avaliador (modo 'avaliacao') ===== */
+
+.aval-voltar {
+  display: inline-block;
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: var(--azul);
+  text-decoration: none;
+}
+
+.aval-voltar:hover {
+  text-decoration: underline;
+}
+
+/* Card do avaliador: fundo rosado e borda suave, para destacá-lo do conteúdo do
+   incubado. Borda no lugar da sombra do `.cartao` — casa melhor com o tom. */
+/* Card de avaliação: mesmo cartão neutro das outras telas. Antes tinha fundo e
+   borda lavanda para se separar do conteúdo do incubado; quem faz essa
+   separação agora é o rótulo ("Sua avaliação") e o lugar dele na página. */
+.aval-card {
+  margin-bottom: 20px;
+}
+
+/* Nota já dada: mesmo card, só que travado — a escala vira leitura e o campo
+   deixa de convidar a escrever. */
+.aval-card--travado .aval-comentario {
+  background: var(--fundo-app);
+  cursor: default;
+}
+
+/* Etapa sem nota, vista por quem só decide. */
+.aval-sem-nota {
+  font-size: 13px;
+  font-style: italic;
+  color: var(--texto-suave);
+}
+
+/* Assinatura da nota travada: quem avaliou, em que especialidade e quando. */
+.aval-assinatura {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--texto);
+  overflow-wrap: anywhere;
+}
+
+/* O e-mail acompanha o nome, em tom mais fraco: o nome identifica, o e-mail
+   confirma quem é. */
+.aval-assinatura-email {
+  color: var(--texto-suave);
+}
+
+.aval-assinatura app-icone {
+  font-size: 15px;
+  color: var(--texto-suave);
+}
+
+.aval-nota-data {
+  font-size: 12px;
+  color: var(--texto-suave);
+}
+
+/* Etapa já avaliada por outro consultor: o card fica travado e isto explica. */
+.aval-bloqueada {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--fundo-cartao);
+  font-size: 12px;
+  color: var(--texto-suave);
+}
+
+.aval-bloqueada app-icone {
+  flex: none;
+  font-size: 16px;
+}
+
+/* Rótulo dos campos da nota ("Avaliação", "Notas e observações"). */
+.aval-rotulo {
+  display: block;
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--texto-suave);
+}
+
+/* A escala 1–5: caixas brancas clicáveis, com hover nítido para o avaliador
+   perceber onde vai clicar. */
+.aval-valores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+/* Cada botão carrega a classe da sua nota, então a escala aparece já em
+   repouso: borda e número no tom da nota, fundo branco. O fallback vale para
+   botão sem classe de nota, que hoje não existe. */
+.aval-valor {
+  flex: 1 1 88px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 58px;
+  padding: 12px 8px;
+  border: 1px solid var(--nota-borda, var(--borda));
+  border-radius: 10px;
+  background: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--nota-forte, var(--texto));
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.aval-valor small {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--texto-suave);
+}
+
+/* O hover vale só para botão clicável e **não escolhido**: sem o
+   `:not(.aval-valor--ativo)` esta regra ganhava do estado cheio por
+   especificidade, e o número branco sumia sobre o fundo claro. */
+@media (hover: hover) {
+  .aval-valor:not(:disabled, .aval-valor--ativo):hover {
+    border-color: var(--nota-forte, var(--verde));
+    background: var(--nota-fundo, #f1f8ec);
+    transform: translateY(-1px);
+  }
+
+  .aval-valor:not(:disabled, .aval-valor--ativo):hover small {
+    color: var(--nota-forte, var(--verde));
+  }
+}
+
+/* Travada: a escolhida continua cheia, as outras desbotam — a escala vira
+   leitura sem deixar de ser a mesma escala. */
+.aval-valor:disabled {
+  cursor: default;
+}
+
+.aval-valor:disabled:not(.aval-valor--ativo) {
+  opacity: 0.45;
+}
+
+.aval-valor:focus-visible {
+  outline: 2px solid var(--nota-forte, var(--verde));
+  outline-offset: 2px;
+}
+
+/* Escolhido: fundo cheio no tom da nota. O texto branco é o motivo de os tons
+   `forte` serem escuros. */
+.aval-valor--ativo,
+.aval-valor--ativo:hover {
+  border-color: var(--nota-forte, var(--verde));
+  background: var(--nota-forte, var(--verde));
+  color: #fff;
+}
+
+.aval-valor--ativo small,
+.aval-valor--ativo:hover small {
+  color: #fff;
+}
+
+.aval-comentario {
+  width: 100%;
+  padding: 12px 14px;
+  /* Em repouso, a mesma borda das caixas de nota — o campo não grita antes de
+     ser usado. O hover esquenta um pouco, e o foco é que se destaca. */
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  font-size: 14px;
+  color: var(--texto);
+  resize: vertical;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+/* Placeholder fraco: é dica, não conteúdo — não pode competir com o que foi
+   digitado. */
+.aval-comentario::placeholder {
+  color: var(--placeholder);
+}
+
+@media (hover: hover) {
+  .aval-comentario:not([readonly]):hover {
+    border-color: var(--texto-suave);
+  }
+}
+
+.aval-comentario:focus {
+  outline: none;
+  border-color: var(--azul);
+  box-shadow: 0 0 0 3px rgba(36, 105, 179, 0.15);
+}
+
+.aval-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-top: 14px;
+}
+
+.aval-acoes .btn {
+  flex: none;
+}
+
+/* No card travado o rodapé é assinatura + ação, uma em cada ponta. */
+.aval-acoes .aval-assinatura {
+  flex: 1 1 auto;
+}
+
+/* Editar é uma decisão, não a ação principal do card: pílula de contorno, ao
+   lado da assinatura. */
+.aval-editar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 6px 12px;
+  border: 1px solid var(--borda);
+  border-radius: 999px;
+  background: var(--fundo-cartao);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--azul);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.aval-editar:hover {
+  border-color: var(--azul);
+  background: rgba(36, 105, 179, 0.08);
+}
+
+.aval-editar:focus-visible {
+  outline: 2px solid var(--azul);
+  outline-offset: 2px;
+}
+
+.aval-dica {
+  flex: 1 1 220px;
+  font-size: 12px;
+  color: var(--texto-suave);
+}
+
+/* ==========================================================================
+   Barra de decisão (só a coordenação, no plano aberto em avaliação)
+   Grudada no rodapé: a decisão fica à mão em qualquer etapa, sem rolar até o
+   fim. Fundo sólido porque o conteúdo passa por baixo dela.
+   ========================================================================== */
+
+.decisao-barra {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 20px;
+  margin-top: 16px;
+  padding: 14px 18px;
+  border: 1px solid var(--borda-input);
+  border-radius: 10px;
+  background: var(--fundo-cartao);
+  /* Sombra só para descolar do conteúdo que passa por baixo — cinza, não azul. */
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* Uma linha de texto, não três pílulas: a barra informa, quem decide são os
+   botões. */
+.decisao-resumo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  font-size: 13px;
+  color: var(--texto-suave);
+}
+
+.decisao-resumo strong {
+  font-size: 14px;
+  color: var(--texto);
+}
+
+.decisao-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-left: auto;
+}
+
+/* Plano ainda não lido por inteiro: o motivo no lugar dos botões, para não
+   haver botão desabilitado sem explicação. */
+.decisao-pendente,
+.decisao-tomada {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--texto-suave);
+}
+
+.decisao-tomada {
+  color: var(--texto);
 }

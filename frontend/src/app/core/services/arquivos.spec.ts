@@ -64,4 +64,40 @@ describe('ArquivosService', () => {
 
     expect(erro).toBeTruthy();
   });
+  it('lista os nomes que existem no disco da aba', () => {
+    let nomes: unknown;
+    service.listar(6).subscribe((r) => (nomes = r));
+
+    const pedido = http.expectOne('/api/arquivos/questionario/nome-arquivo/6');
+    expect(pedido.request.method).toBe('GET');
+    pedido.flush(['mercado.pdf', 'concorrentes.pdf']);
+
+    expect(nomes).toEqual(['mercado.pdf', 'concorrentes.pdf']);
+  });
+
+  it('aba sem pasta responde 500 e para a tela isso e lista vazia', () => {
+    let nomes: unknown;
+    let erro: unknown;
+    service.listar(9).subscribe({ next: (r) => (nomes = r), error: (e) => (erro = e) });
+
+    http
+      .expectOne('/api/arquivos/questionario/nome-arquivo/9')
+      .flush('Internal Server Error', { status: 500, statusText: 'Internal Server Error' });
+
+    expect(nomes).toEqual([]);
+    expect(erro).toBeUndefined();
+  });
+
+  it('falha de sessao na listagem nao chega na tela: derrubar sessao e do interceptor', () => {
+    let nomes: unknown;
+    let erro: unknown;
+    service.listar(6).subscribe({ next: (r) => (nomes = r), error: (e) => (erro = e) });
+
+    http
+      .expectOne('/api/arquivos/questionario/nome-arquivo/6')
+      .flush({ detail: 'Unauthorized' }, { status: 401, statusText: 'Unauthorized' });
+
+    expect(nomes).toEqual([]);
+    expect(erro).toBeUndefined();
+  });
 });

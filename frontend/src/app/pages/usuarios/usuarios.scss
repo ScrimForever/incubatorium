@@ -16,101 +16,6 @@
   grid-template-columns: minmax(0, 1fr) 400px;
 }
 
-/* ----- lista ----- */
-
-.usuarios-busca {
-  margin-bottom: 14px;
-}
-
-.usuarios-filtros {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.usuarios-filtro {
-  padding: 7px 14px;
-  border: 1px solid var(--borda-input);
-  border-radius: 999px;
-  background: white;
-  color: var(--texto-suave);
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-  transition:
-    border-color 0.2s,
-    color 0.2s;
-}
-
-.usuarios-filtro:hover {
-  border-color: var(--azul);
-  color: var(--texto);
-}
-
-.usuarios-filtro--ativo {
-  border-color: var(--azul);
-  background: var(--azul);
-  color: white;
-  font-weight: 600;
-}
-
-.usuarios-lista {
-  display: grid;
-  gap: 2px;
-  list-style: none;
-}
-
-/* A linha inteira é o alvo do clique — nada de links espremidos. */
-.usuarios-linha {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  width: 100%;
-  padding: 13px 14px;
-  border: none;
-  border-left: 3px solid transparent;
-  border-radius: 8px;
-  background: none;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: background-color 0.15s;
-}
-
-.usuarios-linha:hover {
-  background: var(--fundo-app);
-}
-
-.usuarios-linha--aberta {
-  border-left-color: var(--azul);
-  background: var(--fundo-app);
-}
-
-.usuarios-email {
-  font-size: 14px;
-  color: var(--texto);
-  overflow-wrap: anywhere;
-}
-
-.usuarios-linha--aberta .usuarios-email {
-  font-weight: 600;
-}
-
-.usuarios-tags {
-  display: flex;
-  flex: none;
-  gap: 6px;
-}
-
-.usuarios-vazio {
-  padding: 28px 0;
-  text-align: center;
-  font-size: 14px;
-  color: var(--texto-suave);
-}
-
 /* ----- painel lateral ----- */
 
 .usuarios-painel {
@@ -134,6 +39,13 @@
   overflow-wrap: anywhere;
 }
 
+.usuarios-painel-email {
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--texto-suave);
+  overflow-wrap: anywhere;
+}
+
 .usuarios-estado {
   display: inline-flex;
   align-items: center;
@@ -146,8 +58,12 @@
   color: var(--sucesso-texto);
 }
 
+/* O respiro vem de `margin`, não de `padding`: em `fieldset`, o `padding-top`
+   empurra o conteúdo mas não a `legend`, e o título "Situação" ficava colado na
+   linha do bloco anterior. */
 .usuarios-bloco {
-  padding: 22px 0 8px;
+  margin-top: 22px;
+  padding: 0 0 14px;
   border: none;
   border-bottom: 1px solid var(--borda-input);
 }
@@ -261,14 +177,6 @@
 
   .usuarios-painel {
     position: static;
-  }
-}
-
-@media (max-width: 560px) {
-  .usuarios-linha {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
   }
 }
 

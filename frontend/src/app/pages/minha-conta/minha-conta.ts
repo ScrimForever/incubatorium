@@ -39,6 +39,15 @@ export class MinhaConta implements OnInit {
   protected readonly user = signal<SessionUser | null>(null);
   protected readonly minPassword = MIN_PASSWORD_LENGTH;
 
+  /**
+   * A validação só aparece depois de tentar enviar.
+   *
+   * Antes bastava entrar e sair do campo (`touched`) para o texto vermelho
+   * surgir — cobrança de erro antes de a pessoa terminar de digitar.
+   */
+  protected readonly tentouEmail = signal(false);
+  protected readonly tentouSenha = signal(false);
+
   protected readonly salvandoEmail = signal(false);
   protected readonly erroEmail = signal('');
   protected readonly sucessoEmail = signal('');
@@ -78,6 +87,7 @@ export class MinhaConta implements OnInit {
   }
 
   protected salvarEmail(): void {
+    this.tentouEmail.set(true);
     if (this.formEmail.invalid || this.salvandoEmail()) {
       this.formEmail.markAllAsTouched();
       return;
@@ -103,8 +113,8 @@ export class MinhaConta implements OnInit {
   }
 
   protected salvarSenha(): void {
+    this.tentouSenha.set(true);
     if (this.formSenha.invalid || this.salvandoSenha()) {
-      this.formSenha.markAllAsTouched();
       return;
     }
     this.salvandoSenha.set(true);
@@ -118,6 +128,7 @@ export class MinhaConta implements OnInit {
         next: () => {
           this.salvandoSenha.set(false);
           this.formSenha.reset();
+          this.tentouSenha.set(false);
           this.sucessoSenha.set('Senha alterada. Use a nova no próximo acesso.');
         },
         error: (err: ApiError) => {
@@ -133,9 +144,6 @@ export class MinhaConta implements OnInit {
    * borda cinza.
    */
   protected senhasDiferentes(): boolean {
-    return (
-      this.formSenha.errors?.['passwordsMismatch'] === true &&
-      this.formSenha.controls.confirm.touched
-    );
+    return this.tentouSenha() && this.formSenha.errors?.['passwordsMismatch'] === true;
   }
 }

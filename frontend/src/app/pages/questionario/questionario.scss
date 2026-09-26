@@ -1,6 +1,9 @@
 /* Questionário em tela cheia, sem menu lateral — mas na identidade do nosso
    sistema, não na do legado: fundo claro, cartão branco, trilha em pílulas e a
-   mesma família de botões das outras telas internas. */
+   mesma família de botões das outras telas internas.
+
+   A trilha, o progresso e o rodapé de ações moram no `styles.scss` (global),
+   compartilhados com o wizard de avaliação. Aqui fica só o que é do incubado. */
 
 .quest {
   min-height: 100vh;
@@ -11,10 +14,9 @@
 /* ----- conteúdo ----- */
 
 .quest-conteudo {
-  /* O topo grudado usa margem negativa para encostar nas bordas do `main`;
-     esta variável mantém os dois em sincronia quando o padding muda por
-     breakpoint. Sem isso, o cabeçalho grudado vazava 8px de cada lado no
-     celular. */
+  /* O topo grudado (global) usa margem negativa para encostar nas bordas do
+     `main`; esta variável mantém os dois em sincronia quando o padding muda por
+     breakpoint. */
   --quest-pad-x: 24px;
   --quest-pad-y: 32px;
 
@@ -22,148 +24,6 @@
   max-width: 1200px;
   padding: var(--quest-pad-y) var(--quest-pad-x) 48px;
   margin: 0 auto;
-}
-
-/* Progresso e trilha grudam no topo quando a página rola: nas etapas de texto
-   longo o cartão passa da altura da tela, e sem isto o incubado perde de vista
-   em que etapa está. O fundo é opaco para o conteúdo não aparecer por baixo, e
-   as margens negativas estendem esse fundo até as bordas do `main`. */
-.quest-topo {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  margin: 10px calc(var(--quest-pad-x) * -1) 0;
-  padding: 12px var(--quest-pad-x) 0;
-  background: var(--fundo-app);
-}
-
-.quest-progresso {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.quest-barra {
-  flex: 1;
-  height: 6px;
-  border-radius: 999px;
-  background: #e3e8ee;
-  overflow: hidden;
-}
-
-.quest-barra span {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--azul), var(--verde));
-  transition: width 0.3s ease;
-}
-
-.quest-progresso-numero {
-  min-width: 38px;
-  font-size: 13px;
-  font-weight: 600;
-  text-align: right;
-  color: var(--texto-suave);
-}
-
-/* ----- trilha das nove etapas ----- */
-
-/* As nove abas ficam sempre em UMA linha: quebrar em duas ou três fileiras
-   desmancha a leitura de progresso. Para caberem sem rolar, os rótulos
-   encolhem com a tela: todos a partir de 1280px, só o da etapa aberta até lá,
-   e nenhum no celular, onde a trilha vira nove números distribuídos pela
-   largura. A rolagem horizontal fica de reserva (texto ampliado pelo
-   navegador, por exemplo), e o componente traz o passo atual à vista. */
-.quest-trilha {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 6px;
-  margin: 12px 0 16px;
-  /* Folga para o brilho da aba ativa caber: com `overflow-x` qualquer sombra
-     que passe da caixa é cortada em linha reta — era o "quadrado". */
-  padding: 8px 4px 12px;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scroll-behavior: smooth;
-  scrollbar-width: thin;
-}
-
-.quest-passo {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 12px 7px 7px;
-  border: 1px solid var(--borda-input);
-  border-radius: 999px;
-  background: white;
-  color: var(--texto-suave);
-  font: inherit;
-  font-size: 13px;
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    border-color 0.2s,
-    color 0.2s,
-    box-shadow 0.2s;
-}
-
-.quest-passo:disabled {
-  cursor: not-allowed;
-  opacity: 0.65;
-}
-
-.quest-passo app-icone {
-  font-size: 13px;
-}
-
-.quest-passo-numero {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #eef1f5;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.quest-passo--ok .quest-passo-numero {
-  background: var(--sucesso-fundo);
-  color: var(--sucesso-texto);
-}
-
-.quest-passo--atual {
-  border-color: var(--azul);
-  background: var(--azul);
-  color: white;
-  font-weight: 600;
-}
-
-.quest-passo--atual .quest-passo-numero {
-  background: rgba(255, 255, 255, 0.22);
-  color: white;
-}
-
-/* Hover só com mouse: no toque ele gruda na aba tocada. */
-@media (hover: hover) {
-  .quest-passo:hover:not(:disabled) {
-    border-color: var(--azul);
-    color: var(--texto);
-  }
-
-  /* A aba aberta é azul como o botão "Voltar", então o hover dela é o mesmo:
-     o brilho azul, e o texto continua branco. A regra genérica acima pintava o
-     texto de var(--texto) — quase preto sobre azul, ilegível. */
-  .quest-passo--atual:hover:not(:disabled) {
-    border-color: var(--azul);
-    color: white;
-    /* Dimensionada para caber no padding da trilha — ver `.quest-trilha`. */
-    box-shadow: 0 2px 8px rgba(36, 105, 179, 0.45);
-  }
 }
 
 /* ----- cartão da etapa ----- */
@@ -327,7 +187,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
+  border: 1px solid var(--borda-input);
   border-radius: 8px;
   background: var(--fundo-app);
   font-size: 14px;
@@ -344,90 +204,73 @@
   color: var(--texto-suave);
 }
 
+/* Nada de olho ao lado do nome: a ficha inteira é o botão que abre a
+   pré-visualização. Quem espaça é o botão, e não o `li`, para o clique valer na
+   linha toda — nome, ícone e tamanho. */
+.quest-arquivo {
+  padding: 0;
+  overflow: hidden;
+}
+
+.quest-arquivo-abrir {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  color: var(--texto);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.quest-arquivo-abrir app-icone {
+  flex: none;
+  font-size: 16px;
+  color: var(--azul);
+}
+
+/* O realce é da ficha inteira, não só do botão: com o × ao lado, pintar apenas
+   o botão deixava uma faixa branca à direita. O `:has()` leva o hover do botão
+   para o `li`; onde ele não existir, o fundo fica só no botão — que é o
+   comportamento de antes, e não quebra nada. */
+.quest-arquivo:has(.quest-arquivo-abrir:hover) {
+  background: rgba(36, 105, 179, 0.08);
+}
+
+.quest-arquivo-abrir:hover {
+  background: rgba(36, 105, 179, 0.08);
+}
+
+.quest-arquivo:has(.quest-arquivo-abrir:hover) .quest-arquivo-abrir {
+  background: none;
+}
+
+/* Sublinhado só no nome: é ele que diz onde o clique leva. */
+.quest-arquivo-abrir:hover span {
+  text-decoration: underline;
+}
+
+/* Contorno para dentro: o `li` tem `overflow: hidden` e cortaria o de fora. */
+.quest-arquivo-abrir:focus-visible {
+  outline: 2px solid var(--azul);
+  outline-offset: -2px;
+}
+
 .quest-arquivos .quest-remover {
-  margin: -8px -10px -8px 0;
-}
-
-/* ----- ações ----- */
-
-.quest-acoes {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.quest-acoes-direita {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-left: auto;
-}
-
-/* "Salvar rascunho" é texto, mas continua sendo alvo de toque. */
-.quest-acoes .btn-texto {
-  padding: 12px 6px;
+  margin-right: 4px;
 }
 
 /* ----- telas médias e pequenas ----- */
 
-@media (max-width: 1279px) {
-  /* Tablet e notebook pequeno: só a etapa aberta mostra o nome. As outras
-     viram círculos — o nome continua no `aria-label`. */
-  .quest-passo:not(.quest-passo--atual) {
-    padding-right: 7px;
-  }
-
-  .quest-passo:not(.quest-passo--atual) .quest-passo-rotulo {
-    display: none;
-  }
-}
-
 @media (max-width: 1000px) {
   .quest-arquivos {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 760px) {
-  /* Celular: nove números repartindo a largura, todos à vista. Cada um é um
-     alvo de toque com a altura da trilha; o círculo é o desenho. O cadeado
-     sai (a etapa travada já aparece apagada) e o nome fica no `aria-label`. */
-  .quest-trilha {
-    display: grid;
-    grid-template-columns: repeat(9, minmax(0, 1fr));
-    gap: 2px;
-    margin-top: 8px;
-    padding: 4px 0 8px;
-  }
-
-  /* `.quest-trilha` na frente para vencer o `padding-right` do breakpoint de
-     cima, que vale para as abas fora da etapa aberta. */
-  .quest-trilha .quest-passo {
-    justify-content: center;
-    min-width: 0;
-    height: 40px;
-    padding: 0;
-    border-color: transparent;
-    background: none;
-  }
-
-  /* Encolhe com a célula abaixo de ~300px (a tela externa de um dobrável tem 280). */
-  .quest-passo-numero {
-    width: min(28px, 100%);
-    height: auto;
-    aspect-ratio: 1;
-    font-size: 13px;
-  }
-
-  .quest-passo--atual .quest-passo-numero {
-    background: var(--azul);
-  }
-
-  .quest-passo-rotulo,
-  .quest-passo app-icone {
-    display: none;
   }
 }
 
@@ -455,10 +298,6 @@
     font-size: 20px;
   }
 
-  .quest-topo {
-    margin-top: 4px;
-  }
-
   .quest-instrucao {
     padding: 12px 14px 12px 22px;
   }
@@ -469,47 +308,5 @@
 
   .quest-equipe-topo .btn {
     flex: 1 1 100%;
-  }
-
-  /* Empilhado, a ação principal fica no topo e "Voltar" no rodapé. */
-  .quest-acoes,
-  .quest-acoes-direita {
-    flex-direction: column-reverse;
-    align-items: stretch;
-    gap: 10px;
-  }
-
-  .quest-acoes-direita {
-    margin-left: 0;
-  }
-}
-
-/* Tela baixa (celular deitado): o bloco grudado aperta, senão ocupava metade
-   da altura útil. */
-@media (max-height: 500px) {
-  .quest-topo {
-    padding-top: 8px;
-  }
-
-  .quest-trilha {
-    margin: 6px 0 10px;
-    padding-top: 4px;
-    padding-bottom: 6px;
-  }
-
-  .quest-passo {
-    padding-top: 4px;
-    padding-bottom: 4px;
-  }
-}
-
-@media (max-width: 760px) and (max-height: 500px) {
-  .quest-trilha {
-    padding-top: 2px;
-    padding-bottom: 4px;
-  }
-
-  .quest-trilha .quest-passo {
-    height: 34px;
   }
 }

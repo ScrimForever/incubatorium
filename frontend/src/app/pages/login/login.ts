@@ -4,7 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { switchMap } from 'rxjs';
 
-import { APP_ROUTES } from '../../core/constants/app-constants';
+import { entradaDe } from '../../core/constants/app-constants';
 import { ApiError } from '../../core/models/auth';
 import { Auth } from '../../core/services/auth';
 import {
@@ -69,7 +69,7 @@ export class Login {
       .subscribe({
         next: (user) => {
           this.loading.set(false);
-          void this.router.navigate([APP_ROUTES.dashboard(user.role)]);
+          void this.router.navigate([entradaDe(user.role)]);
         },
         error: (err: ApiError) => {
           this.loading.set(false);

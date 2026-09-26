@@ -1,7 +1,7 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router, UrlTree } from '@angular/router';
 import { Observable, catchError, map, of, switchMap } from 'rxjs';
-import { APP_ROUTES } from '../constants/app-constants';
+import { APP_ROUTES, entradaDe } from '../constants/app-constants';
 import { Role } from '../models/auth';
 import { StatusQuestionario } from '../models/questionario';
 import { Auth } from '../services/auth';
@@ -16,7 +16,7 @@ import { QuestionarioService } from '../services/questionario';
  * pendente             → /questionario            (preenchido, de onde parou)
  * aguardando_aprovacao → /aguardando-aprovacao
  * rejeitado            → /plano-rejeitado
- * aprovado             → /dashboard/<papel>       (e só aqui o painel existe)
+ * aprovado             → a entrada do papel        (o painel, para o incubado)
  * ```
  *
  * Todo guard daqui deriva desta função — duas versões da mesma regra
@@ -32,7 +32,7 @@ export function destinoPara(status: StatusQuestionario, role: Role): string {
     case 'rejeitado':
       return APP_ROUTES.planoRejeitado;
     case 'aprovado':
-      return APP_ROUTES.dashboard(role);
+      return entradaDe(role);
   }
 }
 
@@ -57,7 +57,7 @@ function somenteCom(permitidos: readonly StatusQuestionario[], fora: ForaDoFluxo
       switchMap((user) => {
         if (user.role !== 'incubado') {
           return of<boolean | UrlTree>(
-            fora === 'passa' ? true : router.parseUrl(APP_ROUTES.dashboard(user.role)),
+            fora === 'passa' ? true : router.parseUrl(entradaDe(user.role)),
           );
         }
         return service.meu().pipe(
