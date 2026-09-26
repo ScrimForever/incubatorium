@@ -6,12 +6,12 @@
  * formato é definido aqui.
  *
  * O documento é um mapa por aba, de `"1"` a `"9"`, e cada aba carrega os seus
- * campos, os seus anexos em base64 e a sua nota:
+ * campos, a ficha dos seus anexos e as notas que recebeu — uma por avaliador:
  *
  * ```json
  * {
- *   "1": { "nome_proponente": "", ..., "nota": { "valor": null, ... } },
- *   "2": { "business_canvas": "", "nota": { ... } }
+ *   "1": { "nome_proponente": "", "...": "", "notas": [] },
+ *   "2": { "business_canvas": "", "notas": [{ "avaliador": "ana@x", "valor": 4 }] }
  * }
  * ```
  *
@@ -21,38 +21,61 @@
 /** As nove etapas são identificadas pelo número, como no sistema anterior. */
 export type NumeroEtapa = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
+/**
+ * A mesma coisa como chave do documento. Existe separado de
+ * `keyof JsonQuestionario` porque o documento tem uma chave que **não** é etapa
+ * (`decisao`): indexar por `keyof` traria essa chave junto e quebraria todo
+ * `json[chave].notas`.
+ */
+export type ChaveEtapa = '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';
+
 export const NUMEROS_ETAPA: readonly NumeroEtapa[] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
 /**
- * Arquivo anexado a uma etapa, embutido no próprio JSON.
- *
- * Não existe rota de upload no backend, e o documento inteiro trafega a cada
- * gravação — por isso o conteúdo vem em base64 aqui dentro, e por isso há um
- * teto por arquivo (`TAMANHO_MAXIMO_ANEXO`). Quando o endpoint de upload
- * nascer, `conteudo_base64` vira uma URL e o resto da estrutura não muda.
+ * Arquivo anexado a uma etapa — só o registro, não o conteúdo: este vai por
+ * `POST /arquivos/questionario/{aba}` e fica no disco do backend. A API não
+ * devolve id nem URL, então o vínculo com o arquivo gravado é (dono do token,
+ * aba) mais o nome.
  */
 export interface Anexo {
   nome: string;
   tipo: string;
-  /** Tamanho do arquivo original, em bytes — antes do base64. */
   tamanho: number;
-  /** Conteúdo puro em base64, sem o prefixo `data:`. */
-  conteudo_base64: string;
 }
 
 /**
- * Teto por arquivo. Base64 infla ~33%, e o JSON inteiro vai em todo PUT.
- * As etapas 6 e 9 aceitam **um arquivo cada** — `arquivos` é lista porque o
- * legado guardava `multiple_files`, e manter o formato evita migrar o JSONB
- * quando o upload de verdade existir.
+ * Teto por arquivo. O backend não impõe nenhum — este existe para o upload não
+ * virar espera sem fim, já que a tela não tem barra de progresso.
  */
-export const TAMANHO_MAXIMO_ANEXO = 2 * 1024 * 1024;
+export const TAMANHO_MAXIMO_ANEXO = 10 * 1024 * 1024;
 
-/** Avaliação do consultor numa etapa: nota de 1 a 5, observações e autor. */
+/** Nove fecha três linhas de três cartões — e segura o tamanho do documento. */
+export const MAXIMO_ANEXOS_POR_ETAPA = 9;
+
+/**
+ * A avaliação de **um** avaliador numa etapa.
+ *
+ * Vários avaliadores avaliam o mesmo plano, cada um pela sua especialidade, e o
+ * e-mail é a chave: gravar de novo troca a própria nota e nunca a de outro.
+ * `valor` aceita `null` para quem quer só comentar sem pontuar.
+ *
+ * Avaliar não aprova: nada aqui toca `status_questionario` — a regra está no
+ * formato, não só na tela (`docs/contrato-avaliacao.md`).
+ */
 export interface NotaEtapa {
+  /** E-mail de quem avaliou — a chave, vinda do token. */
+  avaliador: string;
+  /**
+   * Nome de quem avaliou, quando o servidor souber dizer. Opcional porque o
+   * `User` do backend **não tem nome** hoje (divergência em
+   * `docs/contrato-avaliacao.md`): sem ele, a tela assina só com o e-mail.
+   */
+  nome?: string;
+  especialidade: string;
   valor: 1 | 2 | 3 | 4 | 5 | null;
   texto: string;
-  avaliador: string | null;
+  /** ISO 8601 em UTC, gravado pelo frontend. */
+  em: string;
 }
 
 export const ROTULO_NOTA: Record<1 | 2 | 3 | 4 | 5, string> = {
@@ -61,6 +84,22 @@ export const ROTULO_NOTA: Record<1 | 2 | 3 | 4 | 5, string> = {
   3: 'Bom',
   4: 'Muito Bom',
   5: 'Excelente',
+};
+
+/**
+ * Classe de cor da nota: a escala vai do vermelho (1) ao verde (5).
+ *
+ * Fica aqui, e não no template, porque a mesma escala pinta a votação do
+ * avaliador e o selo da leitura. A classe só carrega as variáveis de cor
+ * (`styles.scss`); quem pinta é a regra de cada componente. A cor é reforço —
+ * o conceito ("Ruim"…"Excelente") vem escrito ao lado em toda tela.
+ */
+export const CLASSE_NOTA: Record<1 | 2 | 3 | 4 | 5, string> = {
+  1: 'nota-1',
+  2: 'nota-2',
+  3: 'nota-3',
+  4: 'nota-4',
+  5: 'nota-5',
 };
 
 /** Um integrante da equipe (etapa 4). */
@@ -73,9 +112,9 @@ export interface MembroEquipe {
   telefone: string;
 }
 
-/** Toda aba carrega a sua nota junto. */
+/** Toda aba carrega as notas que recebeu — uma por avaliador. */
 interface EtapaBase {
-  nota: NotaEtapa;
+  notas: NotaEtapa[];
 }
 
 interface Etapa1 extends EtapaBase {
@@ -132,6 +171,26 @@ export interface JsonQuestionario {
   '7': Etapa7;
   '8': Etapa8;
   '9': Etapa9;
+  /**
+   * A decisão da coordenação sobre o plano, quando já houve uma.
+   *
+   * Mora no documento, e não numa coluna nova, pelo mesmo motivo das notas: o
+   * `json_questionario` é JSONB livre e é do frontend. O `status_questionario`
+   * continua sendo a verdade sobre a situação — isto guarda **quem decidiu,
+   * quando e por quê**, que o enum sozinho não conta.
+   */
+  decisao?: DecisaoPlano;
+}
+
+/** Quem aprovou ou devolveu o plano, quando, e o motivo da devolução. */
+export interface DecisaoPlano {
+  status: 'aprovado' | 'rejeitado';
+  /** E-mail de quem decidiu — vem do token, no servidor. */
+  por: string;
+  /** ISO 8601 em UTC, gravado pelo servidor. */
+  em: string;
+  /** Obrigatória ao devolver; vazia ao aprovar. */
+  justificativa: string;
 }
 
 /**
@@ -179,8 +238,6 @@ export interface QuestionarioEntrada {
   json_questionario: JsonQuestionario;
 }
 
-const notaVazia = (): NotaEtapa => ({ valor: null, texto: '', avaliador: null });
-
 /** O documento em branco — é o que o `POST` grava no primeiro acesso. */
 export function documentoVazio(): JsonQuestionario {
   return {
@@ -189,21 +246,21 @@ export function documentoVazio(): JsonQuestionario {
       nome_negocio: '',
       setor_atuacao: '',
       cnpj: '',
-      nota: notaVazia(),
+      notas: [],
     },
-    '2': { business_canvas: '', nota: notaVazia() },
-    '3': { sumario_executivo: '', nota: notaVazia() },
-    '4': { equipe: [], nota: notaVazia() },
-    '5': { planejamento_produto: '', nota: notaVazia() },
+    '2': { business_canvas: '', notas: [] },
+    '3': { sumario_executivo: '', notas: [] },
+    '4': { equipe: [], notas: [] },
+    '5': { planejamento_produto: '', notas: [] },
     '6': {
       fornecedores: '',
       concorrentes: '',
       analise_acao: '',
       arquivos: [],
-      nota: notaVazia(),
+      notas: [],
     },
-    '7': { planejamento_marketing: '', nota: notaVazia() },
-    '8': { planejamento_estrutura: '', nota: notaVazia() },
-    '9': { observacoes: '', arquivos: [], nota: notaVazia() },
+    '7': { planejamento_marketing: '', notas: [] },
+    '8': { planejamento_estrutura: '', notas: [] },
+    '9': { observacoes: '', arquivos: [], notas: [] },
   };
 }

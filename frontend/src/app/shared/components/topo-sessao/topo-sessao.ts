@@ -11,7 +11,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ROLE_LABEL } from '../../../core/constants/app-constants';
 import { SessionUser } from '../../../core/models/auth';
 import { Auth } from '../../../core/services/auth';
-import { Icone } from '../icone/icone';
+import { BotaoSair } from '../botao-sair/botao-sair';
 
 /**
  * Barra superior das telas que ocupam a tela inteira, fora do painel: logo,
@@ -24,7 +24,7 @@ import { Icone } from '../icone/icone';
 @Component({
   selector: 'app-topo-sessao',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icone],
+  imports: [BotaoSair],
   templateUrl: './topo-sessao.html',
 })
 export class TopoSessao implements OnInit {
@@ -39,9 +39,5 @@ export class TopoSessao implements OnInit {
       .me()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({ next: (user) => this.user.set(user) });
-  }
-
-  protected sair(): void {
-    this.auth.sair();
   }
 }

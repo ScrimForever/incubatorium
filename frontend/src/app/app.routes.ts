@@ -1,7 +1,11 @@
-import { Routes } from '@angular/router';
+import { inject } from '@angular/core';
+import { Router, Routes } from '@angular/router';
+import { APP_ROUTES } from './core/constants/app-constants';
+import { pareceJwt } from './core/auth/token-store';
 import { authGuard } from './core/guards/auth-guard';
 import { guestGuard } from './core/guards/guest-guard';
 import { adminGuard } from './core/guards/admin-guard';
+import { avaliadorGuard } from './core/guards/avaliador-guard';
 import {
   aguardandoAprovacaoGuard,
   planoAprovadoGuard,
@@ -76,6 +80,23 @@ export const routes: Routes = [
       import('./pages/plano-rejeitado/plano-rejeitado').then((m) => m.PlanoRejeitado),
   },
   {
+    // Lista de planos para quem avalia. O incubado é desviado pelo guard.
+    path: 'planos-de-negocio',
+    title: 'TecCampos - Planos de negócio',
+    canActivate: [authGuard, avaliadorGuard],
+    loadComponent: () =>
+      import('./pages/planos-de-negocio/planos-de-negocio').then((m) => m.PlanosDeNegocio),
+  },
+  {
+    // Avaliar é a MESMA tela do questionário do incubado, em modo leitura: o
+    // `:email` e o `data.modo` chegam como input() (withComponentInputBinding).
+    path: 'planos-de-negocio/:email',
+    title: 'TecCampos - Avaliar plano',
+    data: { modo: 'avaliacao' },
+    canActivate: [authGuard, avaliadorGuard],
+    loadComponent: () => import('./pages/questionario/questionario').then((m) => m.Questionario),
+  },
+  {
     path: 'usuarios',
     title: 'TecCampos - Usuários',
     canActivate: [authGuard, adminGuard],
@@ -94,6 +115,20 @@ export const routes: Routes = [
     title: 'TecCampos - Minha conta',
     canActivate: [authGuard, planoAprovadoGuard],
     loadComponent: () => import('./pages/minha-conta/minha-conta').then((m) => m.MinhaConta),
+  },
+  {
+    /**
+     * O e-mail de redefinição manda o token na raiz — `localhost:3000/<token>`,
+     * sem nome de rota. Última antes do `**`, então só pega segmento que não
+     * seja nenhuma rota nomeada; sem cara de JWT, segue para a não encontrada.
+     */
+    path: ':token',
+    redirectTo: (rota) => {
+      const token = rota.params['token'] ?? '';
+      return pareceJwt(token)
+        ? inject(Router).createUrlTree([APP_ROUTES.redefinirSenha], { queryParams: { token } })
+        : 'nao-encontrado';
+    },
   },
   { path: '', pathMatch: 'full', redirectTo: 'login' },
   {

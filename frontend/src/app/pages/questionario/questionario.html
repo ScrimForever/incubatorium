@@ -1,16 +1,26 @@
-<div class="quest">
+<div class="quest" [class.quest--avaliacao]="ehAvaliacao()">
   <app-topo-sessao />
 
   <main id="conteudo" tabindex="-1" class="quest-conteudo">
-    <!-- Título, progresso e trilha ficam grudados no topo: com a página rolada,
-         o incubado continua vendo em que etapa está e quanto falta. -->
-    <div class="quest-topo">
+    @if (ehAvaliacao()) {
+      <a [routerLink]="voltarLista" class="aval-voltar">← Todos os planos</a>
+      <h1>Plano de negócios</h1>
+      <p class="quest-subtitulo">
+        Leitura do plano de {{ email() }}. Dê a sua nota e o comentário em cada etapa — as respostas
+        não podem ser alteradas aqui.
+      </p>
+    } @else {
       <h1>Plano de negócios</h1>
       <p class="quest-subtitulo">
         Nove etapas. O conteúdo é salvo a cada avanço, e você pode voltar quando quiser.
       </p>
+    }
 
-      @if (carregado()) {
+    @if (carregado()) {
+      <!-- Progresso e trilha grudam no topo: com a página rolada, o incubado
+           continua vendo em que etapa está e quanto falta. O título fica de
+           fora — grudado, ele comia metade da altura de um celular deitado. -->
+      <div class="quest-topo">
         <div class="quest-progresso">
           <div class="quest-barra"><span [style.width.%]="progresso()"></span></div>
           <span class="quest-progresso-numero">{{ progresso() }}%</span>
@@ -18,6 +28,8 @@
 
         <nav class="quest-trilha" aria-label="Etapas do plano" #trilha>
           @for (passo of passos(); track passo.numero) {
+            <!-- O nome vai no aria-label: em tela menor o rótulo visível some, e o
+                 leitor de tela anunciaria só o número. -->
             <button
               type="button"
               class="quest-passo"
@@ -25,22 +37,21 @@
               [class.quest-passo--atual]="passo.atual"
               [class.quest-passo--ok]="passo.completa"
               [disabled]="!passo.acessivel"
+              [attr.aria-label]="passo.nome"
               [attr.aria-current]="passo.atual ? 'step' : null"
               [attr.title]="passo.acessivel ? null : 'Conclua a etapa anterior para abrir esta.'"
               (click)="irPara(passo.numero)"
             >
               <span class="quest-passo-numero">{{ passo.numero }}</span>
-              <span class="quest-passo-rotulo">{{ rotuloCurto(passo.numero) }}</span>
+              <span class="quest-passo-rotulo">{{ passo.rotulo }}</span>
               @if (!passo.acessivel) {
                 <app-icone nome="cadeado" />
               }
             </button>
           }
         </nav>
-      }
-    </div>
+      </div>
 
-    @if (carregado()) {
       @if (mensagemErro()) {
         <div class="error-message" role="alert"><app-icone nome="erro" />{{ mensagemErro() }}</div>
       }
@@ -51,7 +62,12 @@
       }
 
       <section class="cartao quest-cartao">
-        <h2>{{ etapa().titulo }}</h2>
+        <h2 id="quest-titulo">
+          {{ etapa().titulo }}
+          @if (tituloObrigatorio()) {
+            <span class="obrigatorio" aria-hidden="true">*</span>
+          }
+        </h2>
 
         @if (etapa().introducao) {
           <p class="quest-intro">{{ etapa().introducao }}</p>
@@ -63,12 +79,19 @@
             <div class="quest-grade">
               @for (campo of camposEtapa1; track campo.nome) {
                 <div class="form-group">
-                  <label [attr.for]="campo.nome">{{ campo.rotulo }}</label>
+                  <label [attr.for]="campo.nome"
+                    >{{ campo.rotulo }}
+                    @if (campo.obrigatorio) {
+                      <span class="obrigatorio" aria-hidden="true">*</span>
+                    }
+                  </label>
                   <input
                     [id]="campo.nome"
                     type="text"
                     [formControlName]="campo.nome"
-                    [placeholder]="campo.placeholder"
+                    [readonly]="ehAvaliacao()"
+                    [placeholder]="ehAvaliacao() ? '' : campo.placeholder"
+                    [attr.aria-required]="campo.obrigatorio"
                   />
                   @if (form().controls[campo.nome]; as controle) {
                     @if (controle.invalid && (controle.touched || tentouAvancar())) {
@@ -83,7 +106,13 @@
           @for (campo of etapa().campos; track campo.nome) {
             <div class="form-group quest-campo">
               @if (campo.rotulo) {
-                <label [attr.for]="campo.nome">{{ campo.rotulo }}</label>
+                <!-- Não é <label>: o editor é um contenteditable, ligado ao rótulo por aria-labelledby. -->
+                <span class="rotulo" [id]="campo.nome + '-rotulo'"
+                  >{{ campo.rotulo }}
+                  @if (campo.obrigatorio) {
+                    <span class="obrigatorio" aria-hidden="true">*</span>
+                  }
+                </span>
               }
               @if (campo.instrucao.length) {
                 <ul class="quest-instrucao">
@@ -92,12 +121,14 @@
                   }
                 </ul>
               }
-              <textarea
-                [id]="campo.nome"
+              <quill-editor
                 [formControlName]="campo.nome"
-                [placeholder]="campo.placeholder"
-                [rows]="campo.linhas"
-              ></textarea>
+                [readOnly]="ehAvaliacao()"
+                [placeholder]="ehAvaliacao() ? '' : campo.placeholder"
+                [attr.data-linhas]="campo.linhas"
+                [valueGetter]="valorDoEditor"
+                (onEditorCreated)="aoCriarEditor($event, campo)"
+              />
               @if (form().controls[campo.nome]; as controle) {
                 @if (controle.invalid && (controle.touched || tentouAvancar())) {
                   <span class="field-error">{{ campo.erro }}</span>
@@ -114,36 +145,68 @@
               Cadastre os integrantes responsáveis pelo negócio. Formação e experiência ajudam o
               consultor a avaliar a capacidade de execução do plano.
             </p>
-            <button type="button" class="btn btn--verde" (click)="abrirMembro()">
-              Adicionar membro
-            </button>
+            @if (!ehAvaliacao()) {
+              <button type="button" class="btn btn--verde" (click)="abrirMembro()">
+                Adicionar membro
+              </button>
+            }
           </div>
 
           @if (membros().length) {
-            <ul class="quest-membros">
+            <ul class="membros">
               @for (membro of membros(); track membro.id) {
-                <li class="quest-membro">
-                  <div>
+                <li class="membro">
+                  <div class="membro-topo">
                     <strong>{{ membro.nome }}</strong>
-                    <span>{{ membro.formacao_academica }}</span>
-                    <span
-                      >{{ membro.email }}
-                      @if (membro.telefone) {
-                        · {{ membro.telefone }}
-                      }
-                    </span>
-                    @if (membro.experiencia) {
-                      <p>{{ membro.experiencia }}</p>
+                    @if (!ehAvaliacao()) {
+                      <div class="quest-membro-acoes">
+                        <button
+                          type="button"
+                          class="quest-editar"
+                          [attr.aria-label]="'Editar ' + membro.nome"
+                          title="Editar"
+                          (click)="editarMembro(membro)"
+                        >
+                          <app-icone nome="lapis" />
+                        </button>
+                        <button
+                          type="button"
+                          class="quest-remover"
+                          [attr.aria-label]="'Remover ' + membro.nome"
+                          title="Remover"
+                          (click)="pedirRemocaoMembro(membro)"
+                        >
+                          &times;
+                        </button>
+                      </div>
                     }
                   </div>
-                  <button
-                    type="button"
-                    class="quest-remover"
-                    [attr.aria-label]="'Remover ' + membro.nome"
-                    (click)="removerMembro(membro.id)"
-                  >
-                    &times;
-                  </button>
+                  <dl class="membro-dados">
+                    <div>
+                      <dt>Formação acadêmica</dt>
+                      <dd>{{ membro.formacao_academica }}</dd>
+                    </div>
+                    <div>
+                      <dt>E-mail</dt>
+                      <dd>{{ membro.email }}</dd>
+                    </div>
+                    <div>
+                      <dt>Telefone</dt>
+                      <dd [class.membro-ausente]="!membro.telefone">
+                        {{ membro.telefone || 'Não informado' }}
+                      </dd>
+                    </div>
+                    <div class="membro-experiencia">
+                      <dt>Experiência</dt>
+                      <!-- tabindex: região rolável tem de ser alcançável pelo teclado. -->
+                      <dd
+                        tabindex="0"
+                        [class.membro-ausente]="!membro.experiencia"
+                        [attr.aria-label]="'Experiência de ' + membro.nome"
+                        [textContent]="membro.experiencia || 'Não informada'"
+                      ></dd>
+                    </div>
+                  </dl>
                 </li>
               }
             </ul>
@@ -157,39 +220,54 @@
           }
         }
 
-        <!-- Etapa 6: um anexo -->
+        <!-- Etapa 6: anexos da análise de mercado -->
         @if (etapa().anexoUnico) {
           <div class="quest-anexos">
-            <label
-              for="anexo-mercado"
-              class="quest-anexo-botao"
-              [class.quest-anexo-botao--invalido]="anexoFaltando()"
-            >
-              <app-icone nome="documento" />
-              Enviar arquivo
-            </label>
-            <input id="anexo-mercado" type="file" (change)="anexar($event, 6)" />
-            @if (anexoFaltando()) {
-              <span class="field-error">Anexe o arquivo da análise de mercado.</span>
+            @if (!ehAvaliacao()) {
+              <label
+                for="anexo-mercado"
+                class="quest-anexo-botao"
+                [class.quest-anexo-botao--invalido]="anexoFaltando()"
+              >
+                <app-icone nome="documento" />
+                Enviar arquivos
+              </label>
+              <input id="anexo-mercado" type="file" multiple (change)="anexar($event, 6)" />
+              @if (anexoFaltando()) {
+                <span class="field-error">Anexe o arquivo da análise de mercado.</span>
+              }
             }
             @if (anexosMercado().length) {
               <ul class="quest-arquivos">
                 @for (arquivo of anexosMercado(); track arquivo.nome) {
-                  <li>
-                    <app-icone nome="documento" />
-                    <span>{{ arquivo.nome }}</span>
-                    <small>{{ tamanhoLegivel(arquivo.tamanho) }}</small>
+                  <li class="quest-arquivo">
+                    <!-- A ficha inteira abre a pré-visualização; o × fica fora do botão. -->
                     <button
                       type="button"
-                      class="quest-remover"
-                      [attr.aria-label]="'Remover ' + arquivo.nome"
-                      (click)="removerAnexo(6, arquivo.nome)"
+                      class="quest-arquivo-abrir"
+                      [attr.aria-label]="'Pré-visualizar ' + arquivo.nome"
+                      title="Pré-visualizar (exemplo)"
+                      (click)="abrirPreview(arquivo)"
                     >
-                      &times;
+                      <app-icone nome="documento" />
+                      <span>{{ arquivo.nome }}</span>
+                      <small>{{ tamanhoLegivel(arquivo.tamanho) }}</small>
                     </button>
+                    @if (!ehAvaliacao()) {
+                      <button
+                        type="button"
+                        class="quest-remover"
+                        [attr.aria-label]="'Remover ' + arquivo.nome"
+                        (click)="pedirRemocaoAnexo(6, arquivo.nome)"
+                      >
+                        &times;
+                      </button>
+                    }
                   </li>
                 }
               </ul>
+            } @else if (ehAvaliacao()) {
+              <p class="quest-vazio">Sem anexos nesta etapa.</p>
             }
           </div>
         }
@@ -197,69 +275,228 @@
         <!-- Etapa 9: planilhas -->
         @if (etapa().especial === 'financeiro') {
           <div class="quest-anexos">
-            <label
-              for="anexo-planilhas"
-              class="quest-anexo-botao"
-              [class.quest-anexo-botao--invalido]="anexoFaltando()"
-            >
-              <app-icone nome="documento" />
-              Enviar planilha
-            </label>
-            <input id="anexo-planilhas" type="file" (change)="anexar($event, 9)" />
-            @if (anexoFaltando()) {
-              <span class="field-error">Anexe a planilha do planejamento financeiro.</span>
+            @if (!ehAvaliacao()) {
+              <label
+                for="anexo-planilhas"
+                class="quest-anexo-botao"
+                [class.quest-anexo-botao--invalido]="anexoFaltando()"
+              >
+                <app-icone nome="documento" />
+                Enviar planilhas
+              </label>
+              <input id="anexo-planilhas" type="file" multiple (change)="anexar($event, 9)" />
+              @if (anexoFaltando()) {
+                <span class="field-error">Anexe a planilha do planejamento financeiro.</span>
+              }
             }
             @if (planilhas().length) {
               <ul class="quest-arquivos">
                 @for (arquivo of planilhas(); track arquivo.nome) {
-                  <li>
-                    <app-icone nome="documento" />
-                    <span>{{ arquivo.nome }}</span>
-                    <small>{{ tamanhoLegivel(arquivo.tamanho) }}</small>
+                  <li class="quest-arquivo">
+                    <!-- A ficha inteira abre a pré-visualização; o × fica fora do botão. -->
                     <button
                       type="button"
-                      class="quest-remover"
-                      [attr.aria-label]="'Remover ' + arquivo.nome"
-                      (click)="removerAnexo(9, arquivo.nome)"
+                      class="quest-arquivo-abrir"
+                      [attr.aria-label]="'Pré-visualizar ' + arquivo.nome"
+                      title="Pré-visualizar (exemplo)"
+                      (click)="abrirPreview(arquivo)"
                     >
-                      &times;
+                      <app-icone nome="documento" />
+                      <span>{{ arquivo.nome }}</span>
+                      <small>{{ tamanhoLegivel(arquivo.tamanho) }}</small>
                     </button>
+                    @if (!ehAvaliacao()) {
+                      <button
+                        type="button"
+                        class="quest-remover"
+                        [attr.aria-label]="'Remover ' + arquivo.nome"
+                        (click)="pedirRemocaoAnexo(9, arquivo.nome)"
+                      >
+                        &times;
+                      </button>
+                    }
                   </li>
                 }
               </ul>
+            } @else if (ehAvaliacao()) {
+              <p class="quest-vazio">Sem anexos nesta etapa.</p>
             }
           </div>
         }
       </section>
 
-      <div class="quest-acoes">
-        <button
-          type="button"
-          class="btn btn--azul"
-          [disabled]="ehPrimeira() || salvando()"
-          (click)="voltar()"
-        >
-          Voltar
-        </button>
-
-        <div class="quest-acoes-direita">
-          <button type="button" class="btn-texto" [disabled]="salvando()" (click)="salvar()">
-            {{ salvando() ? 'Salvando...' : 'Salvar rascunho' }}
-          </button>
-          <button
-            type="button"
-            class="btn btn--verde"
-            [disabled]="salvando() || enviando()"
-            (click)="avancar()"
-          >
-            @if (ehUltima()) {
-              {{ enviando() ? 'Enviando...' : 'Enviar para análise' }}
-            } @else {
-              Próximo
+      <!-- Só na avaliação: o card da nota desta etapa, entre o cartão e o rodapé.
+           É sempre o MESMO layout — escala, comentário e rodapé. O que muda é se
+           está travado (nota já dada) ou aberto para edição: os dois rótulos
+           trocam de texto e os controles destravam. -->
+      @if (ehAvaliacao()) {
+        <section class="cartao aval-card" [class.aval-card--travado]="!formularioAberto()">
+          <span class="aval-rotulo" id="aval-nota-rotulo">{{ rotuloAvaliacao() }}</span>
+          <div class="aval-valores" role="group" aria-labelledby="aval-nota-rotulo">
+            @for (valor of valores; track valor) {
+              <button
+                type="button"
+                [class]="'aval-valor ' + classeNota[valor]"
+                [class.aval-valor--ativo]="valorEmTela() === valor"
+                [attr.aria-pressed]="valorEmTela() === valor"
+                [disabled]="!formularioAberto()"
+                (click)="escolher(numero(), valor)"
+              >
+                {{ valor }}
+                <small>{{ rotuloNota[valor] }}</small>
+              </button>
             }
-          </button>
+          </div>
+
+          <label for="aval-comentario" class="aval-rotulo">{{ rotuloComentario() }}</label>
+          <!-- `readonly`, e não `disabled`: o texto continua selecionável e o
+               leitor de tela continua lendo. -->
+          <textarea
+            id="aval-comentario"
+            class="aval-comentario"
+            rows="5"
+            [value]="textoEmTela()"
+            [readOnly]="!formularioAberto()"
+            [placeholder]="placeholderComentario()"
+            (input)="escrever(numero(), $event)"
+          ></textarea>
+
+          <div class="aval-acoes">
+            @if (formularioAberto()) {
+              <button
+                type="button"
+                class="btn btn--verde"
+                [disabled]="!podeAvaliar(numero())"
+                (click)="avaliar(numero())"
+              >
+                @if (salvandoNota() === numero()) {
+                  Salvando…
+                } @else if (minhaDaEtapa()) {
+                  Salvar alterações
+                } @else {
+                  Salvar avaliação
+                }
+              </button>
+              @if (minhaDaEtapa()) {
+                <button type="button" class="btn-texto" (click)="cancelarEdicao()">Cancelar</button>
+              }
+              <span class="aval-dica">Dê a nota, o comentário, ou os dois.</span>
+            } @else if (notaDaEtapa(); as nota) {
+              <span class="aval-assinatura">
+                <app-icone nome="usuario" />
+                @if (minhaDaEtapa() && !ehCoordenacao()) {
+                  <strong>Você</strong>
+                } @else {
+                  @if (nota.nome) {
+                    <strong>{{ nota.nome }}</strong>
+                  }
+                  <span class="aval-assinatura-email">{{ nota.avaliador }}</span>
+                }
+                @if (dataNota(nota.em)) {
+                  <time class="aval-nota-data">{{ dataNota(nota.em) }}</time>
+                }
+              </span>
+              @if (minhaDaEtapa() && !ehCoordenacao()) {
+                <button type="button" class="aval-editar" (click)="editarNota()">
+                  <app-icone nome="lapis" />
+                  Editar avaliação
+                </button>
+              } @else if (!ehCoordenacao()) {
+                <span class="aval-bloqueada">
+                  <app-icone nome="cadeado" />
+                  Avaliada por outro consultor — você pode apenas visualizar.
+                </span>
+              }
+            } @else {
+              <!-- Etapa ainda sem nota, vista por quem só decide: mesmo card,
+                     escala sem escolha e o aviso no lugar da assinatura. -->
+              <p class="aval-sem-nota">Esta etapa ainda não foi avaliada.</p>
+            }
+          </div>
+        </section>
+      }
+
+      @if (ehAvaliacao()) {
+        <!-- Nas pontas o botão some, em vez de ficar desabilitado: na avaliação
+             ele não vira outra coisa depois (não há "enviar"), então é ruído. -->
+        <div class="quest-acoes">
+          @if (!ehPrimeira()) {
+            <button type="button" class="btn btn--azul" (click)="voltar()">Voltar</button>
+          }
+          <div class="quest-acoes-direita">
+            @if (!ehUltima()) {
+              <button type="button" class="btn btn--verde" (click)="avancar()">Próximo</button>
+            }
+          </div>
         </div>
-      </div>
+      }
+
+      <!-- Só a coordenação decide, e só com o plano inteiro avaliado. Barra
+           grudada no rodapé para a decisão ficar à mão em qualquer etapa. -->
+      @if (ehCoordenacao()) {
+        <aside class="decisao-barra">
+          <p class="decisao-resumo">
+            <strong>{{ etapasAvaliadas() }} de {{ totalEtapas }} etapas avaliadas</strong>
+            @if (mediaDoPlano(); as media) {
+              <span>· média {{ media }}</span>
+            }
+            @if (rotuloStatusPlano(); as rotulo) {
+              <span>· {{ rotulo }}</span>
+            }
+          </p>
+
+          @if (decisao(); as decidida) {
+            <p class="decisao-tomada">
+              <app-icone [nome]="decidida.status === 'aprovado' ? 'sucesso' : 'alerta'" />
+              {{ decidida.status === 'aprovado' ? 'Aprovado' : 'Devolvido' }} por
+              {{ decidida.por }} em {{ dataNota(decidida.em) }}
+            </p>
+          } @else if (podeDecidir()) {
+            <div class="decisao-acoes">
+              <button type="button" class="btn-texto" (click)="abrirDecisao('rejeitado')">
+                Devolver para ajustes
+              </button>
+              <button type="button" class="btn btn--verde" (click)="abrirDecisao('aprovado')">
+                Aprovar plano
+              </button>
+            </div>
+          } @else {
+            <p class="decisao-pendente">
+              <app-icone nome="cadeado" />
+              Decidir só depois das nove etapas avaliadas.
+            </p>
+          }
+        </aside>
+      }
+
+      @if (!ehAvaliacao()) {
+        <div class="quest-acoes">
+          <!-- Na etapa 1 o botão some, como na avaliação: não há para onde voltar. -->
+          @if (!ehPrimeira()) {
+            <button type="button" class="btn btn--azul" [disabled]="salvando()" (click)="voltar()">
+              Voltar
+            </button>
+          }
+
+          <div class="quest-acoes-direita">
+            <button type="button" class="btn-texto" [disabled]="salvando()" (click)="salvar()">
+              {{ salvando() ? 'Salvando...' : 'Salvar rascunho' }}
+            </button>
+            <button
+              type="button"
+              class="btn btn--verde"
+              [disabled]="salvando() || enviando()"
+              (click)="avancar()"
+            >
+              @if (ehUltima()) {
+                {{ enviando() ? 'Enviando...' : 'Enviar para análise' }}
+              } @else {
+                Próximo
+              }
+            </button>
+          </div>
+        </div>
+      }
     } @else {
       <p class="quest-carregando">Carregando...</p>
     }
@@ -275,23 +512,26 @@
       aria-modal="true"
       aria-labelledby="membro-titulo"
       tabindex="-1"
-      (keydown.tab)="onTabMembro($event, false)"
-      (keydown.shift.tab)="onTabMembro($event, true)"
+      (keydown.tab)="prenderTab($event, false, dialogoMembro)"
+      (keydown.shift.tab)="prenderTab($event, true, dialogoMembro)"
     >
       <header class="modal-header">
-        <h2 id="membro-titulo">Novo membro</h2>
+        <h2 id="membro-titulo">{{ membroEditando() ? 'Editar membro' : 'Novo membro' }}</h2>
         <button type="button" class="close" aria-label="Fechar" (click)="fecharMembro()">
           &times;
         </button>
       </header>
 
-      <form [formGroup]="formMembro" (ngSubmit)="adicionarMembro()" novalidate>
+      <form [formGroup]="formMembro" (ngSubmit)="salvarMembro()" novalidate>
         <div class="modal-body">
           <div class="form-group">
-            <label for="membro-nome">Nome</label>
+            <label for="membro-nome"
+              >Nome <span class="obrigatorio" aria-hidden="true">*</span></label
+            >
             <input
               id="membro-nome"
               type="text"
+              aria-required="true"
               formControlName="nome"
               placeholder="Ex.: João Paulo Ferreira"
             />
@@ -300,10 +540,13 @@
             }
           </div>
           <div class="form-group">
-            <label for="membro-formacao">Formação acadêmica</label>
+            <label for="membro-formacao"
+              >Formação acadêmica <span class="obrigatorio" aria-hidden="true">*</span></label
+            >
             <input
               id="membro-formacao"
               type="text"
+              aria-required="true"
               formControlName="formacao_academica"
               placeholder="Ex.: Engenharia de Produção"
             />
@@ -315,10 +558,13 @@
             }
           </div>
           <div class="form-group">
-            <label for="membro-email">E-mail</label>
+            <label for="membro-email"
+              >E-mail <span class="obrigatorio" aria-hidden="true">*</span></label
+            >
             <input
               id="membro-email"
               type="email"
+              aria-required="true"
               formControlName="email"
               placeholder="Ex.: joao.ferreira@teccampos.com"
             />
@@ -348,9 +594,225 @@
 
         <footer class="modal-footer">
           <button type="button" class="btn-texto" (click)="fecharMembro()">Cancelar</button>
-          <button type="submit" class="btn btn--verde">Adicionar</button>
+          <button type="submit" class="btn btn--verde">
+            {{ membroEditando() ? 'Salvar' : 'Adicionar' }}
+          </button>
         </footer>
       </form>
+    </div>
+  </div>
+}
+
+@if (confirmandoEnvio()) {
+  <div class="overlay">
+    <div
+      #dialogoEnvio
+      class="modal"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="envio-titulo"
+      aria-describedby="envio-texto"
+      tabindex="-1"
+      (keydown.tab)="prenderTab($event, false, dialogoEnvio)"
+      (keydown.shift.tab)="prenderTab($event, true, dialogoEnvio)"
+    >
+      <header class="modal-header">
+        <h2 id="envio-titulo">Enviar para análise</h2>
+        <button
+          type="button"
+          class="close"
+          aria-label="Fechar"
+          [disabled]="enviando()"
+          (click)="cancelarEnvio()"
+        >
+          &times;
+        </button>
+      </header>
+
+      <div class="modal-body" id="envio-texto">
+        <p>
+          Depois de enviado, o plano segue para a análise do consultor e
+          <strong>não poderá mais ser editado</strong>.
+        </p>
+        <p>
+          Se quiser, volte e confira as abas antes de enviar. Tudo o que você preencheu já está
+          salvo.
+        </p>
+      </div>
+
+      <footer class="modal-footer">
+        <button type="button" class="btn-texto" [disabled]="enviando()" (click)="cancelarEnvio()">
+          Voltar e conferir
+        </button>
+        <button
+          type="button"
+          class="btn btn--verde"
+          [disabled]="enviando()"
+          (click)="confirmarEnvio()"
+        >
+          {{ enviando() ? 'Enviando...' : 'Enviar para análise' }}
+        </button>
+      </footer>
+    </div>
+  </div>
+}
+
+@if (remocao(); as alvo) {
+  <div class="overlay">
+    <div
+      #dialogoRemocao
+      class="modal"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="remocao-titulo"
+      aria-describedby="remocao-texto"
+      tabindex="-1"
+      (keydown.tab)="prenderTab($event, false, dialogoRemocao)"
+      (keydown.shift.tab)="prenderTab($event, true, dialogoRemocao)"
+    >
+      <header class="modal-header">
+        <h2 id="remocao-titulo">{{ alvo.titulo }}</h2>
+        <button type="button" class="close" aria-label="Fechar" (click)="cancelarRemocao()">
+          &times;
+        </button>
+      </header>
+
+      <div class="modal-body">
+        <p id="remocao-texto">
+          {{ alvo.antes }} <strong>{{ alvo.nome }}</strong
+          >{{ alvo.depois }}
+        </p>
+      </div>
+
+      <footer class="modal-footer">
+        <button type="button" class="btn-texto" (click)="cancelarRemocao()">Cancelar</button>
+        <button
+          type="button"
+          class="btn btn--azul"
+          [disabled]="salvando()"
+          (click)="confirmarRemocao()"
+        >
+          Remover
+        </button>
+      </footer>
+    </div>
+  </div>
+}
+
+@if (saidaPendente() !== null) {
+  <div class="overlay">
+    <div
+      #dialogoSaida
+      class="modal"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="saida-titulo"
+      aria-describedby="saida-texto"
+      tabindex="-1"
+      (keydown.tab)="prenderTab($event, false, dialogoSaida)"
+      (keydown.shift.tab)="prenderTab($event, true, dialogoSaida)"
+    >
+      <header class="modal-header">
+        <h2 id="saida-titulo">Avaliação não salva</h2>
+        <button type="button" class="close" aria-label="Fechar" (click)="cancelarSaida()">
+          &times;
+        </button>
+      </header>
+
+      <div class="modal-body">
+        <p id="saida-texto">
+          Você escreveu uma avaliação nesta etapa e ainda <strong>não salvou</strong>. Se sair
+          agora, o que digitou será perdido.
+        </p>
+      </div>
+
+      <footer class="modal-footer">
+        <button type="button" class="btn-texto" (click)="cancelarSaida()">
+          Continuar nesta etapa
+        </button>
+        <button type="button" class="btn btn--azul" (click)="confirmarSaida()">
+          Sair sem salvar
+        </button>
+      </footer>
+    </div>
+  </div>
+}
+
+<app-visualizador-arquivo [arquivo]="arquivoPreview()" (fechar)="fecharPreview()" />
+
+@if (decidindo(); as status) {
+  <div class="overlay">
+    <div
+      #dialogoDecisao
+      class="modal"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="decisao-titulo"
+      aria-describedby="decisao-texto"
+      tabindex="-1"
+      (keydown.tab)="prenderTab($event, false, dialogoDecisao)"
+      (keydown.shift.tab)="prenderTab($event, true, dialogoDecisao)"
+    >
+      <header class="modal-header">
+        <h2 id="decisao-titulo">
+          @if (status === 'aprovado') {
+            Aprovar plano
+          } @else {
+            Devolver para ajustes
+          }
+        </h2>
+        <button type="button" class="close" aria-label="Fechar" (click)="fecharDecisao()">
+          &times;
+        </button>
+      </header>
+
+      <div class="modal-body">
+        <p id="decisao-texto">
+          @if (status === 'aprovado') {
+            O plano passa a <strong>Aprovado</strong> e o incubado ganha acesso ao painel. As notas
+            das etapas continuam visíveis para ele.
+          } @else {
+            O plano volta para o incubado como <strong>Devolvido para ajustes</strong>, com as notas
+            das etapas e o motivo abaixo.
+          }
+        </p>
+
+        @if (status === 'rejeitado') {
+          <div class="form-group">
+            <label for="decisao-justificativa">Motivo da devolução</label>
+            <textarea
+              id="decisao-justificativa"
+              rows="4"
+              [value]="justificativa()"
+              (input)="escreverJustificativa($event)"
+              placeholder="Explique o que precisa ser ajustado — é isto que o incubado vai ler."
+            ></textarea>
+            @if (!decisaoValida()) {
+              <span class="field-error">Escreva o motivo para poder devolver.</span>
+            }
+          </div>
+        }
+      </div>
+
+      <footer class="modal-footer">
+        <button type="button" class="btn-texto" (click)="fecharDecisao()">Cancelar</button>
+        <button
+          type="button"
+          class="btn"
+          [class.btn--verde]="status === 'aprovado'"
+          [class.btn--azul]="status === 'rejeitado'"
+          [disabled]="!decisaoValida() || salvandoDecisao()"
+          (click)="confirmarDecisao()"
+        >
+          @if (salvandoDecisao()) {
+            Salvando…
+          } @else if (status === 'aprovado') {
+            Aprovar plano
+          } @else {
+            Devolver plano
+          }
+        </button>
+      </footer>
     </div>
   </div>
 }

@@ -32,7 +32,8 @@ const PAPEIS: readonly { papel: Role; descricao: string }[] = [
   { papel: 'incubado', descricao: 'Preenche o próprio plano de negócios.' },
 ];
 
-const FILTROS = ['todos', 'ativos', 'inativos', 'nao-verificados', 'admins'] as const;
+/** "Todos" por último, como na lista de planos: primeiro os recortes. */
+const FILTROS = ['ativos', 'inativos', 'nao-verificados', 'admins', 'todos'] as const;
 type Filtro = (typeof FILTROS)[number];
 
 const ROTULO_FILTRO: Record<Filtro, string> = {

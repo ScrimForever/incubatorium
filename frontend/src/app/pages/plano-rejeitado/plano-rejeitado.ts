@@ -3,13 +3,14 @@ import {
   Component,
   DestroyRef,
   OnInit,
+  computed,
   inject,
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { ApiError } from '../../core/models/auth';
-import { JsonQuestionario } from '../../core/models/questionario';
+import { DecisaoPlano, JsonQuestionario } from '../../core/models/questionario';
 import { QuestionarioService } from '../../core/services/questionario';
 import { Icone } from '../../shared/components/icone/icone';
 import { PlanoLeitura } from '../../shared/components/plano-leitura/plano-leitura';
@@ -34,6 +35,18 @@ export class PlanoRejeitado implements OnInit {
 
   protected readonly json = signal<JsonQuestionario | null>(null);
   protected readonly mensagemErro = signal('');
+
+  /** O motivo escrito por quem devolveu, quando o documento já o traz. */
+  protected readonly devolucao = computed<DecisaoPlano | null>(() => {
+    const decisao = this.json()?.decisao;
+    return decisao?.status === 'rejeitado' && decisao.justificativa ? decisao : null;
+  });
+
+  /** Data curta em PT-BR; data inválida some, em vez de virar "Invalid Date". */
+  protected dataLegivel(iso: string): string {
+    const data = new Date(iso);
+    return Number.isNaN(data.getTime()) ? '' : data.toLocaleDateString('pt-BR');
+  }
 
   ngOnInit(): void {
     this.service

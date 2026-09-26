@@ -1,0 +1,100 @@
+@if (arquivo(); as a) {
+  <div class="overlay">
+    <div
+      #dialogo
+      class="modal visu-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="visu-titulo"
+      tabindex="-1"
+      (keydown.tab)="prenderTab($event, false, dialogo)"
+      (keydown.shift.tab)="prenderTab($event, true, dialogo)"
+    >
+      <header class="modal-header">
+        <h2 id="visu-titulo" class="visu-titulo">
+          <app-icone nome="documento" />
+          <span>{{ a.nome }}</span>
+        </h2>
+        <button type="button" class="close" aria-label="Fechar" (click)="fechar.emit()">
+          &times;
+        </button>
+      </header>
+
+      <div class="modal-body">
+        <p class="visu-meta">{{ rotuloTipo() }} · {{ tamanhoLegivel(a.tamanho) }}</p>
+
+        <!-- Prévia de exemplo por tipo — não é o arquivo real (ver aviso abaixo). -->
+        <div class="visu-preview" [attr.data-categoria]="categoria()">
+          @switch (categoria()) {
+            @case ('imagem') {
+              <div class="visu-imagem" role="img" [attr.aria-label]="'Imagem ' + a.nome">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <circle cx="8.5" cy="8.5" r="1.8" />
+                  <path d="m21 15-5-5L5 21" />
+                </svg>
+              </div>
+            }
+            @case ('pdf') {
+              <div class="visu-pagina" aria-hidden="true">
+                @for (l of linhas; track $index) {
+                  <span class="visu-linha" [style.width.%]="l"></span>
+                }
+              </div>
+            }
+            @case ('documento') {
+              <div class="visu-pagina" aria-hidden="true">
+                @for (l of linhas; track $index) {
+                  <span class="visu-linha" [style.width.%]="l"></span>
+                }
+              </div>
+            }
+            @case ('texto') {
+              <pre class="visu-texto" aria-hidden="true">
+Lorem ipsum dolor sit amet,
+consectetur adipiscing elit,
+sed do eiusmod tempor incididunt
+ut labore et dolore magna aliqua.</pre>
+            }
+            @case ('planilha') {
+              <table class="visu-tabela" aria-hidden="true">
+                <tbody>
+                  @for (linha of tabela; track $index) {
+                    <tr>
+                      @for (celula of linha; track $index) {
+                        <td>{{ celula }}</td>
+                      }
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+            @default {
+              <div class="visu-generico">
+                <app-icone nome="documento" />
+                <p>Sem pré-visualização para este tipo de arquivo.</p>
+              </div>
+            }
+          }
+        </div>
+
+        <p class="visu-aviso" role="note">
+          Pré-visualização de exemplo. O conteúdo real do arquivo será exibido quando o backend
+          liberar o download.
+        </p>
+      </div>
+
+      <footer class="modal-footer">
+        <button
+          type="button"
+          class="btn btn--azul visu-baixar"
+          disabled
+          title="Download indisponível — pendente no backend"
+        >
+          Baixar
+        </button>
+        <button type="button" class="btn-texto" (click)="fechar.emit()">Fechar</button>
+      </footer>
+    </div>
+  </div>
+}
