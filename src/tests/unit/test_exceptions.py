@@ -88,3 +88,13 @@ class TestExceptions:
         erro = erro_class(*args)
         assert isinstance(erro, Exception)
         assert str(erro)
+
+
+def test_etapa_nao_avaliavel_e_erro_de_negocio_422():
+    from shared.exceptions import EtapaNaoAvaliavelError, NegocioError
+
+    erro = EtapaNaoAvaliavelError(1)
+
+    assert isinstance(erro, NegocioError)
+    assert erro.status_code == 422
+    assert "etapa 1" in erro.mensagem

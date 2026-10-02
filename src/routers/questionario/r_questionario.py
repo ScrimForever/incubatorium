@@ -7,7 +7,9 @@ from src.domain.schemas.questionario_schema import (
 )
 from src.infra.db import User, get_async_session
 from src.logger import logger
-from src.repository.questionario.questionario_rep import QuestionarioRepository
+from src.services.ingresso.ingresso_service import IngressoService
+from src.services.questionario.questionario_service import QuestionarioService
+from src.shared.exceptions import NegocioError
 from starlette.responses import JSONResponse
 
 
@@ -26,16 +28,14 @@ class QuestionarioRouter:
             db: AsyncSession = Depends(get_async_session),
         ):
             logger.info(f"Gravando novo questionário para usuário: {user.email}")
-            gravacao_questionario = await QuestionarioRepository(
-                user, db
-            ).gravar_questionario(questionario)
-            if not gravacao_questionario:
-                logger.warning(f"Questionário existe para usuário: {user.email}")
+            try:
+                gravacao_questionario = await QuestionarioService(user, db).criar(
+                    questionario
+                )
+            except NegocioError as erro:
+                logger.warning(f"Gravação recusada para {user.email}: {erro}")
                 return JSONResponse(
-                    status_code=409,
-                    content={
-                        "mensagem": "Questionario já existe. Não é possível criar um novo questionario."
-                    },
+                    status_code=erro.status_code, content={"mensagem": erro.mensagem}
                 )
             logger.success(
                 f"Questionario gravado com sucesso para usuário: {user.email}"
@@ -47,7 +47,7 @@ class QuestionarioRouter:
             user: User = Depends(current_active_user),
             db: AsyncSession = Depends(get_async_session),
         ):
-            questionario = await QuestionarioRepository(user, db).buscar_questionario()
+            questionario = await QuestionarioService(user, db).buscar()
             return questionario
 
         @self.router.put("", response_model=QuestionarioOutputSchema)
@@ -56,7 +56,10 @@ class QuestionarioRouter:
             user: User = Depends(current_active_user),
             db: AsyncSession = Depends(get_async_session),
         ):
-            atualizacao_questionario = await QuestionarioRepository(
-                user, db
-            ).atualizar_questionario(questionario)
-            return atualizacao_questionario
+            try:
+                return await IngressoService(db).atualizar_plano(user, questionario)
+            except NegocioError as erro:
+                logger.warning(f"Atualização recusada para {user.email}: {erro}")
+                return JSONResponse(
+                    status_code=erro.status_code, content={"mensagem": erro.mensagem}
+                )

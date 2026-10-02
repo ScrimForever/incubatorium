@@ -2,22 +2,28 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from src.infra.db import create_db_and_tables
 from src.logger import logger
 from src.routers.arquivos.r_arquivos import ArquivosRouter
+from src.routers.avaliacoes.r_avaliacoes import router as avaliacoes_router
+from src.routers.ingresso.r_ingresso import router as ingresso_router
 from src.routers.questionario.r_questionario import QuestionarioRouter
 from src.routers.users.r_user import UserRouter
+from src.routers.usuarios.r_usuarios import router as usuarios_router
+from src.shared.handlers import registrar_handlers
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Iniciando aplicação...")
-    await create_db_and_tables()
-    logger.info("Banco de dados configurado")
     await UserRouter(app).start_router()
     logger.info("Rotas de usuários configuradas")
     await QuestionarioRouter(app).iniciar()
     logger.info("Rotas de questionários configuradas")
+    app.include_router(ingresso_router)
+    logger.info("Rotas de ingresso configuradas")
+    app.include_router(usuarios_router)
+    app.include_router(avaliacoes_router)
+    logger.info("Rotas de usuários e avaliações configuradas")
     await ArquivosRouter(app).iniciar()
     logger.info("Rotas de arquivos configuradas")
     logger.success("Aplicação iniciada com sucesso!")
@@ -26,3 +32,4 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+registrar_handlers(app)

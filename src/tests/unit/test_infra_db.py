@@ -138,3 +138,60 @@ class TestUserModel:
         user_found = result.scalar_one_or_none()
 
         assert user_found is None
+
+
+class TestGetAsyncSessionLogaNegocioComoAviso:
+    @pytest.mark.asyncio
+    async def test_erro_de_negocio_e_warning_nao_error(self, monkeypatch):
+        from fastapi import HTTPException
+        from fastapi.exceptions import RequestValidationError
+
+        from infra import db
+        from shared.exceptions import ConflitoError
+
+        avisos, erros = [], []
+        monkeypatch.setattr(db.logger, "warning", avisos.append)
+        monkeypatch.setattr(db.logger, "error", erros.append)
+
+        for excecao in (
+            ConflitoError("x"),
+            HTTPException(status_code=403),
+            RequestValidationError([]),
+        ):
+            gerador = db.get_async_session()
+            await anext(gerador)
+            with pytest.raises(type(excecao)):
+                await gerador.athrow(excecao)
+
+        assert len(avisos) == 3
+        assert erros == []
+
+    @pytest.mark.asyncio
+    async def test_erro_inesperado_continua_como_error(self, monkeypatch):
+        from infra import db
+
+        erros = []
+        monkeypatch.setattr(db.logger, "error", erros.append)
+
+        gerador = db.get_async_session()
+        await anext(gerador)
+        with pytest.raises(RuntimeError):
+            await gerador.athrow(RuntimeError("quebrou"))
+
+        assert len(erros) == 1
+
+
+class TestEmailUnico:
+    @pytest.mark.asyncio
+    async def test_dois_usuarios_com_o_mesmo_email_sao_barrados_no_banco(
+        self, async_db
+    ):
+        """FR-002: o e-mail identifica a conta e não pode se repetir."""
+        from sqlalchemy.exc import IntegrityError
+
+        for _ in range(2):
+            async_db.add(User(email="dup@example.com", hashed_password="x"))
+
+        with pytest.raises(IntegrityError):
+            await async_db.commit()
+        await async_db.rollback()

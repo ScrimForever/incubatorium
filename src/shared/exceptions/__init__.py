@@ -7,13 +7,35 @@ from .arquivo_exceptions import (
     ErroAoListarArquivosError,
     ErroAoSalvarArquivoError,
 )
+from .negocio_exceptions import (
+    ConflitoError,
+    EtapaInvalidaError,
+    EtapaNaoAvaliavelError,
+    EtapaSemRespostaError,
+    MotivoObrigatorioError,
+    NaoEncontradoError,
+    NegocioError,
+    PedidoJaDecididoError,
+    SemPermissaoError,
+    ValidacaoNegocioError,
+)
 
 __all__ = [
     "ArquivoException",
     "ArquivoNaoEncontradoError",
+    "ConflitoError",
     "DiretorioNaoEncontradoError",
     "ErroAoDeletarArquivoError",
     "ErroAoFazerDownloadError",
     "ErroAoListarArquivosError",
     "ErroAoSalvarArquivoError",
+    "EtapaInvalidaError",
+    "EtapaNaoAvaliavelError",
+    "EtapaSemRespostaError",
+    "MotivoObrigatorioError",
+    "NaoEncontradoError",
+    "NegocioError",
+    "PedidoJaDecididoError",
+    "SemPermissaoError",
+    "ValidacaoNegocioError",
 ]

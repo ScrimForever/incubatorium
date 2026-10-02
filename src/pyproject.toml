@@ -26,3 +26,6 @@ dependencies = [
 
 [tool.ruff.lint]
 ignore = ["B008"]
+
+[tool.setuptools.packages.find]
+include = ["domain*", "infra*", "repository*", "routers*", "services*", "shared*"]
