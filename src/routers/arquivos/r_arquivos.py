@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.domain.models.questionarios.arquivos import nova_referencia
 from src.domain.models.user_model import current_active_user
 from src.infra.config import settings
 from src.infra.db import User, get_async_session
@@ -86,7 +85,7 @@ class ArquivosRouter:
             db: AsyncSession = Depends(get_async_session),
         ):
             servico = ArquivosService(db)
-            await servico.verificar_edicao(user.email, aba)
+            await servico.verificar_edicao(user.email)
             try:
                 caminho_usuario = self._caminho_usuario(user.email, aba)
                 caminho_usuario.mkdir(parents=True, exist_ok=True)
@@ -134,21 +133,6 @@ class ArquivosRouter:
                     self._apagar(gravados)
                     logger.error(f"Erro ao salvar arquivo {arquivo.filename}: {e}")
                     raise ErroAoSalvarArquivoError(arquivo.filename, str(e)) from e
-
-            try:
-                await servico.registrar(
-                    user.email,
-                    aba,
-                    [
-                        nova_referencia(
-                            user.email, aba, a["nome"], a["content_type"], a["tamanho"]
-                        )
-                        for a in nome_arquivos
-                    ],
-                )
-            except Exception:
-                self._apagar(gravados)
-                raise
 
             return {"arquivos_recebidos": nome_arquivos}
 
@@ -209,7 +193,7 @@ class ArquivosRouter:
             db: AsyncSession = Depends(get_async_session),
         ):
             servico = ArquivosService(db)
-            await servico.verificar_edicao(user.email, aba)
+            await servico.verificar_edicao(user.email)
             try:
                 caminho_usuario = self._caminho_usuario(user.email, aba)
                 arquivos_existentes = set(self._listar_arquivos(caminho_usuario))
@@ -241,12 +225,6 @@ class ArquivosRouter:
                             "erro": str(e),
                         }
                     )
-
-            # referências de arquivos listados, mesmo os que já não existem em disco
-            sumidos = [
-                e["arquivo"] for e in erros if e["erro"] == "Arquivo não encontrado"
-            ]
-            await servico.remover(user.email, aba, deletados + sumidos)
 
             return {
                 "arquivos_deletados": deletados,

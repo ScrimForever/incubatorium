@@ -4,11 +4,9 @@ from fastapi.testclient import TestClient
 
 from shared.exceptions import (
     ConflitoError,
-    EtapaInvalidaError,
-    MotivoObrigatorioError,
     NaoEncontradoError,
-    PedidoJaDecididoError,
     SemPermissaoError,
+    ValidacaoNegocioError,
 )
 from shared.handlers import registrar_handlers
 
@@ -19,9 +17,7 @@ from shared.handlers import registrar_handlers
         (NaoEncontradoError(), 404),
         (SemPermissaoError(), 403),
         (ConflitoError(), 409),
-        (PedidoJaDecididoError(), 409),
-        (MotivoObrigatorioError(), 422),
-        (EtapaInvalidaError(99), 422),
+        (ValidacaoNegocioError("x"), 422),
     ],
 )
 def test_erro_de_negocio_vira_json_com_codigo_correto(erro, status):

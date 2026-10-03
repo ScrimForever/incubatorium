@@ -93,7 +93,7 @@ class EmailSetup:
     async def enviar_notificacao(
         self, email: str, assunto: str, titulo: str, mensagem: str, detalhe: str = ""
     ) -> bool:
-        """E-mail genérico de notificação (decisão de ingresso, nova avaliação)."""
+        """E-mail genérico de notificação (nova avaliação)."""
         template = jinja_env.get_template("notificacao.html")
         html_renderizado = template.render(
             titulo=titulo, mensagem=mensagem, detalhe=detalhe
@@ -118,25 +118,6 @@ class EmailSetup:
             logger.error(error)
             return False
 
-    async def enviar_email_decisao_ingresso(
-        self, email: str, aprovado: bool, motivo: str | None = None
-    ) -> bool:
-        if aprovado:
-            return await self.enviar_notificacao(
-                email,
-                "Ingresso aprovado",
-                "Seu ingresso foi aprovado",
-                "Parabéns! Seu plano de negócio foi aprovado e você agora é um incubado.",
-            )
-        return await self.enviar_notificacao(
-            email,
-            "Ingresso não aprovado",
-            "Seu plano de negócio foi devolvido",
-            "Seu pedido de ingresso não foi aprovado desta vez. "
-            "Você pode revisar o plano e enviar um novo pedido.",
-            detalhe=f"Motivo: {motivo}" if motivo else "",
-        )
-
     async def enviar_email_nova_avaliacao(
         self, email: str, etapa: str, nota: int, parecer: str
     ) -> bool:
@@ -144,6 +125,6 @@ class EmailSetup:
             email,
             "Nova avaliação",
             "Você recebeu uma nova avaliação",
-            f'Sua etapa "{etapa}" foi avaliada com nota {nota}.',
+            f"Sua etapa {etapa} foi avaliada com nota {nota}.",
             detalhe=parecer,
         )

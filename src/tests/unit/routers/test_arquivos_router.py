@@ -1,6 +1,5 @@
 import pytest
 from fastapi import FastAPI
-from sqlalchemy import select
 
 from domain.models.questionarios.questionario import Questionario, StatusEnum
 from infra.config import settings
@@ -254,51 +253,7 @@ class TestLeituraPelaEquipe:
         assert resposta.status_code == 404
 
 
-async def _json(async_db, email):
-    await async_db.rollback()
-    q = (
-        await async_db.execute(
-            select(Questionario).where(Questionario.usuario_email == email)
-        )
-    ).scalar_one()
-    await async_db.refresh(q)
-    return q.json_questionario
-
-
-class TestReferenciasNoJson:
-    @pytest.mark.asyncio
-    async def test_upload_cria_referencia_e_reenvio_nao_duplica(
-        self, criar_usuario, api, async_db
-    ):
-        usuario = await criar_usuario("incubado", "ana@example.com")
-        cliente = await api(usuario)
-
-        await cliente.post("/arquivos/questionario/6", files=_envio("a.pdf", PDF))
-        await cliente.post("/arquivos/questionario/6", files=_envio("a.pdf", PDF))
-
-        arquivos = (await _json(async_db, usuario.email))["6"]["arquivos"]
-        assert arquivos == [
-            {
-                "nome": "a.pdf",
-                "tipo": "application/octet-stream",
-                "tamanho": len(PDF),
-                "caminho": "anaexamplecom/6/a.pdf",
-            }
-        ]
-
-    @pytest.mark.asyncio
-    async def test_aba_inexistente_da_422_e_nao_grava_arquivo(
-        self, criar_usuario, api, _pasta_temporaria
-    ):
-        cliente = await api(await criar_usuario("incubado", "ana@example.com"))
-
-        resposta = await cliente.post(
-            "/arquivos/questionario/99", files=_envio("a.pdf", PDF)
-        )
-
-        assert resposta.status_code == 422
-        assert not list(_pasta_temporaria.rglob("a.pdf"))
-
+class TestRegrasDeEdicao:
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "status", [StatusEnum.aguardando_aprovacao, StatusEnum.rejeitado]
@@ -335,7 +290,7 @@ class TestReferenciasNoJson:
 
     @pytest.mark.asyncio
     async def test_lote_com_arquivo_invalido_nao_deixa_nenhum_arquivo(
-        self, criar_usuario, api, async_db, _pasta_temporaria
+        self, criar_usuario, api, _pasta_temporaria
     ):
         usuario = await criar_usuario("incubado", "ana@example.com")
         cliente = await api(usuario)
@@ -347,11 +302,10 @@ class TestReferenciasNoJson:
 
         assert resposta.status_code == 422
         assert not list(_pasta_temporaria.rglob("*.pdf"))
-        assert "arquivos" not in (await _json(async_db, usuario.email)).get("6", {})
 
     @pytest.mark.asyncio
-    async def test_delete_remove_arquivo_e_referencia(
-        self, criar_usuario, api, async_db, _pasta_temporaria
+    async def test_delete_remove_o_arquivo(
+        self, criar_usuario, api, _pasta_temporaria
     ):
         usuario = await criar_usuario("incubado", "ana@example.com")
         cliente = await api(usuario)
@@ -366,24 +320,7 @@ class TestReferenciasNoJson:
 
         assert resposta.json()["arquivos_deletados"] == ["a.pdf"]
         assert not (_pasta_temporaria / "anaexamplecom" / "6" / "a.pdf").exists()
-        json = await _json(async_db, usuario.email)
-        assert [a["nome"] for a in json["6"]["arquivos"]] == ["b.pdf"]
-
-    @pytest.mark.asyncio
-    async def test_delete_remove_referencia_de_arquivo_ausente_no_disco(
-        self, criar_usuario, api, async_db, _pasta_temporaria
-    ):
-        usuario = await criar_usuario("incubado", "ana@example.com")
-        cliente = await api(usuario)
-        await cliente.post("/arquivos/questionario/6", files=_envio("a.pdf", PDF))
-        (_pasta_temporaria / "anaexamplecom" / "6" / "a.pdf").unlink()
-
-        resposta = await cliente.request(
-            "DELETE", "/arquivos/questionario/6", json=["a.pdf"]
-        )
-
-        assert resposta.json()["erros"][0]["erro"] == "Arquivo não encontrado"
-        assert (await _json(async_db, usuario.email))["6"]["arquivos"] == []
+        assert (_pasta_temporaria / "anaexamplecom" / "6" / "b.pdf").exists()
 
     @pytest.mark.asyncio
     async def test_delete_em_estado_nao_editavel_da_409(
@@ -404,7 +341,7 @@ class TestReferenciasNoJson:
 class TestIsolamentoDeAnexos:
     @pytest.mark.asyncio
     async def test_outro_incubado_nao_anexa_nem_remove_no_questionario_alheio(
-        self, criar_usuario, api, async_db, _pasta_temporaria
+        self, criar_usuario, api, _pasta_temporaria
     ):
         ana = await criar_usuario("incubado", "ana@example.com")
         beto = await criar_usuario("incubado", "beto@example.com")
@@ -417,29 +354,4 @@ class TestIsolamentoDeAnexos:
         await como_beto.request("DELETE", "/arquivos/questionario/6", json=["a.pdf"])
 
         assert (_pasta_temporaria / "anaexamplecom" / "6" / "a.pdf").exists()
-        ana_json = await _json(async_db, ana.email)
-        assert [a["nome"] for a in ana_json["6"]["arquivos"]] == ["a.pdf"]
-        beto_json = await _json(async_db, beto.email)
-        assert [a["nome"] for a in beto_json["6"]["arquivos"]] == ["b.pdf"]
-
-    @pytest.mark.asyncio
-    async def test_put_do_questionario_nao_altera_arquivos(
-        self, criar_usuario, api, async_db
-    ):
-        from services.ingresso.ingresso_service import IngressoService
-
-        ana = await criar_usuario("incubado", "ana@example.com")
-        await (await api(ana)).post(
-            "/arquivos/questionario/6", files=_envio("a.pdf", PDF)
-        )
-        antes = (await _json(async_db, ana.email))["6"]["arquivos"]
-
-        from domain.schemas.questionario_schema import QuestionarioInputSchema
-
-        entrada = QuestionarioInputSchema(
-            status_questionario=StatusEnum.pendente,
-            json_questionario={"6": {"fornecedores": "x", "arquivos": []}},
-        )
-        await IngressoService(async_db).atualizar_plano(ana, entrada)
-
-        assert (await _json(async_db, ana.email))["6"]["arquivos"] == antes
+        assert (_pasta_temporaria / "betoexamplecom" / "6" / "b.pdf").exists()

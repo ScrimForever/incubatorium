@@ -10,12 +10,10 @@ from domain.models.enums import SituacaoIncubacao
 from domain.models.questionarios.questionario import Questionario, StatusEnum
 from routers.arquivos.r_arquivos import ArquivosRouter
 from routers.avaliacoes.r_avaliacoes import router as avaliacoes_router
-from routers.ingresso.r_ingresso import router as ingresso_router
 from routers.usuarios.r_usuarios import router as usuarios_router
 from shared.handlers import registrar_handlers
 
 ROUTERS = [
-    ingresso_router,
     usuarios_router,
     avaliacoes_router,
 ]
@@ -42,7 +40,7 @@ def _rotas(app: FastAPI):
 async def test_toda_rota_nova_exige_autenticacao():
     app = await _app_com_todas_as_rotas()
     rotas = sorted(set(_rotas(app)))
-    assert len(rotas) >= 16  # garante que a varredura enxergou os routers
+    assert len(rotas) >= 9  # garante que a varredura enxergou os routers
 
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test"
@@ -81,7 +79,6 @@ def _leituras_e_escritas_de_ana():
     return [
         ("GET", "/usuarios/ana@example.com/plano", None),
         ("GET", "/usuarios/ana@example.com/avaliacoes", None),
-        ("GET", "/ingresso/ana@example.com/historico", None),
         ("PUT", "/usuarios/ana@example.com/avaliacoes/2", corpo_nota),
         ("GET", "/arquivos/questionario/nome-arquivo/6?email=ana@example.com", None),
     ]

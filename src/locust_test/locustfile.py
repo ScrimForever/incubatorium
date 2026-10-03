@@ -49,10 +49,6 @@ class ColaboradorPainel(UsuarioAutenticado):
     def painel(self):
         self.client.get("/usuarios?perfil=incubado", name="/usuarios?perfil=incubado")
 
-    @task(2)
-    def pedidos_em_analise(self):
-        self.client.get("/ingresso?status=aguardando_aprovacao", name="/ingresso")
-
 
 class IncubadoPlano(UsuarioAutenticado):
     prefixo_env = "INCUBADO"

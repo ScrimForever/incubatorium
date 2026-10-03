@@ -3,7 +3,6 @@
 from pathlib import PurePosixPath
 
 from src.shared.exceptions.arquivo_exceptions import ArquivoException
-from src.shared.exceptions.negocio_exceptions import ValidacaoNegocioError
 
 ASSINATURAS: dict[str, tuple[bytes, ...]] = {
     ".pdf": (b"%PDF-",),
@@ -68,15 +67,3 @@ def validar_tamanho(nome: str, tamanho: int, maximo: int) -> None:
             nome, f"tamanho acima do limite de {maximo // (1024 * 1024)} MB"
         )
 
-
-def rejeitar_anexos_embutidos(json_questionario: dict | None) -> None:
-    """Anexos entram só pelo endpoint de arquivos: recusa `conteudo_base64` no JSON (422)."""
-    from src.domain.models.questionarios.arquivos import etapas_com_conteudo_embutido
-
-    etapas = etapas_com_conteudo_embutido(json_questionario)
-    if etapas:
-        lista = ", ".join(str(e) for e in etapas)
-        raise ValidacaoNegocioError(
-            f"Anexos não podem vir dentro do questionário (etapa(s) {lista}). "
-            "Envie cada arquivo por POST /arquivos/questionario/{aba} (multipart form)."
-        )

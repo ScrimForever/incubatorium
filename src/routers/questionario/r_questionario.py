@@ -7,7 +7,6 @@ from src.domain.schemas.questionario_schema import (
 )
 from src.infra.db import User, get_async_session
 from src.logger import logger
-from src.services.ingresso.ingresso_service import IngressoService
 from src.services.questionario.questionario_service import QuestionarioService
 from src.shared.exceptions import NegocioError
 from starlette.responses import JSONResponse
@@ -57,7 +56,7 @@ class QuestionarioRouter:
             db: AsyncSession = Depends(get_async_session),
         ):
             try:
-                return await IngressoService(db).atualizar_plano(user, questionario)
+                return await QuestionarioService(user, db).atualizar(questionario)
             except NegocioError as erro:
                 logger.warning(f"Atualização recusada para {user.email}: {erro}")
                 return JSONResponse(

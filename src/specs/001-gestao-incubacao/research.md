@@ -1,33 +1,23 @@
 # Research: Gestão de Incubação
 
-## 1. Pedido de ingresso × questionário existente
+## 1. Questionário existente como plano de negócio
 - **Decision**: o `Questionario` atual (uma linha por e-mail, `status_questionario` com
   `aguardando_aprovacao/aprovado/rejeitado`) continua sendo o plano de negócio **vigente**. O
-  pedido de ingresso é o envio dele (status `aguardando_aprovacao`).
+  fluxo de pedido de ingresso (envio, aprovação, rejeição e histórico) foi removido do sistema.
 - **Rationale**: o spec define "o questionário é o plano de negócio" e o fluxo de status já
   existe no código.
 - **Alternatives**: criar entidade separada de pedido (duplica o estado já presente).
 
-## 2. Histórico de questionários rejeitados
-- **Decision**: o histórico fica na própria tabela `questionario`. Ao iniciar novo questionário
-  após uma rejeição, a linha rejeitada é arquivada renomeando sua chave para `<email>_<n>` (n =
-  ordem do questionário) e uma nova linha vigente é criada com a chave `<email>` (decisão do
-  produto). Revisões de plano já aprovado atualizam a linha vigente, sem versões.
-- **Rationale**: preserva a PK 1:1 vigente (rotas e testes atuais seguem valendo) e mantém o
-  histórico consultável sem tabela extra.
-- **Alternatives**: tabela `questionario_versao` (descartada); remover a PK única (quebra rotas
-  atuais). **Cuidados**: arquivadas perdem a FK para `user`; busca do histórico por casamento
-  exato `^<email>_[0-9]+$`; a renomeação e a criação da nova linha ocorrem na mesma transação.
+## 2. Histórico de questionários rejeitados (removido)
+- **Decision**: o arquivamento por renomeação de chave (`<email>_<n>`) foi removido junto com o
+  fluxo de ingresso; cada usuário tem um único questionário, atualizado no lugar.
 
 ## 3. Etapas do questionário
-- **Decision**: etapas definidas em módulo Python (`etapas.py`: id estável, título, ordem),
-  alinhadas às "abas" que o upload de arquivos já usa. Avaliações guardam o id da etapa, não
-  uma FK.
-- **Atualização**: cada etapa tem o atributo `avaliavel` (padrão `True`); a etapa 1 (Setor de
-  atuação) é `avaliavel=False` por decisão de produto: é só identificação, sem nota.
-- **Rationale**: clarificação diz que só mudam por código; id estável preserva avaliações
-  antigas quando o texto muda (FR-010a).
-- **Alternatives**: tabela de etapas editável (rejeitado pelo usuário).
+- **Decision**: o backend não define etapas: o módulo `etapas.py` e `GET /etapas` foram removidos.
+  O formato do `json_questionario` (abas numeradas, nota por aba) é do frontend; o id da aba é a
+  chave do JSON e do upload de arquivos.
+- **Rationale**: evita duplicar no servidor uma estrutura que o frontend já controla.
+- **Alternatives**: tabela de etapas editável (rejeitado pelo usuário); lista em código (removida).
 
 ## 4. Perfis e permissões
 - **Decision**: reutilizar as flags de `User` e criar dependências FastAPI em
@@ -56,25 +46,18 @@
 
 ## 7. Nota e avaliação
 - **Decision** (produto): a nota fica **só** em `json_questionario[etapa].nota`
-  (`{valor, texto, avaliador, avaliado_em}`), como o frontend já espera. Sem tabela de avaliações,
-  sem histórico e sem recomendações. O consultor escreve com leitura-modificação-
-  escrita sob bloqueio de linha, e o `PUT` do incubado preserva as notas existentes.
-- **Exceção**: a etapa 1 não tem `nota` (`avaliavel=False`): `mesclar_preservando_notas` e
-  `zerar_notas` não a criam; avaliá-la devolve `EtapaNaoAvaliavelError` (422) e `nota` vinda do
-  cliente nela é descartada.
+  (`{valor, texto, avaliador, avaliado_em}`). Sem tabela de avaliações, sem histórico e sem
+  recomendações. O consultor escreve com leitura-modificação-escrita sob bloqueio de linha
+  (`SELECT ... FOR UPDATE`), e o `PUT` do incubado também bloqueia a linha, então um não
+  sobrescreve o outro.
+- **Limite atual**: o servidor não valida a etapa avaliada nem protege `nota` contra o `PUT` do cliente.
 - **Rationale**: o frontend já lê e grava esse formato; evita duplicar a fonte de verdade.
-- **Alternatives**: tabela `avaliacao` com histórico (descartada pelo produto); híbrido JSON +
-  tabela (descartado).
+- **Alternatives**: tabela `avaliacao` com histórico (descartada pelo produto).
 
 ## 8. Anexos
-- **Decision** (produto): uploads só pelo endpoint de arquivos (multipart form, como já era); o JSON
-  do questionário guarda a **referência** (`caminho`) de cada arquivo em `arquivos[]` da etapa, para
-  facilitar inclusão e remoção. A lista é mantida pelo servidor (o `PUT` das respostas a preserva,
-  como às notas) e anexo embutido em base64 é recusado. O endpoint valida aba, tipo, conteúdo e
-  tamanho, e só altera arquivos com o questionário editável (`iniciado|pendente|aprovado`). Acesso de
-  leitura para a equipe.
-- **Rationale**: o JSON não carrega mais o conteúdo dos arquivos; a validação fica num só lugar e a
-  remoção deixa de depender de comparar nomes.
+- **Decision**: uploads só pelo endpoint de arquivos (multipart form), que valida tipo, conteúdo e
+  tamanho e só altera arquivos com o questionário editável (`iniciado|pendente|aprovado`). Os
+  arquivos ficam em disco por etapa; o servidor não grava referências no JSON. Leitura para a equipe.
 - **Alternatives**: migrar para object storage (fora do escopo).
 
 ## 9. Migrações
@@ -84,7 +67,7 @@
 - **Alternatives**: continuar com `create_all` (viola a constituição).
 
 ## 10. Envio de e-mail e ajustes operacionais
-- **Decision**: `EmailSetup.enviar_notificacao` (decisão do ingresso e nova avaliação) envia em
+- **Decision**: `EmailSetup.enviar_notificacao` (nova avaliação) envia em
   qualquer ambiente, desde que `EMAIL_ENVIO_HABILITADO` seja verdadeiro (padrão) e `RESEND_API_KEY`
   esteja definida; testes e demos desligam com `EMAIL_ENVIO_HABILITADO=false`. Os e-mails de
   cadastro e redefinição de senha, anteriores à feature, mantêm o envio apenas em `development`.
@@ -92,11 +75,6 @@
   teste (homologação), evitando mensagens a usuários reais.
 - **Decision**: `get_async_session` registra `NegocioError`, `HTTPException` e `RequestValidationError` como aviso (não como
   erro), para que 403/409/422 esperados (inclusive corpo inválido) não poluam os logs de erro.
-- **Rationale**: FR-004/FR-016 exigem notificação fora de desenvolvimento; os dois ajustes são
+- **Rationale**: FR-016 exige notificação fora de desenvolvimento; os dois ajustes são
   operacionais e pequenos.
 - **Alternatives**: manter o envio só em `development` (feature inoperante em produção).
-
-## 11. Concorrência nas notas
-- **Decision**: tanto a avaliação do consultor quanto o `PUT` do incubado leem o questionário com
-  `SELECT ... FOR UPDATE`, então um não sobrescreve o outro; as referências de anexos
-  (`arquivos[]`) são gravadas sob o mesmo bloqueio de linha pelo endpoint de arquivos.

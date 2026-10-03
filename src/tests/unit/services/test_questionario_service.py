@@ -1,9 +1,10 @@
 import pytest
+from pydantic import ValidationError
 
 from domain.models.questionarios.questionario import Questionario, StatusEnum
 from domain.schemas.questionario_schema import QuestionarioInputSchema
 from services.questionario.questionario_service import QuestionarioService
-from shared.exceptions import ConflitoError, ValidacaoNegocioError
+from shared.exceptions import ConflitoError
 
 
 @pytest.fixture
@@ -13,54 +14,17 @@ async def user_with_email(criar_usuario, sample_email):
 
 class TestCriar:
     @pytest.mark.asyncio
-    async def test_descarta_notas_vindas_do_incubado(self, async_db, user_with_email):
+    async def test_grava_o_json_como_enviado(self, async_db, user_with_email):
+        json = {"2": {"business_canvas": "x", "nota": {"valor": 5}, "arquivos": []}}
         entrada = QuestionarioInputSchema(
-            status_questionario=StatusEnum.pendente,
-            json_questionario={
-                "2": {"business_canvas": "x", "nota": {"valor": 5, "texto": "forjada"}}
-            },
+            status_questionario=StatusEnum.pendente, json_questionario=json
         )
 
         questionario = await QuestionarioService(user_with_email, async_db).criar(
             entrada
         )
 
-        nota = questionario.json_questionario["2"]["nota"]
-        assert nota["valor"] is None
-        assert nota["texto"] == ""
-
-    @pytest.mark.asyncio
-    async def test_descarta_referencias_de_anexos_do_cliente(
-        self, async_db, user_with_email
-    ):
-        entrada = QuestionarioInputSchema(
-            status_questionario=StatusEnum.pendente,
-            json_questionario={
-                "6": {"arquivos": [{"nome": "x.pdf", "caminho": "outro/6/x.pdf"}]}
-            },
-        )
-
-        questionario = await QuestionarioService(user_with_email, async_db).criar(
-            entrada
-        )
-
-        assert questionario.json_questionario["6"]["arquivos"] == []
-
-    @pytest.mark.asyncio
-    async def test_anexo_embutido_em_base64_e_recusado(
-        self, async_db, user_with_email, sample_email
-    ):
-        entrada = QuestionarioInputSchema(
-            status_questionario=StatusEnum.pendente,
-            json_questionario={
-                "6": {"arquivos": [{"nome": "a.pdf", "conteudo_base64": "JVBERi0="}]}
-            },
-        )
-
-        with pytest.raises(ValidacaoNegocioError):
-            await QuestionarioService(user_with_email, async_db).criar(entrada)
-
-        assert await async_db.get(Questionario, sample_email) is None
+        assert questionario.json_questionario == json
 
     @pytest.mark.asyncio
     async def test_questionario_existente_da_conflito(
@@ -104,3 +68,24 @@ class TestBuscar:
     @pytest.mark.asyncio
     async def test_sem_questionario_devolve_false(self, async_db, user_with_email):
         assert await QuestionarioService(user_with_email, async_db).buscar() is False
+
+
+class TestNotas:
+    @pytest.mark.parametrize(
+        "nota", [0, 6, -1, 2.5, "3", True, {"valor": 9}, {"valor": "x"}]
+    )
+    def test_nota_fora_de_1_a_5_e_recusada(self, nota):
+        with pytest.raises(ValidationError):
+            QuestionarioInputSchema(
+                status_questionario=StatusEnum.pendente,
+                json_questionario={"2": {"dados": [{"nota": nota}]}},
+            )
+
+    @pytest.mark.parametrize("nota", [None, 1, 5, {"valor": None}, {"valor": 3}])
+    def test_nota_valida_ou_nula_e_aceita(self, nota):
+        entrada = QuestionarioInputSchema(
+            status_questionario=StatusEnum.pendente,
+            json_questionario={"2": {"nota": nota}},
+        )
+
+        assert entrada.json_questionario["2"]["nota"] == nota

@@ -67,11 +67,3 @@ class TestEnviarNotificacao:
         await EmailSetup().enviar_notificacao("ana@x.com", "A", "T", "M")
 
         assert enviados[0]["to"] == "teste@interno.com"
-
-    @pytest.mark.asyncio
-    async def test_decisao_rejeitada_leva_o_motivo(self, enviados):
-        await EmailSetup().enviar_email_decisao_ingresso(
-            "ana@x.com", False, "Faltou o canvas"
-        )
-
-        assert "Faltou o canvas" in enviados[0]["html"]

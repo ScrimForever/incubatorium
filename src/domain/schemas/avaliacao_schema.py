@@ -18,7 +18,6 @@ class AvaliacaoInput(BaseModel):
 
 class AvaliacaoOutput(BaseModel):
     etapa_id: int
-    titulo: str
     nota: int | None
     parecer: str
     avaliador: str | None

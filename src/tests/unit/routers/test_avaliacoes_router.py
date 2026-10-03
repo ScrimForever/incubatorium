@@ -100,27 +100,6 @@ class TestAvaliar:
 
         assert resposta.status_code == 422
 
-    @pytest.mark.asyncio
-    async def test_etapa_inexistente_ou_sem_resposta_da_422(
-        self, async_db, criar_usuario, cliente_api
-    ):
-        _, consultor = await _cenario(async_db, criar_usuario)
-        cliente = await cliente_api([router], consultor)
-
-        assert (await cliente.put(f"{ROTA}/99", json=CORPO)).status_code == 422
-
-    @pytest.mark.asyncio
-    async def test_etapa_1_nao_tem_nota_da_422(
-        self, async_db, criar_usuario, cliente_api
-    ):
-        _, consultor = await _cenario(async_db, criar_usuario)
-        cliente = await cliente_api([router], consultor)
-
-        resposta = await cliente.put(f"{ROTA}/1", json=CORPO)
-
-        assert resposta.status_code == 422
-        assert "não tem nota" in resposta.json()["mensagem"]
-        assert (await cliente.put(f"{ROTA}/4", json=CORPO)).status_code == 422
 
 
 class TestLeitura:

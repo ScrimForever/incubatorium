@@ -84,8 +84,7 @@ Detalhes em `specs/001-gestao-incubacao/contracts/api.md`; a documentação inte
 
 | Área | Rotas |
 |---|---|
-| Ingresso (incubado) | `PUT /questionario`, `POST /ingresso/enviar`, `POST /ingresso/reiniciar`, `GET /ingresso/{email}/historico` |
-| Ingresso (colaborador) | `GET /ingresso?status=`, `POST /ingresso/{email}/aprovar`, `POST /ingresso/{email}/rejeitar` |
+| Questionário (incubado) | `POST /questionario`, `GET /questionario`, `PUT /questionario` (grava as respostas, sem alterar o status) |
 | Etapas | `GET /etapas` (as 9 etapas do questionário, definidas em código; `avaliavel=false` na etapa 1) |
 | Plano e avaliações | `GET /usuarios/{email}/plano`, `PUT /usuarios/{email}/avaliacoes/{etapa_id}` (consultor), `GET /usuarios/{email}/avaliacoes` |
 | Gestão (colaborador) | `GET /usuarios?perfil=incubado&situacao=`, `PATCH /usuarios/{email}/situacao` |
@@ -93,12 +92,9 @@ Detalhes em `specs/001-gestao-incubacao/contracts/api.md`; a documentação inte
 
 Regras que valem a pena conhecer:
 
-- Um questionário rejeitado vai para o histórico ao chamar `POST /ingresso/reiniciar`: a chave
-  `usuario_email` dele vira `<email>_<n>` e o novo questionário usa o e-mail normal, com as
-  respostas copiadas e as notas zeradas.
 - A etapa 1 (Setor de atuação) não tem nota: avaliá-la devolve 422. A nota de cada etapa de 2 a 9 fica em `json_questionario[etapa].nota` (`valor` de 1 a 5, `texto`,
   `avaliador`, `avaliado_em`). O incubado nunca a altera ao salvar suas respostas.
-- E-mails novos (decisão do ingresso e nova avaliação) saem em qualquer ambiente com
+- E-mails novos (nova avaliação) saem em qualquer ambiente com
   `RESEND_API_KEY`; `EMAIL_ENVIO_HABILITADO=false` desliga o envio e `EMAIL_DESTINO_OVERRIDE`
   redireciona tudo para um endereço de teste.
 - Anexos entram só por `POST /arquivos/questionario/{aba}` (multipart); o JSON do questionário guarda

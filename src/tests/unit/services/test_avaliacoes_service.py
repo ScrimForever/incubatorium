@@ -8,9 +8,6 @@ from domain.schemas.avaliacao_schema import AvaliacaoInput
 from services.avaliacoes.avaliacoes_service import AvaliacoesService
 from shared.exceptions import (
     ConflitoError,
-    EtapaInvalidaError,
-    EtapaNaoAvaliavelError,
-    EtapaSemRespostaError,
     NaoEncontradoError,
     SemPermissaoError,
     ValidacaoNegocioError,
@@ -106,34 +103,6 @@ class TestAvaliar:
             await service.avaliar(consultor, incubado.email, 2, parecer_vazio)
 
     @pytest.mark.asyncio
-    async def test_etapa_inexistente(self, async_db, criar_usuario, service):
-        incubado, consultor = await _cenario(async_db, criar_usuario)
-
-        with pytest.raises(EtapaInvalidaError):
-            await service.avaliar(consultor, incubado.email, 99, _dados())
-
-    @pytest.mark.asyncio
-    async def test_etapa_1_nao_tem_nota(self, async_db, criar_usuario, service):
-        incubado, consultor = await _cenario(async_db, criar_usuario)
-        q = await async_db.get(Questionario, incubado.email)
-        q.json_questionario = {"1": {"cnpj": "1"}, **RESPONDIDO}
-        await async_db.commit()
-
-        with pytest.raises(EtapaNaoAvaliavelError):
-            await service.avaliar(consultor, incubado.email, 1, _dados())
-
-        await async_db.refresh(q)
-        assert q.json_questionario["1"] == {"cnpj": "1"}
-
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize("etapa", [3, 4])
-    async def test_etapa_sem_resposta(self, async_db, criar_usuario, service, etapa):
-        incubado, consultor = await _cenario(async_db, criar_usuario)
-
-        with pytest.raises(EtapaSemRespostaError):
-            await service.avaliar(consultor, incubado.email, etapa, _dados())
-
-    @pytest.mark.asyncio
     async def test_qualquer_consultor_avalia_sem_designacao(
         self, async_db, criar_usuario, service
     ):
@@ -222,7 +191,7 @@ class TestListar:
 
         assert do_dono == da_equipe == do_consultor
         [item] = do_dono
-        assert item["titulo"] == "Desenvolva o Business Model Canvas para seu negócio"
+        assert item["etapa_id"] == 2
         assert item["avaliador"] == consultor.email
 
     @pytest.mark.asyncio

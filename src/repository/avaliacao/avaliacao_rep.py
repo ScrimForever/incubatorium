@@ -4,8 +4,6 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.domain.models.questionarios.etapas import obter_etapa
-from src.domain.models.questionarios.notas import notas_avaliadas
 from src.domain.models.questionarios.questionario import Questionario
 
 
@@ -34,16 +32,16 @@ class AvaliacaoRepository:
         quando: datetime,
     ) -> dict:
         """Substitui a nota da etapa; reatribui um novo dict para o JSONB ser regravado."""
-        etapa = obter_etapa(etapa_id)
+        chave = str(etapa_id)
         novo_json = copy.deepcopy(questionario.json_questionario or {})
-        aba = dict(novo_json.get(etapa.chave_json) or {})
+        aba = dict(novo_json.get(chave) or {})
         aba["nota"] = {
             "valor": valor,
             "texto": parecer,
             "avaliador": avaliador,
             "avaliado_em": quando.isoformat(),
         }
-        novo_json[etapa.chave_json] = aba
+        novo_json[chave] = aba
         questionario.json_questionario = novo_json
         questionario.ultima_avaliacao_em = quando  # evita ler o JSON no painel
         try:
@@ -55,4 +53,14 @@ class AvaliacaoRepository:
 
     @staticmethod
     def listar_notas(questionario: Questionario) -> list[tuple[int, dict]]:
-        return notas_avaliadas(questionario.json_questionario)
+        """(etapa_id, nota) das abas numeradas que já têm avaliação (valor ou parecer)."""
+        avaliadas = []
+        for chave, aba in (questionario.json_questionario or {}).items():
+            nota = aba.get("nota") if isinstance(aba, dict) else None
+            if (
+                chave.isdecimal()
+                and isinstance(nota, dict)
+                and (nota.get("valor") is not None or nota.get("texto"))
+            ):
+                avaliadas.append((int(chave), nota))
+        return sorted(avaliadas, key=lambda item: item[0])

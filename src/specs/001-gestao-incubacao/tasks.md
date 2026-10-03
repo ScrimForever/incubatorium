@@ -4,6 +4,8 @@ description: "Tarefas da feature Gestão de Incubação"
 
 # Tasks: Gestão de Incubação
 
+> **Nota:** o fluxo de ingresso (`routers/ingresso`, `services/ingresso`, `repository/ingresso`, `ingresso_schema`) foi removido; as tarefas abaixo que o citam são histórico. `atualizar_plano` virou `QuestionarioService.atualizar`. Também foram removidos `GET /etapas`, `domain/models/questionarios/{etapas,notas,arquivos}.py` e as exceções de etapa/ingresso; o servidor não mantém mais notas nem referências de anexos no `PUT /questionario`.
+
 **Input**: Design documents from `/specs/001-gestao-incubacao/`
 
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/api.md
