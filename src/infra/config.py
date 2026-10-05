@@ -25,11 +25,6 @@ class Settings(BaseSettings):
     secret_key: str = ""
     resend_api_key: str = ""
     enviroment: str = "development"
-    admin_email: str = ""
-    email_destino_override: str = ""
-    email_envio_habilitado: bool = True
-    admin_password: str = ""
-    upload_tamanho_maximo_mb: int = 10
 
     @computed_field
     @property

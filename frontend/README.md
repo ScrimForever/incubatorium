@@ -61,7 +61,7 @@ npm run test:ci
 | `/questionario` | Plano de negócios em nove etapas | incubado, plano em preenchimento |
 | `/aguardando-aprovacao` | Plano em análise | incubado, plano enviado |
 | `/plano-rejeitado` | Plano devolvido para ajustes | incubado, plano rejeitado |
-| `/meu-plano` | Plano de negócio aprovado | incubado, plano aprovado |
+| `/meu-plano` | Plano com a avaliação por etapa | incubado, plano aprovado |
 | `/dashboard/:role` | Visão geral | incubado com plano aprovado; demais papéis |
 | `/minha-conta` | Troca de e-mail e de senha | incubado com plano aprovado; demais papéis |
 | `/usuarios` | Administração de contas | administrador |
