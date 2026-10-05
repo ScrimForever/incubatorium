@@ -4,7 +4,6 @@ from fastapi import FastAPI
 
 from src.logger import logger
 from src.routers.arquivos.r_arquivos import ArquivosRouter
-from src.routers.avaliacoes.r_avaliacoes import router as avaliacoes_router
 from src.routers.questionario.r_questionario import QuestionarioRouter
 from src.routers.users.r_user import UserRouter
 from src.routers.usuarios.r_usuarios import router as usuarios_router
@@ -19,8 +18,7 @@ async def lifespan(app: FastAPI):
     await QuestionarioRouter(app).iniciar()
     logger.info("Rotas de questionários configuradas")
     app.include_router(usuarios_router)
-    app.include_router(avaliacoes_router)
-    logger.info("Rotas de usuários e avaliações configuradas")
+    logger.info("Rotas de usuários configuradas")
     await ArquivosRouter(app).iniciar()
     logger.info("Rotas de arquivos configuradas")
     logger.success("Aplicação iniciada com sucesso!")

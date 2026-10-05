@@ -62,3 +62,11 @@ class QuestionarioRouter:
                 return JSONResponse(
                     status_code=erro.status_code, content={"mensagem": erro.mensagem}
                 )
+
+        @self.router.get("/todos")
+        async def buscar_questionario(
+                user: User = Depends(current_active_user),
+                db: AsyncSession = Depends(get_async_session),
+        ):
+            questionario = await QuestionarioService(user, db).buscar_todos()
+            return questionario

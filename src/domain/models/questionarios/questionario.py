@@ -33,6 +33,3 @@ class Questionario(Base, MixinDate):
         DateTime(timezone=True), nullable=True
     )
     motivo_decisao: Mapped[str | None] = mapped_column(Text, nullable=True)
-    ultima_avaliacao_em: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )

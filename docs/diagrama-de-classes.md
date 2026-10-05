@@ -26,13 +26,13 @@ classDiagram
 
     class Questionario {
         <<plano de negócio>>
-        +str usuario_email  «PK»
+        +int id  «PK, autoincremento»
+        +str usuario_email  «e-mail do usuário, não único»
         +StatusEnum status_questionario
         +dict json_questionario  «JSONB»
         +str decidido_por  «não usado»
         +datetime decidido_em  «não usado»
         +str motivo_decisao  «não usado»
-        +datetime ultima_avaliacao_em
         +str criado_por
         +datetime criado_em
         +str atualizado_por
@@ -55,7 +55,7 @@ classDiagram
         desistente
     }
 
-    User "1" --> "0..1" Questionario : vigente (email)
+    User "1" --> "0..*" Questionario : usuario_email (sem FK)
     Questionario ..> StatusEnum
     User ..> SituacaoIncubacao
 ```
@@ -67,14 +67,9 @@ classDiagram
     direction TB
 
     class UsuariosRouter
-    class AvaliacoesRouter
     class ArquivosRouter
     class QuestionarioRouter
 
-    class AvaliacoesService {
-        +avaliar(consultor, email, etapa, nota, parecer)
-        +listar(solicitante, email)
-    }
     class UsuariosService {
         +plano(email)
         +painel(situacao)
@@ -90,13 +85,8 @@ classDiagram
     }
     class EmailSetup {
         +enviar_email_cadastro(email)
-        +enviar_email_nova_avaliacao(...)
     }
 
-    class AvaliacaoRepository {
-        +gravar_nota(...)
-        +listar_notas(questionario)
-    }
     class UsuariosRepository {
         +buscar_plano(email)
         +painel_incubados(situacao)
@@ -122,18 +112,12 @@ classDiagram
         +pode_acessar_incubado(db, user, email)
     }
     UsuariosRouter --> UsuariosService
-    AvaliacoesRouter --> AvaliacoesService
     ArquivosRouter --> ArquivosService
     QuestionarioRouter --> QuestionarioService
     QuestionarioService --> QuestionarioRepository
     UsuariosRouter ..> Permissoes
-    AvaliacoesRouter ..> Permissoes
     ArquivosRouter ..> Permissoes
 
-    AvaliacoesService --> AvaliacaoRepository
-    AvaliacoesService --> UsuariosRepository
-    AvaliacoesService --> EmailSetup
-    AvaliacoesService ..> Permissoes
     UsuariosService --> UsuariosRepository
     ArquivosService --> ArquivosRepository
     Permissoes --> UsuariosRepository

@@ -23,6 +23,9 @@ class QuestionarioService:
     async def buscar(self) -> Questionario | Literal[False]:
         return await self.repository.buscar_questionario()
 
+    async def buscar_todos(self) -> list[Questionario] | Literal[False]:
+        return await self.repository.buscar_questionarios()
+
     async def criar(self, entrada: QuestionarioInputSchema) -> Questionario:
         """Grava o primeiro questionário do usuário (409 se ele já existir)."""
         questionario = await self.repository.gravar_questionario(entrada)

@@ -13,10 +13,8 @@ Testes automatizados: `./run-tests.sh` (ou `docker compose run tests`).
 2. **Questionário (US1)**: registrar candidato (`/auth/register`), ativar e-mail, preencher
    `PUT /questionario`. Esperado: `GET /questionario` devolve as respostas gravadas.
 3. **Plano (US2)**: como incubado aprovado, `PUT /questionario` com novas respostas mantém o status
-   aprovado e não altera as notas; um anexo com conteúdo falso é recusado (422); um upload por `POST /arquivos/questionario/6` aparece em
+   aprovado sem alterar o status; um anexo com conteúdo falso é recusado (422); um upload por `POST /arquivos/questionario/6` aparece em
    `GET /questionario` como referência com `caminho`, e o `DELETE` remove arquivo e referência.
-4. **Avaliação (US3)**: consultor avalia a etapa 2 com nota 4 (avaliar a etapa 1 devolve 422: ela não tem nota) e
-   parecer; incubado vê a avaliação (e o `PUT /questionario` dele não apaga a nota).  Incubado tentando avaliar recebe 403.
 
 Critérios de aceite mapeiam para SC-001 a SC-006 do [spec](spec.md); contratos em
 [contracts/api.md](contracts/api.md); entidades em [data-model.md](data-model.md).

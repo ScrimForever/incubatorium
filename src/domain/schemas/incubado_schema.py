@@ -5,12 +5,11 @@ from src.domain.models.enums import SituacaoIncubacao
 
 
 class IncubadoResumo(BaseModel):
-    """Linha do painel do colaborador: situação e data da última avaliação."""
+    """Linha do painel do colaborador: situação e estado do plano."""
 
     email: str
     situacao: SituacaoIncubacao
     status_questionario: str
-    ultima_avaliacao_em: datetime | None = None
 
 
 class SituacaoUpdate(BaseModel):

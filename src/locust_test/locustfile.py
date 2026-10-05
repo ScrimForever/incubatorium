@@ -56,9 +56,3 @@ class IncubadoPlano(UsuarioAutenticado):
     @task(3)
     def meu_plano(self):
         self.client.get("/questionario")
-
-    @task(1)
-    def minhas_avaliacoes(self):
-        self.client.get(
-            f"/usuarios/{self.email}/avaliacoes", name="/usuarios/{email}/avaliacoes"
-        )

@@ -4,6 +4,8 @@ description: "Tarefas da feature Gestão de Incubação"
 
 # Tasks: Gestão de Incubação
 
+> **Nota (avaliações removidas):** o recurso de avaliações (US3 e Phase 10, `routers/avaliacoes`, `services/avaliacoes`, `repository/avaliacao`, `avaliacao_schema`, e-mail de nova avaliação e a coluna `ultima_avaliacao_em`, removida pela migração `0004`) foi retirado do sistema. As tarefas de avaliação abaixo, e as que citam "última avaliação" no painel, são histórico.
+
 > **Nota:** o fluxo de ingresso (`routers/ingresso`, `services/ingresso`, `repository/ingresso`, `ingresso_schema`) foi removido; as tarefas abaixo que o citam são histórico. `atualizar_plano` virou `QuestionarioService.atualizar`. Também foram removidos `GET /etapas`, `domain/models/questionarios/{etapas,notas,arquivos}.py` e as exceções de etapa/ingresso; o servidor não mantém mais notas nem referências de anexos no `PUT /questionario`.
 
 **Input**: Design documents from `/specs/001-gestao-incubacao/`
@@ -78,7 +80,7 @@ description: "Tarefas da feature Gestão de Incubação"
 - [X] T023 [US2] Criar `src/routers/usuarios/r_usuarios.py` (prefixo `/usuarios`, registrado em `src/startapp.py`) com `GET /usuarios/{email}/plano`, que devolve o questionário vigente e usa `exigir_acesso_incubado`; teste em `tests/unit/routers/test_usuarios_router.py`
 - [X] T024 [US2] Validar tipo e tamanho dos anexos em `POST /arquivos/questionario/{aba}` de `src/routers/arquivos/r_arquivos.py` (extensões permitidas e tamanho máximo em `src/infra/config.py`; inválido → 422) e permitir leitura a COL e CON; teste em `tests/unit/routers/test_arquivos_router.py`
 
-## Phase 5: User Story 3 - Consultor avalia o incubado (Priority: P3)
+## Phase 5: User Story 3 - Consultor avalia o incubado (Priority: P3) — REMOVIDA
 
 **Goal**: consultor avalia cada etapa do questionário (nota 1–5 + parecer). A nota é gravada em `json_questionario[etapa].nota` (sem recomendações nem histórico).
 
@@ -153,7 +155,7 @@ description: "Tarefas da feature Gestão de Incubação"
 - [X] T063 [US2] Atualizar o plano nos documentos (já descrito em `contracts/api.md`, `data-model.md`, `research.md` §8 e §11, `spec.md` FR-015/FR-015a, `quickstart.md`, `README.md`) e o diagrama `docs/arquitetura.svg`/`.png` (camada de serviços e domínio: `ArquivosService`, anexos por referência)
 - [X] T064 Rodar `./run-tests.sh`, `uv run ruff check . && uv run ruff format --check .` e `tests/validate_imports.py`, e repetir o roteiro de anexos do `quickstart.md` contra um Postgres real (upload → referência em `GET /questionario` → `PUT` preserva → `DELETE` remove)
 
-## Phase 10: Ajuste - etapa 1 não tem nota (US3)
+## Phase 10: Ajuste - etapa 1 não tem nota (US3) — REMOVIDA
 
 **Goal**: a etapa 1 (Setor de atuação) é só identificação: não tem `nota` no JSON e não pode ser avaliada (FR-010b). As etapas 2 a 9 seguem como estão.
 
@@ -183,7 +185,7 @@ description: "Tarefas da feature Gestão de Incubação"
 - **Phase 9** (anexos por referência) depende das fases 3 a 8; T055 precede T056–T061, T059 precede T060/T061 e T062 só roda depois delas.
 - **Phase 10** (etapa 1 sem nota) depende da US3 e da Phase 9: T065 e T066 precedem T067–T069, T070 vem depois de T067–T069 e T072 por último.
 - As fases 8 a 10 são ajustes incrementais sobre as histórias e ficam antes desta seção por ordem de execução.
-- Migrações são sequenciais: respeitar a ordem dos `down_revision` (`0001` baseline → `0002` ingresso e situação → `0003` última avaliação).
+- Migrações são sequenciais: respeitar a ordem dos `down_revision` (`0001` baseline → `0002` ingresso e situação → `0003` última avaliação → `0004` remove a última avaliação).
 
 ## Parallel Opportunities
 
@@ -205,3 +207,12 @@ description: "Tarefas da feature Gestão de Incubação"
 - [X] T073 CRITICAL: mover as regras de negócio de `QuestionarioRepository.gravar_questionario` (`rejeitar_anexos_embutidos`, `zerar_notas`, `preservar_arquivos`) em `src/repository/questionario/questionario_rep.py` para um novo `QuestionarioService` (`src/services/questionario/questionario_service.py`, métodos `criar` e `buscar`), deixando o repositório só com acesso a dados; fazer `POST /questionario` e `GET /questionario` em `src/routers/questionario/r_questionario.py` chamarem o serviço em vez de `QuestionarioRepository` direto; ajustar `tests/unit/repository/test_questionario_repository.py`, `tests/unit/routers/test_questionario_router.py` e `tests/unit/services/test_questionario_service.py` per Constitution I (contradicts)
 - [X] T074 Constitution V: trocar o `ValueError` de `IngressoRepository.arquivar_e_criar_novo` (`src/repository/ingresso/ingresso_rep.py`) por uma exceção de `src/shared/exceptions` (`ConflitoError`), mantendo a checagem de status `rejeitado` apenas no serviço (`IngressoService.reiniciar`); ajustar `tests/unit/repository/test_ingresso_repository.py` e `tests/unit/services/test_ingresso_service.py` per Constitution V (contradicts)
 - [X] T075 Corrigir `specs/001-gestao-incubacao/research.md` §4: as dependências citadas `exigir_admin` e `exigir_proprio_incubado_ou_equipe` não existem; listar as reais (`exigir_colaborador`, `exigir_consultor`, `exigir_acesso_incubado`) per plan: shared/permissoes.py (contradicts)
+
+## Phase 12: Convergence
+
+- [ ] T076 CRITICAL: alinhar o esquema ao model `Questionario` (`src/domain/models/questionarios/questionario.py` tem PK `id` autoincremento e `usuario_email` sem PK; a migração `0001` cria PK em `usuario_email` e não tem `id`) — criar a migração `0004` em `src/migrations/versions/` que adicione `id` como PK e `UNIQUE(usuario_email)` (um único questionário vigente por usuário), validar `alembic upgrade head` em banco vazio e a partir de `0003` com dados, e cobrir o índice único em `tests/unit/repository/test_questionario_repository.py` per Constitution IV / Assumptions "único plano de negócio" (contradicts)
+- [ ] T077 HIGH: corrigir `UsuariosRepository.buscar_plano` (`src/repository/usuarios/usuarios_rep.py`), que usa `db.get(Questionario, email)` com PK `id` — trocar por `select(Questionario).where(Questionario.usuario_email == email)` e testar `GET /usuarios/{email}/plano` com questionário existente em `tests/unit/routers/test_usuarios_router.py` per FR-011 / US3 (partial)
+- [ ] T078 HIGH: preservar as notas dos consultores quando o incubado salva o questionário — em `QuestionarioService.atualizar` e `criar` (`src/services/questionario/questionario_service.py`) mesclar o JSON recebido com as chaves `nota` já gravadas em `json_questionario` (manter a `nota` armazenada de cada etapa, descartar `nota` vinda do corpo, sem depender de lista de etapas no backend), e testar em `tests/unit/services/test_questionario_service.py` e `tests/unit/routers/test_questionario_router.py` (PUT não apaga, altera nem forja nota) per US2/AC2, US3/AC4, FR-011 (missing)
+- [ ] T079 HIGH: tornar o incubado visível ao colaborador e alterável — hoje nada define `User.situacao_incubacao` (fica nulo), então `GET /usuarios?perfil=incubado` filtra `situacao_incubacao IS NOT NULL` e `PATCH /usuarios/{email}/situacao` devolve 409 "ingresso ainda não foi aprovado" (fluxo removido): definir `ativo` por padrão para usuários `is_incubado` (default do model em `src/infra/db.py` ou na ativação em `src/services/verificacoes/usuario.py`), incluir migração `0005` com backfill dos incubados existentes, remover a checagem de ingresso em `UsuariosService.alterar_situacao` (`src/services/usuarios/usuarios_service.py`) e o filtro `is_not(None)` do painel, e testar em `tests/unit/services/test_usuarios_service.py` e `tests/unit/routers/test_usuarios_router.py` per FR-013, FR-014, US4/AC1–AC2 (missing)
+- [ ] T080 HIGH: remover da avaliação a exigência de status do questionário — `STATUS_AVALIAVEIS` (`src/services/avaliacoes/avaliacoes_service.py`) só aceita `aguardando_aprovacao|aprovado`, estados que o fluxo atual não produz sozinho (o status é enviado pelo cliente e o questionário nasce `iniciado`); exigir apenas incubado ativo (`situacao_incubacao` não `concluido|desistente`) e questionário existente, e atualizar `tests/unit/services/test_avaliacoes_service.py` e `tests/unit/routers/test_avaliacoes_router.py` per FR-010, US3/AC1 (partial)
+- [ ] T081 MEDIUM: remover resíduos do fluxo de ingresso já retirado do sistema — valores `aguardando_aprovacao` e `rejeitado` de `StatusEnum`, colunas `decidido_por`, `decidido_em`, `motivo_decisao` do model `Questionario` e campos correspondentes de `src/domain/schemas/plano_schema.py` (com migração `0006` que descarte as colunas e ajuste o enum), e o método sem uso `QuestionarioRepository.atualizar_questionario` (`src/repository/questionario/questionario_rep.py`); ajustar os testes que os citam per spec US1 "fluxo de pedido de ingresso removido" (unrequested)

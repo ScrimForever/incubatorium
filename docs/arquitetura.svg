@@ -8,12 +8,12 @@
 <rect x="52" y="140" width="320" height="78" rx="10" fill="#fff" stroke="#2e6da4" stroke-width="1.6"/>
 <text x="212.0" y="164" text-anchor="middle" font-size="16" font-weight="700" fill="#111">Candidato / Incubado</text>
 <text x="212.0" y="186" text-anchor="middle" font-size="12" fill="#333">se cadastra, preenche o questionário</text>
-<text x="212.0" y="203" text-anchor="middle" font-size="12" fill="#333">(plano de negócio) e vê as avaliações</text>
+<text x="212.0" y="203" text-anchor="middle" font-size="12" fill="#333">(plano de negócio) e anexa documentos</text>
 <line x1="212.0" y1="218" x2="212.0" y2="248" stroke="#2e6da4" stroke-width="2" marker-end="url(#seta)"/>
 <rect x="397" y="140" width="320" height="78" rx="10" fill="#fff" stroke="#2e6da4" stroke-width="1.6"/>
 <text x="557.0" y="164" text-anchor="middle" font-size="16" font-weight="700" fill="#111">Consultor</text>
-<text x="557.0" y="186" text-anchor="middle" font-size="12" fill="#333">avalia cada etapa do questionário</text>
-<text x="557.0" y="203" text-anchor="middle" font-size="12" fill="#333">(nota 1–5 + parecer)</text>
+<text x="557.0" y="186" text-anchor="middle" font-size="12" fill="#333">consulta o plano de negócio</text>
+<text x="557.0" y="203" text-anchor="middle" font-size="12" fill="#333">dos incubados</text>
 <line x1="557.0" y1="218" x2="557.0" y2="248" stroke="#2e6da4" stroke-width="2" marker-end="url(#seta)"/>
 <rect x="742" y="140" width="320" height="78" rx="10" fill="#fff" stroke="#2e6da4" stroke-width="1.6"/>
 <text x="902.0" y="164" text-anchor="middle" font-size="16" font-weight="700" fill="#111">Colaborador</text>
@@ -41,7 +41,7 @@
 <rect x="337" y="300" width="271" height="105" rx="10" fill="#fff" stroke="#2f8f4e" stroke-width="1.6"/>
 <text x="472.5" y="324" text-anchor="middle" font-size="17" font-weight="700" fill="#111">questionario</text>
 <text x="472.5" y="346" text-anchor="middle" font-size="12" fill="#333">GET/POST/PUT /questionario</text>
-<text x="472.5" y="363" text-anchor="middle" font-size="12" fill="#333">PUT preserva notas e anexos</text>
+<text x="472.5" y="363" text-anchor="middle" font-size="12" fill="#333">PUT preserva os anexos</text>
 <text x="472.5" y="380" text-anchor="middle" font-size="12" fill="#333">(FOR UPDATE no PUT)</text>
 <line x1="472.5" y1="405" x2="472.5" y2="440" stroke="#2f8f4e" stroke-width="2" marker-end="url(#seta)"/>
 <rect x="622" y="300" width="271" height="105" rx="10" fill="#fff" stroke="#2f8f4e" stroke-width="1.6"/>
@@ -55,12 +55,6 @@
 <text x="1042.5" y="346" text-anchor="middle" font-size="12" fill="#333">GET /usuarios?perfil=incubado</text>
 <text x="1042.5" y="363" text-anchor="middle" font-size="12" fill="#333">PATCH …/situacao · GET …/plano</text>
 <line x1="1042.5" y1="405" x2="1042.5" y2="440" stroke="#2f8f4e" stroke-width="2" marker-end="url(#seta)"/>
-<rect x="1192" y="300" width="271" height="105" rx="10" fill="#fff" stroke="#2f8f4e" stroke-width="1.6"/>
-<text x="1327.5" y="324" text-anchor="middle" font-size="17" font-weight="700" fill="#111">avaliacoes</text>
-<text x="1327.5" y="346" text-anchor="middle" font-size="12" fill="#333">PUT /usuarios/{email}/</text>
-<text x="1327.5" y="363" text-anchor="middle" font-size="12" fill="#333">avaliacoes/{etapa}</text>
-<text x="1327.5" y="380" text-anchor="middle" font-size="12" fill="#333">GET …/avaliacoes</text>
-<line x1="1327.5" y1="405" x2="1327.5" y2="440" stroke="#2f8f4e" stroke-width="2" marker-end="url(#seta)"/>
 <rect x="1477" y="300" width="271" height="105" rx="10" fill="#fff" stroke="#2f8f4e" stroke-width="1.6"/>
 <text x="1612.5" y="324" text-anchor="middle" font-size="17" font-weight="700" fill="#111">arquivos</text>
 <text x="1612.5" y="346" text-anchor="middle" font-size="12" fill="#333">upload/lista/download/delete</text>
@@ -80,12 +74,7 @@
 <text x="212" y="554" text-anchor="middle" font-size="17" font-weight="700" fill="#111">QuestionarioService</text>
 <text x="212" y="576" text-anchor="middle" font-size="12" fill="#333">criar · atualizar (PUT /questionario)</text>
 <text x="212" y="593" text-anchor="middle" font-size="12" fill="#333">grava respostas sem alterar o status</text>
-<text x="212" y="610" text-anchor="middle" font-size="12" fill="#333">preserva as notas dos consultores e os anexos</text>
-<rect x="397" y="530" width="320" height="100" rx="10" fill="#fff" stroke="#c9791a" stroke-width="1.6"/>
-<text x="557" y="554" text-anchor="middle" font-size="17" font-weight="700" fill="#111">AvaliacoesService</text>
-<text x="557" y="576" text-anchor="middle" font-size="12" fill="#333">consultor · incubado com questionário</text>
-<text x="557" y="593" text-anchor="middle" font-size="12" fill="#333">etapas 2–9 · respondida · nota 1–5 · parecer</text>
-<text x="557" y="610" text-anchor="middle" font-size="12" fill="#333">grava aba.nota no JSON do questionário</text>
+<text x="212" y="610" text-anchor="middle" font-size="12" fill="#333">preserva os anexos</text>
 <rect x="742" y="530" width="320" height="100" rx="10" fill="#fff" stroke="#c9791a" stroke-width="1.6"/>
 <text x="902" y="554" text-anchor="middle" font-size="17" font-weight="700" fill="#111">UsuariosService</text>
 <text x="902" y="576" text-anchor="middle" font-size="12" fill="#333">plano do incubado</text>
@@ -99,7 +88,7 @@
 <rect x="1432" y="530" width="320" height="100" rx="10" fill="#fff" stroke="#c9791a" stroke-width="1.6"/>
 <text x="1592" y="554" text-anchor="middle" font-size="17" font-weight="700" fill="#111">E-mail (EmailSetup)</text>
 <text x="1592" y="576" text-anchor="middle" font-size="12" fill="#333">ativação de conta (existente)</text>
-<text x="1592" y="593" text-anchor="middle" font-size="12" fill="#333">nova avaliação</text>
+<text x="1592" y="593" text-anchor="middle" font-size="12" fill="#333">notificações genéricas</text>
 <text x="1592" y="610" text-anchor="middle" font-size="12" fill="#333">template notificacao.html via Resend</text>
 <line x1="900" y1="473" x2="900" y2="490" stroke="#c9791a" stroke-width="2" marker-end="url(#seta)"/>
 <rect x="30" y="665" width="1740" height="125" rx="16" fill="#f6efff" stroke="#7b4bb3" stroke-width="2"/>
@@ -111,9 +100,6 @@
 <rect x="622" y="707" width="271" height="70" rx="10" fill="#fff" stroke="#7b4bb3" stroke-width="1.6"/>
 <text x="757.5" y="731" text-anchor="middle" font-size="15" font-weight="700" fill="#111">ArquivosRepository</text>
 <text x="757.5" y="753" text-anchor="middle" font-size="12" fill="#333">buscar_para_atualizar · gravar_json</text>
-<rect x="1192" y="707" width="271" height="70" rx="10" fill="#fff" stroke="#7b4bb3" stroke-width="1.6"/>
-<text x="1327.5" y="731" text-anchor="middle" font-size="15" font-weight="700" fill="#111">AvaliacaoRepository</text>
-<text x="1327.5" y="753" text-anchor="middle" font-size="12" fill="#333">SELECT … FOR UPDATE</text>
 <rect x="1477" y="707" width="271" height="70" rx="10" fill="#fff" stroke="#7b4bb3" stroke-width="1.6"/>
 <text x="1612.5" y="731" text-anchor="middle" font-size="15" font-weight="700" fill="#111">UsuariosRepository</text>
 <text x="1612.5" y="753" text-anchor="middle" font-size="12" fill="#333">painel agregado</text>
@@ -129,14 +115,14 @@
 <rect x="467" y="855" width="480" height="125" rx="10" fill="#fff" stroke="#b23a48" stroke-width="1.6"/>
 <text x="707.0" y="879" text-anchor="middle" font-size="17" font-weight="700" fill="#111">Questionario (1:1 com o usuário)</text>
 <text x="707.0" y="901" text-anchor="middle" font-size="12" fill="#333">PK usuario_email · status do pedido</text>
-<text x="707.0" y="918" text-anchor="middle" font-size="12" fill="#333">JSONB: abas 1 a 9 (nota só nas abas 2 a 9)</text>
+<text x="707.0" y="918" text-anchor="middle" font-size="12" fill="#333">JSONB: abas 1 a 9</text>
 <text x="707.0" y="935" text-anchor="middle" font-size="12" fill="#333">rejeitado → arquivado como &lt;email&gt;_&lt;n&gt;</text>
-<text x="707.0" y="952" text-anchor="middle" font-size="12" fill="#333">decidido_por/em · motivo · ultima_avaliacao_em</text>
+<text x="707.0" y="952" text-anchor="middle" font-size="12" fill="#333">decidido_por/em · motivo</text>
 <rect x="1307" y="855" width="441" height="125" rx="10" fill="#fff" stroke="#b23a48" stroke-width="1.6"/>
 <text x="1527.5" y="879" text-anchor="middle" font-size="17" font-weight="700" fill="#111">Regras em código</text>
 <text x="1527.5" y="901" text-anchor="middle" font-size="12" fill="#333">etapas.py: 9 etapas, id estável</text>
-<text x="1527.5" y="918" text-anchor="middle" font-size="12" fill="#333">notas.py: nota {valor 1–5, texto, avaliador,</text>
-<text x="1527.5" y="935" text-anchor="middle" font-size="12" fill="#333">avaliado_em}; mesclar/zerar · enums de situação e status</text>
+<text x="1527.5" y="918" text-anchor="middle" font-size="12" fill="#333">enums de situação e status</text>
+<text x="1527.5" y="935" text-anchor="middle" font-size="12" fill="#333">permissões por perfil</text>
 <line x1="900" y1="790" x2="900" y2="815" stroke="#b23a48" stroke-width="2" marker-end="url(#seta)"/>
 <rect x="30" y="1020" width="1740" height="270" rx="16" fill="#f0f4f7" stroke="#4a5a6a" stroke-width="2"/>
 <text x="52" y="1048" font-size="19" font-weight="700" fill="#4a5a6a">Infraestrutura e serviços externos</text>
@@ -144,12 +130,12 @@
 <text x="242.0" y="1084" text-anchor="middle" font-size="17" font-weight="700" fill="#111">PostgreSQL</text>
 <text x="242.0" y="1106" text-anchor="middle" font-size="12" fill="#333">tabelas user, questionario</text>
 <text x="242.0" y="1123" text-anchor="middle" font-size="12" fill="#333">JSONB para o plano de negócio</text>
-<text x="242.0" y="1140" text-anchor="middle" font-size="12" fill="#333">avaliações dentro do JSON</text>
+<text x="242.0" y="1140" text-anchor="middle" font-size="12" fill="#333">plano de negócio dentro do JSON</text>
 <rect x="452" y="1060" width="380" height="105" rx="10" fill="#fff" stroke="#4a5a6a" stroke-width="1.6"/>
 <text x="642.0" y="1084" text-anchor="middle" font-size="17" font-weight="700" fill="#111">Alembic (src/migrations)</text>
 <text x="642.0" y="1106" text-anchor="middle" font-size="12" fill="#333">0001 baseline (idempotente)</text>
 <text x="642.0" y="1123" text-anchor="middle" font-size="12" fill="#333">0002 decisão e situação do incubado</text>
-<text x="642.0" y="1140" text-anchor="middle" font-size="12" fill="#333">0003 última avaliação do questionário</text>
+<text x="642.0" y="1140" text-anchor="middle" font-size="12" fill="#333">0004 remove a última avaliação</text>
 <rect x="852" y="1060" width="280" height="105" rx="10" fill="#fff" stroke="#4a5a6a" stroke-width="1.6"/>
 <text x="992.0" y="1084" text-anchor="middle" font-size="17" font-weight="700" fill="#111">Disco: questionarios/</text>
 <text x="992.0" y="1106" text-anchor="middle" font-size="12" fill="#333">anexos por e-mail/aba</text>
@@ -159,7 +145,7 @@
 <text x="1292.0" y="1084" text-anchor="middle" font-size="17" font-weight="700" fill="#111">Resend (e-mail)</text>
 <text x="1292.0" y="1106" text-anchor="middle" font-size="12" fill="#333">Resend via notificacao.html</text>
 <text x="1292.0" y="1123" text-anchor="middle" font-size="12" fill="#333">ativação de conta</text>
-<text x="1292.0" y="1140" text-anchor="middle" font-size="12" fill="#333">nova avaliação</text>
+<text x="1292.0" y="1140" text-anchor="middle" font-size="12" fill="#333">notificações genéricas</text>
 <rect x="1452" y="1060" width="296" height="105" rx="10" fill="#fff" stroke="#4a5a6a" stroke-width="1.6"/>
 <text x="1600.0" y="1084" text-anchor="middle" font-size="17" font-weight="700" fill="#111">Docker Compose</text>
 <text x="1600.0" y="1106" text-anchor="middle" font-size="12" fill="#333">web: alembic upgrade + fastapi</text>

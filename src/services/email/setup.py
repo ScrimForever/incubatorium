@@ -93,7 +93,7 @@ class EmailSetup:
     async def enviar_notificacao(
         self, email: str, assunto: str, titulo: str, mensagem: str, detalhe: str = ""
     ) -> bool:
-        """E-mail genérico de notificação (nova avaliação)."""
+        """E-mail genérico de notificação."""
         template = jinja_env.get_template("notificacao.html")
         html_renderizado = template.render(
             titulo=titulo, mensagem=mensagem, detalhe=detalhe
@@ -117,14 +117,3 @@ class EmailSetup:
         except ResendError as error:
             logger.error(error)
             return False
-
-    async def enviar_email_nova_avaliacao(
-        self, email: str, etapa: str, nota: int, parecer: str
-    ) -> bool:
-        return await self.enviar_notificacao(
-            email,
-            "Nova avaliação",
-            "Você recebeu uma nova avaliação",
-            f"Sua etapa {etapa} foi avaliada com nota {nota}.",
-            detalhe=parecer,
-        )

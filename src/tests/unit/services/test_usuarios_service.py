@@ -1,11 +1,9 @@
-from unittest.mock import AsyncMock, MagicMock
+from sqlalchemy import select
 
 import pytest
 
 from domain.models.enums import SituacaoIncubacao
 from domain.models.questionarios.questionario import Questionario, StatusEnum
-from domain.schemas.avaliacao_schema import AvaliacaoInput
-from services.avaliacoes.avaliacoes_service import AvaliacoesService
 from services.usuarios.usuarios_service import UsuariosService
 from shared.exceptions import ConflitoError, NaoEncontradoError
 
@@ -27,29 +25,6 @@ async def _incubado_aprovado(async_db, criar_usuario):
 
 class TestAlterarSituacao:
     @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        "situacao", [SituacaoIncubacao.concluido, SituacaoIncubacao.desistente]
-    )
-    async def test_encerrada_bloqueia_novas_avaliacoes(
-        self, async_db, criar_usuario, situacao
-    ):
-        incubado = await _incubado_aprovado(async_db, criar_usuario)
-        consultor = await criar_usuario("consultor")
-        colaborador = await criar_usuario("colaborador")
-        await UsuariosService(async_db).alterar_situacao(
-            colaborador, incubado.email, situacao
-        )
-
-        assert incubado.situacao_incubacao == situacao
-        email = MagicMock()
-        email.enviar_email_nova_avaliacao = AsyncMock()
-        with pytest.raises(ConflitoError):
-            await AvaliacoesService(async_db, email_service=email).avaliar(
-                consultor, incubado.email, 2, AvaliacaoInput(nota=3, parecer="x")
-            )
-        email.enviar_email_nova_avaliacao.assert_not_awaited()
-
-    @pytest.mark.asyncio
     async def test_reativar_libera_de_novo_e_o_historico_fica(
         self, async_db, criar_usuario
     ):
@@ -67,7 +42,9 @@ class TestAlterarSituacao:
         assert incubado.situacao_incubacao == SituacaoIncubacao.ativo
         assert incubado.situacao_alterada_por == colaborador.email
         assert incubado.situacao_alterada_em is not None
-        assert await async_db.get(Questionario, incubado.email) is not None
+        assert await async_db.scalar(
+            select(Questionario).where(Questionario.usuario_email == incubado.email)
+        ) is not None
 
     @pytest.mark.asyncio
     async def test_sem_aprovacao_e_nao_incubado(self, async_db, criar_usuario):

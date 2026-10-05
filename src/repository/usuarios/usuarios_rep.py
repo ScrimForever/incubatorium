@@ -17,7 +17,10 @@ class UsuariosRepository:
         return resultado.scalar_one_or_none()
 
     async def buscar_plano(self, email: str) -> Questionario | None:
-        return await self.db.get(Questionario, email)
+        resultado = await self.db.execute(
+            select(Questionario).where(Questionario.usuario_email == email)
+        )
+        return resultado.scalars().first()
 
     async def buscar_por_id(self, user_id) -> User | None:
         return await self.db.get(User, user_id)
@@ -25,13 +28,12 @@ class UsuariosRepository:
     async def painel_incubados(
         self, situacao: SituacaoIncubacao | None = None
     ) -> list[dict]:
-        """Uma única consulta: situação, estado do plano e data da última avaliação."""
+        """Uma única consulta: situação e estado do plano."""
         consulta = (
             select(
                 User.email,
                 User.situacao_incubacao,
                 Questionario.status_questionario,
-                Questionario.ultima_avaliacao_em,
             )
             .join(Questionario, Questionario.usuario_email == User.email)
             .where(User.is_incubado.is_(True), User.situacao_incubacao.is_not(None))
@@ -45,9 +47,8 @@ class UsuariosRepository:
                 "email": email,
                 "situacao": sit,
                 "status_questionario": status.value,
-                "ultima_avaliacao_em": ultima,
             }
-            for email, sit, status, ultima in linhas
+            for email, sit, status in linhas
         ]
 
     async def alterar_situacao(

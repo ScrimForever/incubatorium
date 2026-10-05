@@ -13,9 +13,9 @@ tests/
     ├── domain/
     │   ├── test_models.py
     │   └── test_schemas.py
-    ├── repository/          # user, questionario, avaliacao
-    ├── services/            # user, avaliacoes, usuarios
-    ├── routers/             # questionario, usuarios, avaliacoes, arquivos
+    ├── repository/          # user, questionario
+    ├── services/            # user, usuarios
+    ├── routers/             # questionario, usuarios, arquivos
     │   └── test_isolamento_dados.py   # toda rota exige login; ninguém lê dados alheios
     ├── shared/              # permissoes, handlers
     ├── scripts/             # criar_admin

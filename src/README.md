@@ -85,16 +85,13 @@ Detalhes em `specs/001-gestao-incubacao/contracts/api.md`; a documentação inte
 | Área | Rotas |
 |---|---|
 | Questionário (incubado) | `POST /questionario`, `GET /questionario`, `PUT /questionario` (grava as respostas, sem alterar o status) |
-| Etapas | `GET /etapas` (as 9 etapas do questionário, definidas em código; `avaliavel=false` na etapa 1) |
-| Plano e avaliações | `GET /usuarios/{email}/plano`, `PUT /usuarios/{email}/avaliacoes/{etapa_id}` (consultor), `GET /usuarios/{email}/avaliacoes` |
+| Plano | `GET /usuarios/{email}/plano` |
 | Gestão (colaborador) | `GET /usuarios?perfil=incubado&situacao=`, `PATCH /usuarios/{email}/situacao` |
 | Anexos | `POST /arquivos/questionario/{aba}` (valida tipo, conteúdo e tamanho), `GET /arquivos/questionario/nome-arquivo/{aba}?email=` |
 
 Regras que valem a pena conhecer:
 
-- A etapa 1 (Setor de atuação) não tem nota: avaliá-la devolve 422. A nota de cada etapa de 2 a 9 fica em `json_questionario[etapa].nota` (`valor` de 1 a 5, `texto`,
-  `avaliador`, `avaliado_em`). O incubado nunca a altera ao salvar suas respostas.
-- E-mails novos (nova avaliação) saem em qualquer ambiente com
+- E-mails saem em qualquer ambiente com
   `RESEND_API_KEY`; `EMAIL_ENVIO_HABILITADO=false` desliga o envio e `EMAIL_DESTINO_OVERRIDE`
   redireciona tudo para um endereço de teste.
 - Anexos entram só por `POST /arquivos/questionario/{aba}` (multipart); o JSON do questionário guarda

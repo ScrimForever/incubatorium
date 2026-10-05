@@ -13,20 +13,13 @@ Perfis: **INC** incubado · **CON** consultor · **COL** colaborador · **ADM** 
 
 | Método e rota | Perfil | Descrição |
 |---|---|---|
-| `PUT /questionario` **(alterada)** | INC | Grava o JSON do questionário vigente como enviado (404 sem questionário), preenchendo `atualizado_em/por`; não altera o status |
+| `PUT /questionario` **(alterada)** | INC | Grava o JSON do questionário vigente como enviado (404 sem questionário), preenchendo `atualizado_em/por`; não altera o status. `POST` e `PUT`: 422 se alguma chave `nota` do JSON (em qualquer nível) não for 1–5 (nula é aceita) |
 
-## Plano de negócio (US2/US3)
+## Plano de negócio (US2)
 
 | Método e rota | Perfil | Descrição |
 |---|---|---|
 | `GET /usuarios/{email}/plano` | próprio INC, COL, CON | Questionário vigente |
-
-## Avaliações (US3)
-
-| Método e rota | Perfil | Descrição |
-|---|---|---|
-| `PUT /usuarios/{email}/avaliacoes/{etapa_id}` | CON | `{nota (1-5), parecer}`; grava em `json_questionario[etapa].nota`; substitui a anterior; só com questionário `aguardando_aprovacao` ou `aprovado` e incubado não encerrado (`concluido`/`desistente` → 409) |
-| `GET /usuarios/{email}/avaliacoes` | próprio INC, COL, CON | Nota, parecer, avaliador e data de cada etapa avaliada |
 
 ## Gestão pelo colaborador (US4)
 
@@ -34,7 +27,7 @@ Endpoints de administração de contas pelo admin (criar equipe, atribuir perfil
 
 | Método e rota | Perfil | Descrição |
 |---|---|---|
-| `GET /usuarios?perfil=incubado&situacao=` | COL | Visão consolidada dos usuários com `is_incubado`: situação, estado do plano, última avaliação |
+| `GET /usuarios?perfil=incubado&situacao=` | COL | Visão consolidada dos usuários com `is_incubado`: situação, estado do plano |
 | `PATCH /usuarios/{email}/situacao` | COL | `{situacao: ativo|concluido|desistente}` |
 
 ## Arquivos (FR-015)
@@ -53,4 +46,4 @@ referências de arquivos no JSON do questionário.
 
 ## Notificações por e-mail (FR-016)
 
-Evento: nova avaliação (ao incubado). A ativação de conta usa o e-mail de cadastro já existente.
+Sem eventos de notificação por avaliação (o recurso foi removido). A ativação de conta usa o e-mail de cadastro já existente.

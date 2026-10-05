@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from sqlalchemy import select
 
 import pytest
 
@@ -81,10 +81,10 @@ async def _incubado(async_db, criar_usuario, email, situacao=SituacaoIncubacao.a
 
 class TestPainel:
     @pytest.mark.asyncio
-    async def test_lista_incubados_com_situacao_e_ultima_avaliacao(
+    async def test_lista_incubados_com_situacao(
         self, async_db, criar_usuario, cliente_api
     ):
-        ana = await _incubado(async_db, criar_usuario, "ana@example.com")
+        await _incubado(async_db, criar_usuario, "ana@example.com")
         await _incubado(
             async_db, criar_usuario, "beto@example.com", SituacaoIncubacao.concluido
         )
@@ -97,8 +97,6 @@ class TestPainel:
                 criado_por=candidato.email,
             )
         )
-        quando = datetime(2026, 10, 1, 12, tzinfo=UTC)
-        (await async_db.get(Questionario, ana.email)).ultima_avaliacao_em = quando
         await async_db.commit()
         colaborador = await criar_usuario("colaborador")
 
@@ -111,8 +109,6 @@ class TestPainel:
         assert set(painel) == {"ana@example.com", "beto@example.com"}
         assert painel["ana@example.com"]["situacao"] == "ativo"
         assert painel["ana@example.com"]["status_questionario"] == "aprovado"
-        assert painel["ana@example.com"]["ultima_avaliacao_em"] is not None
-        assert painel["beto@example.com"]["ultima_avaliacao_em"] is None
 
     @pytest.mark.asyncio
     async def test_filtra_por_situacao(self, async_db, criar_usuario, cliente_api):
@@ -168,7 +164,9 @@ class TestSituacao:
         assert resposta.json()["situacao"] == "concluido"
         assert resposta.json()["alterada_por"] == colaborador.email
         assert ana.situacao_incubacao == SituacaoIncubacao.concluido
-        assert (await async_db.get(Questionario, ana.email)) is not None
+        assert (await async_db.scalar(
+            select(Questionario).where(Questionario.usuario_email == ana.email)
+        )) is not None
 
     @pytest.mark.asyncio
     async def test_usuario_sem_aprovacao_da_409_e_inexistente_da_404(

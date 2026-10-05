@@ -2,7 +2,7 @@
 
 Convenções: tabelas em português (`snake_case`), tabelas novas usam `criado_em/criado_por`
 (`MixinDate`) quando o autor importa; chaves de pessoa por **e-mail** onde o código atual já faz
-isso (`questionario.usuario_email`). Nada é apagado fisicamente (FR-011, FR-013).
+isso (`questionario.usuario_email`, que não é chave primária). Nada é apagado fisicamente (FR-011, FR-013).
 
 ## Existentes (alterações)
 
@@ -14,14 +14,15 @@ Novas colunas: `situacao_incubacao` (Enum `ativo|concluido|desistente`, nullable
 `is_consultor`, `is_incubado`. Regra: exatamente um perfil verdadeiro por conta (a equipe é criada por
 script; a desativação de contas pelo admin está adiada).
 
-**questionario** — plano de negócio. Cada usuário tem **no máximo um questionário** vigente
-(`usuario_email` é a PK e igual ao e-mail do usuário). Não há arquivamento nem histórico: o fluxo
+**questionario** — plano de negócio. A chave primária é `id` (inteiro autoincremento);
+`usuario_email` (e-mail do usuário, sem FK) **não é único** no banco, então a regra de um questionário por usuário
+é aplicada só pelo código (`POST /questionario` devolve 409 se já existir). Não há arquivamento nem histórico: o fluxo
 de ingresso (envio, aprovação, rejeição e novo pedido) foi removido.
 - Colunas de decisão `decidido_por`, `decidido_em`, `motivo_decisao` permanecem no modelo, mas nada as grava hoje.
-  `ultima_avaliacao_em` guarda a data da última nota gravada (evita ler o JSON no painel).
+  A coluna `ultima_avaliacao_em` foi removida (migração `0004`) junto com o recurso de avaliações.
 - `status_questionario` (`iniciado|pendente|aguardando_aprovacao|aprovado|rejeitado`) permanece no
   modelo; o `PUT /questionario` não o altera. Nada no código o move para `aguardando_aprovacao`/`aprovado` hoje.
-- O `PUT /questionario` grava o JSON como enviado, com `atualizado_em/por`, sob `SELECT ... FOR UPDATE`.
+- `POST` e `PUT /questionario` validam o JSON no schema Pydantic (`QuestionarioInputSchema`): toda chave `nota`, em qualquer nível, deve valer 1–5 (inteiro, ou `{valor, ...}` com `valor` 1–5) ou ser nula; caso contrário, 422. O `PUT` grava o JSON como enviado, com `atualizado_em/por`, sob `SELECT ... FOR UPDATE`.
 
 ## Novas
 
@@ -29,16 +30,7 @@ de ingresso (envio, aprovação, rejeição e novo pedido) foi removido.
 gravados e apagados só pelo endpoint de arquivos, que exige questionário editável
 (`iniciado|pendente|aprovado`). O servidor não mantém referências no JSON do questionário.
 
-**Avaliação (sem tabela própria)** — vive em `questionario.json_questionario[<etapa>].nota`:
-`{valor, texto, avaliador, avaliado_em}`.
-- `valor`: inteiro 1–5; `texto`: parecer (obrigatório); `avaliador`: e-mail do consultor; `avaliado_em`: data/hora ISO.
-- Uma nova avaliação da etapa substitui a anterior (sem histórico). Escrita só por consultor, em
-  leitura-modificação-escrita com bloqueio de linha. O servidor não valida a etapa (não há lista
-  de etapas no backend) nem protege a `nota` contra o `PUT` do cliente: o JSON é do cliente.
-
 ## Regras de validação (do spec)
 
 - E-mail único por conta (FR-002), já garantido por fastapi-users.
-- `nota` inteira 1–5; `parecer` não vazio (FR-010).
-- Consultor só cria avaliação se `user.situacao_incubacao = ativo` para o incubado
-  (FR-010).
+- Chave `nota` no JSON do questionário, se presente, vale 1–5 (schema Pydantic); o backend não tem mais endpoints de avaliação.

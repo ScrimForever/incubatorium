@@ -27,7 +27,7 @@ async def painel_de_incubados(
     _: User = Depends(exigir_colaborador),
     service: UsuariosService = Depends(_service),
 ):
-    """Painel do colaborador: situação, estado do plano e última avaliação."""
+    """Painel do colaborador: situação e estado do plano."""
     return await service.painel(situacao)
 
 

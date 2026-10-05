@@ -7,8 +7,7 @@
 ## Summary
 
 Estender a API existente (FastAPI + SQLAlchemy async + fastapi-users) para cobrir o ciclo de
-incubação: o **questionário já existente é o plano de negócio** , e sobre ele entram os usuários incubados (flag `is_incubado`) e as
-avaliações **por etapa (aba) do questionário** com nota 1–5. A administração de contas pelo admin
+incubação: o **questionário já existente é o plano de negócio** , e sobre ele entram os usuários incubados (flag `is_incubado`) . A administração de contas pelo admin
 fica adiada; a equipe é criada por script. Os perfis já existem como flags em `User` (`is_admin`,
 `is_colaborador`, `is_consultor`, `is_incubado`). A estrutura das etapas é do frontend (não há tela nem lista no backend).
 A abordagem reaproveita as camadas atuais e adiciona colunas novas via migrações Alembic.
@@ -82,10 +81,10 @@ src/
 │   └── schemas/                         # um schema por agregado novo
 ├── repository/                          # um repositório por agregado novo
 ├── services/
-│   ├── usuarios/  avaliacoes/
+│   ├── usuarios/
 │   └── email/                           # templates novos em templates/html
 ├── routers/
-│   ├── usuarios/  avaliacoes/
+│   ├── usuarios/
 │   └── (existentes: users, questionario, arquivos)
 ├── shared/exceptions/                   # exceções de negócio novas
 ├── shared/permissoes.py                 # dependências por perfil (admin, colaborador...)

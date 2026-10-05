@@ -22,8 +22,8 @@
 ## 4. Perfis e permissões
 - **Decision**: reutilizar as flags de `User` e criar dependências FastAPI em
   `shared/permissoes.py` (`exigir_colaborador`, `exigir_consultor`,
-  `exigir_acesso_incubado`). Admin tem acesso total de gestão de contas, não de avaliação.
-- **Decision**: qualquer consultor lê e avalia qualquer etapa de um incubado ativo (sem vínculo
+  `exigir_acesso_incubado`). Admin tem acesso total de gestão de contas.
+- **Decision**: qualquer consultor lê o plano de qualquer incubado ativo (sem vínculo
   consultor↔incubado); incubado só acessa os próprios dados e colaborador vê todos.
 - **Rationale**: o modelo já existe; evita nova tabela de papéis.
 - **Alternatives**: tabela de papéis/RBAC (excessivo para 4 perfis fixos).
@@ -44,16 +44,6 @@
 - **Decision** (produto): metas, progresso e notificação de atraso foram removidos por não estarem no
   plano; o plano de negócio é só o questionário. Nenhuma tarefa agendada nem tabela de metas existe.
 
-## 7. Nota e avaliação
-- **Decision** (produto): a nota fica **só** em `json_questionario[etapa].nota`
-  (`{valor, texto, avaliador, avaliado_em}`). Sem tabela de avaliações, sem histórico e sem
-  recomendações. O consultor escreve com leitura-modificação-escrita sob bloqueio de linha
-  (`SELECT ... FOR UPDATE`), e o `PUT` do incubado também bloqueia a linha, então um não
-  sobrescreve o outro.
-- **Limite atual**: o servidor não valida a etapa avaliada nem protege `nota` contra o `PUT` do cliente.
-- **Rationale**: o frontend já lê e grava esse formato; evita duplicar a fonte de verdade.
-- **Alternatives**: tabela `avaliacao` com histórico (descartada pelo produto).
-
 ## 8. Anexos
 - **Decision**: uploads só pelo endpoint de arquivos (multipart form), que valida tipo, conteúdo e
   tamanho e só altera arquivos com o questionário editável (`iniciado|pendente|aprovado`). Os
@@ -67,7 +57,7 @@
 - **Alternatives**: continuar com `create_all` (viola a constituição).
 
 ## 10. Envio de e-mail e ajustes operacionais
-- **Decision**: `EmailSetup.enviar_notificacao` (nova avaliação) envia em
+- **Decision**: `EmailSetup.enviar_notificacao` envia em
   qualquer ambiente, desde que `EMAIL_ENVIO_HABILITADO` seja verdadeiro (padrão) e `RESEND_API_KEY`
   esteja definida; testes e demos desligam com `EMAIL_ENVIO_HABILITADO=false`. Os e-mails de
   cadastro e redefinição de senha, anteriores à feature, mantêm o envio apenas em `development`.
