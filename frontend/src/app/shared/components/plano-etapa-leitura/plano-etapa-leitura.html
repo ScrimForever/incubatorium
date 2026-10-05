@@ -66,43 +66,28 @@
     </ul>
   }
 
-  <!-- As avaliações da etapa: uma por consultor, cada um na sua especialidade. -->
-  @if (etapaAtual.notas.length) {
+  <!-- A avaliação da etapa: uma só — quem avalia primeiro fecha a etapa. -->
+  @if (etapaAtual.avaliacao; as avaliacao) {
     <div class="plano-notas">
-      <h3>
-        Avaliações
-        @if (etapaAtual.media !== null) {
-          <span [class]="'selo plano-nota-valor ' + classeMedia()">
-            média {{ etapaAtual.media }}
-          </span>
-        }
-      </h3>
-      @for (nota of etapaAtual.notas; track nota.avaliador) {
-        <div [class]="'plano-nota ' + (nota.valor ? classeNota[nota.valor] : '')">
-          <div class="plano-nota-cabeca">
-            @if (nota.valor; as valor) {
-              <span [class]="'selo plano-nota-valor ' + classeNota[valor]">
-                {{ valor }} — {{ rotuloNota[valor] }}
-              </span>
-            } @else {
-              <span class="selo plano-nota-valor">apenas comentário</span>
-            }
-            <span class="plano-nota-autor">
-              <app-icone nome="usuario" />
-              @if (nota.nome) {
-                <strong>{{ nota.nome }}</strong>
-              }
-              {{ nota.avaliador }}
-              @if (quando(nota.em)) {
-                · {{ quando(nota.em) }}
-              }
+      <h3>Avaliação</h3>
+      <div [class]="'plano-nota ' + (avaliacao.nota ? classeNota[avaliacao.nota] : '')">
+        <div class="plano-nota-cabeca">
+          @if (avaliacao.nota; as nota) {
+            <span [class]="'selo plano-nota-valor ' + classeNota[nota]">
+              {{ nota }} — {{ rotuloNota[nota] }}
             </span>
-          </div>
-          @if (nota.texto) {
-            <p>{{ nota.texto }}</p>
+          } @else {
+            <span class="selo plano-nota-valor">apenas comentário</span>
           }
+          <span class="plano-nota-autor">
+            <app-icone nome="usuario" />
+            {{ avaliacao.avaliador }}
+          </span>
         </div>
-      }
+        @if (avaliacao.comentario) {
+          <p>{{ avaliacao.comentario }}</p>
+        }
+      </div>
     </div>
   } @else {
     <p class="plano-sem-nota">Esta etapa ainda não foi avaliada.</p>

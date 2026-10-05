@@ -246,8 +246,8 @@
                       type="button"
                       class="quest-arquivo-abrir"
                       [attr.aria-label]="'Pré-visualizar ' + arquivo.nome"
-                      title="Pré-visualizar (exemplo)"
-                      (click)="abrirPreview(arquivo)"
+                      title="Pré-visualizar"
+                      (click)="abrirPreview(arquivo, 6)"
                     >
                       <app-icone nome="documento" />
                       <span>{{ arquivo.nome }}</span>
@@ -298,8 +298,8 @@
                       type="button"
                       class="quest-arquivo-abrir"
                       [attr.aria-label]="'Pré-visualizar ' + arquivo.nome"
-                      title="Pré-visualizar (exemplo)"
-                      (click)="abrirPreview(arquivo)"
+                      title="Pré-visualizar"
+                      (click)="abrirPreview(arquivo, 9)"
                     >
                       <app-icone nome="documento" />
                       <span>{{ arquivo.nome }}</span>
@@ -382,18 +382,14 @@
               }
               <span class="aval-dica">Dê a nota, o comentário, ou os dois.</span>
             } @else if (notaDaEtapa(); as nota) {
+              <!-- A assinatura é só o e-mail: o formato de `avaliacao` fechado
+                   com o Scrim tem três campos, sem nome nem data. -->
               <span class="aval-assinatura">
                 <app-icone nome="usuario" />
                 @if (minhaDaEtapa() && !ehCoordenacao()) {
                   <strong>Você</strong>
                 } @else {
-                  @if (nota.nome) {
-                    <strong>{{ nota.nome }}</strong>
-                  }
                   <span class="aval-assinatura-email">{{ nota.avaliador }}</span>
-                }
-                @if (dataNota(nota.em)) {
-                  <time class="aval-nota-data">{{ dataNota(nota.em) }}</time>
                 }
               </span>
               @if (minhaDaEtapa() && !ehCoordenacao()) {
@@ -738,7 +734,15 @@
   </div>
 }
 
-<app-visualizador-arquivo [arquivo]="arquivoPreview()" (fechar)="fecharPreview()" />
+<app-visualizador-arquivo
+  [arquivo]="arquivoPreview()"
+  [conteudo]="conteudoPreview()"
+  [carregando]="baixandoPreview()"
+  [erro]="erroPreview()"
+  [podeBaixar]="!ehAvaliacao()"
+  (baixar)="baixarAnexo()"
+  (fechar)="fecharPreview()"
+/>
 
 @if (decidindo(); as status) {
   <div class="overlay">

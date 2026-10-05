@@ -6,14 +6,20 @@
  * formato é definido aqui.
  *
  * O documento é um mapa por aba, de `"1"` a `"9"`, e cada aba carrega os seus
- * campos, a ficha dos seus anexos e as notas que recebeu — uma por avaliador:
+ * campos, a ficha dos seus anexos e **a** avaliação que recebeu — uma por etapa:
  *
  * ```json
  * {
- *   "1": { "nome_proponente": "", "...": "", "notas": [] },
- *   "2": { "business_canvas": "", "notas": [{ "avaliador": "ana@x", "valor": 4 }] }
+ *   "1": { "nome_proponente": "", "...": "", "avaliacao": null },
+ *   "2": {
+ *     "business_canvas": "",
+ *     "avaliacao": { "avaliador": "ana@x", "nota": 4, "comentario": "" }
+ *   }
  * }
  * ```
+ *
+ * O formato da chave `avaliacao` é o que o Scrim definiu no Trello (28/09/2026),
+ * para as rotas que ele ainda vai publicar: três campos, e só.
  *
  * Os nomes de campo espelham o sistema em React que veio antes.
  */
@@ -62,20 +68,12 @@ export const MAXIMO_ANEXOS_POR_ETAPA = 9;
  * Avaliar não aprova: nada aqui toca `status_questionario` — a regra está no
  * formato, não só na tela (`docs/contrato-avaliacao.md`).
  */
-export interface NotaEtapa {
-  /** E-mail de quem avaliou — a chave, vinda do token. */
+export interface Avaliacao {
+  /** E-mail de quem avaliou — vem do token, nunca da tela. */
   avaliador: string;
-  /**
-   * Nome de quem avaliou, quando o servidor souber dizer. Opcional porque o
-   * `User` do backend **não tem nome** hoje (divergência em
-   * `docs/contrato-avaliacao.md`): sem ele, a tela assina só com o e-mail.
-   */
-  nome?: string;
-  especialidade: string;
-  valor: 1 | 2 | 3 | 4 | 5 | null;
-  texto: string;
-  /** ISO 8601 em UTC, gravado pelo frontend. */
-  em: string;
+  /** `null` para quem quer só comentar sem pontuar. */
+  nota: 1 | 2 | 3 | 4 | 5 | null;
+  comentario: string;
 }
 
 export const ROTULO_NOTA: Record<1 | 2 | 3 | 4 | 5, string> = {
@@ -112,9 +110,12 @@ export interface MembroEquipe {
   telefone: string;
 }
 
-/** Toda aba carrega as notas que recebeu — uma por avaliador. */
+/**
+ * Toda aba carrega a avaliação que recebeu — **uma só**: quem avalia primeiro
+ * fecha a etapa, e só o autor reabre a dele.
+ */
 interface EtapaBase {
-  notas: NotaEtapa[];
+  avaliacao: Avaliacao | null;
 }
 
 interface Etapa1 extends EtapaBase {
@@ -246,21 +247,21 @@ export function documentoVazio(): JsonQuestionario {
       nome_negocio: '',
       setor_atuacao: '',
       cnpj: '',
-      notas: [],
+      avaliacao: null,
     },
-    '2': { business_canvas: '', notas: [] },
-    '3': { sumario_executivo: '', notas: [] },
-    '4': { equipe: [], notas: [] },
-    '5': { planejamento_produto: '', notas: [] },
+    '2': { business_canvas: '', avaliacao: null },
+    '3': { sumario_executivo: '', avaliacao: null },
+    '4': { equipe: [], avaliacao: null },
+    '5': { planejamento_produto: '', avaliacao: null },
     '6': {
       fornecedores: '',
       concorrentes: '',
       analise_acao: '',
       arquivos: [],
-      notas: [],
+      avaliacao: null,
     },
-    '7': { planejamento_marketing: '', notas: [] },
-    '8': { planejamento_estrutura: '', notas: [] },
-    '9': { observacoes: '', arquivos: [], notas: [] },
+    '7': { planejamento_marketing: '', avaliacao: null },
+    '8': { planejamento_estrutura: '', avaliacao: null },
+    '9': { observacoes: '', arquivos: [], avaliacao: null },
   };
 }

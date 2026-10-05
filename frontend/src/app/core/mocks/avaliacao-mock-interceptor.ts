@@ -12,7 +12,7 @@ import {
   DecisaoPlano,
   JsonQuestionario,
   NUMEROS_ETAPA,
-  NotaEtapa,
+  Avaliacao,
   NumeroEtapa,
   Questionario,
   StatusQuestionario,
@@ -127,14 +127,11 @@ const PLANOS: PlanoResumo[] = [
   },
 ];
 
-const nota = (
-  avaliador: string,
-  especialidade: string,
-  valor: NotaEtapa['valor'],
-  texto: string,
-  em: string,
-  // O nome sai do cadastro, junto do e-mail — aqui, do mapa de papéis.
-): NotaEtapa => ({ avaliador, nome: PAPEIS[avaliador]?.nome, especialidade, valor, texto, em });
+const nota = (avaliador: string, nota: Avaliacao['nota'], comentario: string): Avaliacao => ({
+  avaliador,
+  nota,
+  comentario,
+});
 
 /** Um documento preenchido, para a tela do avaliador ter o que ler. */
 function documentoDe(email: string): JsonQuestionario {
@@ -178,35 +175,26 @@ function documentoDe(email: string): JsonQuestionario {
     },
   ];
 
-  // Notas já no documento, uma por etapa: na prática a etapa é avaliada por um
-  // consultor só — quem chega depois a encontra fechada (`etapaBloqueada`). O
-  // que varia de etapa para etapa é o especialista, não a quantidade de notas.
+  // Avaliações já no documento: uma por etapa, porque quem avalia primeiro
+  // fecha a etapa e quem chega depois a encontra travada (`etapaBloqueada`).
   if (email.includes('ana.startup')) {
-    json['2'].notas = [
-      nota(
-        'consultor@teccampos.com',
-        'Financeiro',
-        3,
-        'Canvas claro, mas a receita não aparece.',
-        '2026-09-18T09:30:00.000Z',
-      ),
-    ];
-    json['6'].notas = [
-      nota(
-        'consultor@teccampos.com',
-        'Financeiro',
-        2,
-        'Preço abaixo do custo apresentado na etapa 9.',
-        '2026-09-18T09:32:00.000Z',
-      ),
-    ];
+    json['2'].avaliacao = nota(
+      'consultor@teccampos.com',
+      3,
+      'Canvas claro, mas a receita não aparece.',
+    );
+    json['6'].avaliacao = nota(
+      'consultor@teccampos.com',
+      2,
+      'Preço abaixo do custo apresentado na etapa 9.',
+    );
   }
   return json;
 }
 
 interface Guardado {
-  /** email do plano → aba → a nota daquela aba (uma só, como em produção) */
-  notas: Record<string, Record<string, NotaEtapa>>;
+  /** email do plano → aba → a avaliação daquela aba (uma só, como em produção) */
+  notas: Record<string, Record<string, Avaliacao>>;
   /** email do plano → a decisão da coordenação, quando já houve uma */
   decisoes?: Record<string, DecisaoPlano>;
 }
@@ -239,8 +227,8 @@ function planoDe(email: string): Questionario {
   );
   // A nota gravada substitui a da etapa, não se soma a ela: a etapa tem uma nota
   // só, e quem a deu é quem pode regravar (a tela fecha a etapa para os outros).
-  for (const [aba, nota] of Object.entries(guardadas)) {
-    json[aba as ChaveEtapa].notas = [nota];
+  for (const [aba, avaliacao] of Object.entries(guardadas)) {
+    json[aba as ChaveEtapa].avaliacao = avaliacao;
   }
   const resumo = PLANOS.find((plano) => plano.usuario_email === email);
   const decisao = ler().decisoes?.[email];
@@ -266,7 +254,7 @@ function recusar(status: number, detalhe: string, url: string): Observable<HttpE
 
 /** Quantas das nove etapas já têm nota — a conta que libera a decisão. */
 function etapasAvaliadas(json: JsonQuestionario): number {
-  return NUMEROS_ETAPA.filter((numero) => json[String(numero) as ChaveEtapa].notas.length > 0)
+  return NUMEROS_ETAPA.filter((numero) => json[String(numero) as ChaveEtapa].avaliacao !== null)
     .length;
 }
 
@@ -334,7 +322,7 @@ export const avaliacaoMockInterceptor: HttpInterceptorFn = (req, next) => {
     // A tela já não oferece o formulário nesse caso (`etapaBloqueada`) — aqui é
     // a mesma regra do lado do servidor, que é onde ela precisa valer.
     const jaNoDocumento =
-      planoDe(email).json_questionario[String(entrada.aba) as ChaveEtapa].notas[0];
+      planoDe(email).json_questionario[String(entrada.aba) as ChaveEtapa].avaliacao;
     if (jaNoDocumento && jaNoDocumento.avaliador !== avaliador) {
       return recusar(409, 'ETAPA_JA_AVALIADA', req.url);
     }
@@ -342,11 +330,8 @@ export const avaliacaoMockInterceptor: HttpInterceptorFn = (req, next) => {
       ...(dados.notas[email] ?? {}),
       [String(entrada.aba as NumeroEtapa)]: {
         avaliador,
-        nome: PAPEIS[avaliador]?.nome,
-        especialidade: entrada.especialidade,
-        valor: entrada.valor,
-        texto: entrada.texto,
-        em: new Date().toISOString(),
+        nota: entrada.nota,
+        comentario: entrada.comentario,
       },
     };
     gravar(dados);

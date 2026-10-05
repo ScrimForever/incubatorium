@@ -32,6 +32,22 @@ export class Api {
   }
 
   /**
+   * `DELETE` com corpo — exigido pelo `DELETE /arquivos/questionario/{aba}`,
+   * que recebe a lista de nomes a apagar no corpo em vez de na URL.
+   */
+  deleteComCorpo<T>(endpoint: string, body: unknown): Observable<T> {
+    return this.http.delete<T>(this.url(endpoint), { body });
+  }
+
+  /**
+   * `POST` que devolve binário — o download de anexo. A resposta não é JSON,
+   * então o `responseType` tem de sair do padrão.
+   */
+  postBlob(endpoint: string, body: unknown): Observable<Blob> {
+    return this.http.post(this.url(endpoint), body, { responseType: 'blob' });
+  }
+
+  /**
    * multipart/form-data - exigido pelo POST /arquivos/questionario/{aba}. Sem
    * `Content-Type` de propósito: só o navegador conhece o boundary, e declarar
    * o header aqui quebra o upload.

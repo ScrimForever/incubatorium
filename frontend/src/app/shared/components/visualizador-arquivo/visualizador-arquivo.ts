@@ -1,13 +1,18 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
   computed,
   effect,
+  inject,
   input,
   output,
+  signal,
+  untracked,
   viewChild,
 } from '@angular/core';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
 import { Anexo } from '../../../core/models/questionario';
 import { Icone } from '../icone/icone';
@@ -24,14 +29,22 @@ const ROTULO: Record<Categoria, string> = {
   outro: 'Arquivo',
 };
 
+/** As categorias que o navegador desenha sozinho a partir de um `blob:`. */
+const RENDERIZAVEIS: readonly Categoria[] = ['imagem', 'pdf', 'texto'];
+
 /**
- * Modal de pré-visualização de anexo — **mock**, por enquanto.
+ * Modal de pré-visualização de anexo — o arquivo de verdade desde 28/09/2026,
+ * quando o backend publicou o download como `POST`.
  *
- * O backend ainda não tem rota de download que funcione (o `GET /download` exige
- * corpo num GET; ver `docs/contrato-arquivos.md`), então não há conteúdo real
- * para mostrar. Este modal desenha uma prévia de exemplo conforme o tipo do
- * arquivo, para o fluxo ficar completo na tela; o botão de baixar fica
- * desabilitado até a rota existir.
+ * O conteúdo não é buscado aqui: quem baixa é a página, que conhece a aba, e
+ * entrega o `Blob` pronto. Tipo que o navegador não desenha (planilha, .docx)
+ * fica só com o botão de baixar.
+ *
+ * No modo avaliação não há prévia nem download — e isso **não é regra de
+ * produto**: o backend monta o caminho do arquivo a partir do e-mail do token,
+ * então quem avalia procura na própria pasta. Medido em 28/09/2026: consultor
+ * pedindo anexo de incubado recebe `404`, e a listagem da aba vem `[]`. Some
+ * quando a rota de leitura de anexo alheio existir (`docs/contrato-arquivos.md`).
  */
 @Component({
   selector: 'app-visualizador-arquivo',
@@ -44,7 +57,18 @@ const ROTULO: Record<Categoria, string> = {
   },
 })
 export class VisualizadorArquivo {
+  private readonly sanitizer = inject(DomSanitizer);
+
+  private readonly destroyRef = inject(DestroyRef);
+
   readonly arquivo = input<Anexo | null>(null);
+  /** O conteúdo baixado pela página; `null` enquanto não há nada para mostrar. */
+  readonly conteudo = input<Blob | null>(null);
+  readonly carregando = input(false);
+  readonly erro = input('');
+  /** Falso no modo avaliação: sem rota para o anexo alheio, não há o que baixar. */
+  readonly podeBaixar = input(true);
+  readonly baixar = output<void>();
   readonly fechar = output<void>();
 
   private readonly dialogo = viewChild<ElementRef<HTMLElement>>('dialogo');
@@ -53,17 +77,57 @@ export class VisualizadorArquivo {
   protected readonly categoria = computed<Categoria>(() => categoriaDe(this.arquivo()));
   protected readonly rotuloTipo = computed(() => ROTULO[this.categoria()]);
 
-  /** Larguras (%) das linhas fingidas de um documento/PDF. */
-  protected readonly linhas: readonly number[] = [92, 78, 96, 64, 88, 40, 90, 72];
-  /** Células fingidas de uma planilha. */
-  protected readonly tabela: readonly (readonly string[])[] = [
-    ['Item', 'Qtde', 'Valor'],
-    ['Receita', '120', 'R$ 24.000'],
-    ['Custos', '80', 'R$ 12.400'],
-    ['Margem', '—', 'R$ 11.600'],
-  ];
+  /**
+   * `blob:` do conteúdo, criado aqui e devolvido ao fechar. O `<img>` usa a URL
+   * crua (o sanitizador do Angular já aceita `blob:`); o `<iframe>` exige a
+   * versão marcada como recurso confiável.
+   */
+  protected readonly url = signal<string | null>(null);
+  /** O texto já lido, quando o anexo é um arquivo de texto. */
+  protected readonly texto = signal<string | null>(null);
+
+  /** O `blob:` só aparece no `<iframe>` depois de marcado como confiável. */
+  protected readonly urlRecurso = computed<SafeResourceUrl | null>(() => {
+    const url = this.url();
+    return url ? this.sanitizer.bypassSecurityTrustResourceUrl(url) : null;
+  });
+
+  /** Há conteúdo baixado e o navegador sabe desenhá-lo? */
+  protected readonly temPrevia = computed(
+    () => !!this.conteudo() && RENDERIZAVEIS.includes(this.categoria()),
+  );
 
   constructor() {
+    // Imagem e PDF viram `blob:`; texto é lido e desenhado como texto, porque
+    // num `<iframe>` o navegador aplica o esquema de cor dele e sai preto.
+    //
+    // O corpo inteiro vai em `untracked`: ele lê e escreve o sinal `url`, e sem
+    // isso o efeito passa a depender do que ele mesmo muda — reagenda-se sem
+    // parar e congela a aba. Só `conteudo` e `categoria`, lidos acima, disparam.
+    effect(() => {
+      const conteudo = this.conteudo();
+      const categoria = this.categoria();
+
+      untracked(() => {
+        this.soltarUrl();
+        this.texto.set(null);
+        if (!conteudo) {
+          return;
+        }
+        if (categoria === 'texto') {
+          void conteudo.text().then((lido) => {
+            if (this.conteudo() === conteudo) {
+              this.texto.set(lido);
+            }
+          });
+        } else if (categoria === 'imagem' || categoria === 'pdf') {
+          this.url.set(URL.createObjectURL(conteudo));
+        }
+      });
+    });
+
+    this.destroyRef.onDestroy(() => this.soltarUrl());
+
     // Abrir move o foco para o modal; fechar devolve para quem o abriu.
     effect(() => {
       const dialogo = this.dialogo();
@@ -77,6 +141,15 @@ export class VisualizadorArquivo {
         this.ultimoFoco = null;
       }
     });
+  }
+
+  /** Devolve o `blob:` anterior — sem isto cada abertura vaza um objeto. */
+  private soltarUrl(): void {
+    const url = this.url();
+    if (url) {
+      URL.revokeObjectURL(url);
+      this.url.set(null);
+    }
   }
 
   /** Prende o Tab dentro do modal, no mesmo padrão dos outros diálogos. */

@@ -2,8 +2,8 @@ import {
   Anexo,
   ChaveEtapa,
   JsonQuestionario,
+  Avaliacao,
   MembroEquipe,
-  NotaEtapa,
   NumeroEtapa,
 } from '../../../core/models/questionario';
 import { CAMPOS_ETAPA_1, ETAPAS } from '../../../pages/questionario/etapas';
@@ -22,43 +22,36 @@ export interface EtapaLida {
   readonly blocos: readonly { rotulo: string; texto: string }[];
   readonly membros: readonly MembroEquipe[];
   readonly arquivos: readonly Anexo[];
-  /** Uma por avaliador, na ordem em que foram dadas. */
-  readonly notas: readonly NotaEtapa[];
-  /** Média das notas pontuadas da etapa; `null` quando ninguém pontuou. */
+  /** A avaliação da etapa — uma só, ou `null` enquanto ninguém avaliou. */
+  readonly avaliacao: Avaliacao | null;
+  /** A nota da etapa; `null` quando o avaliador só comentou, ou ninguém avaliou. */
   readonly media: number | null;
 }
 
 /** Monta a leitura de uma etapa a partir do documento. */
 export function montarEtapaLida(json: JsonQuestionario, numero: NumeroEtapa): EtapaLida {
-  const notas = json[String(numero) as ChaveEtapa].notas;
+  const avaliacao = json[String(numero) as ChaveEtapa].avaliacao;
   return {
     numero,
     titulo: ETAPAS[numero - 1].titulo,
     blocos: blocosDe(json, numero),
     membros: numero === 4 ? json['4'].equipe : [],
     arquivos: arquivosDe(json, numero),
-    notas,
-    media: media(notas),
+    avaliacao,
+    media: avaliacao?.nota ?? null,
   };
 }
 
-/** Média geral do plano: média das médias das etapas que foram pontuadas. */
+/**
+ * Média geral do plano: média das notas das etapas pontuadas. Etapa em que o
+ * avaliador só comentou não entra na conta — senão baixaria a média de quem
+ * pontuou.
+ */
 export function mediaGeral(etapas: readonly EtapaLida[]): number | null {
   const medias = etapas
     .map((etapa) => etapa.media)
     .filter((valor): valor is number => valor !== null);
   return medias.length ? arredondar(medias.reduce((a, b) => a + b, 0) / medias.length) : null;
-}
-
-/**
- * Média das notas de uma etapa. Quem só comentou (`valor: null`) não entra na
- * conta — senão comentar sem pontuar baixaria a média de quem pontuou.
- */
-function media(notas: readonly NotaEtapa[]): number | null {
-  const valores = notas
-    .map((nota) => nota.valor)
-    .filter((valor): valor is 1 | 2 | 3 | 4 | 5 => valor !== null);
-  return valores.length ? arredondar(valores.reduce((a, b) => a + b, 0) / valores.length) : null;
 }
 
 const arredondar = (valor: number): number => Math.round(valor * 10) / 10;

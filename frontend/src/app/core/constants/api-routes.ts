@@ -45,13 +45,19 @@ export const API_ROUTES = {
     statusDe: (email: string): string => `/questionario/${encodeURIComponent(email)}/status`,
   },
   /**
-   * Anexos do questionário. O dono vem do token, a aba vai na URL.
+   * Anexos do questionário. O dono vem sempre do token — não existe rota para
+   * ler anexo de outra pessoa, então nada disto serve ao avaliador.
    *
-   * `download` não entra aqui: a rota exige corpo JSON num `GET`, e navegador
-   * não manda corpo em `GET` — medido em 23/09/2026 (`docs/contrato-arquivos.md`).
+   * `questionario` atende dois métodos: `POST` envia (multipart) e `DELETE`
+   * apaga, com a lista de nomes no corpo.
    */
   arquivos: {
     questionario: (aba: number): string => `/arquivos/questionario/${aba}`,
     nomes: (aba: number): string => `/arquivos/questionario/nome-arquivo/${aba}`,
+    /**
+     * O `0` final é o path param `todos`, obrigatório na rota e sem efeito no
+     * backend (o corpo do `if` é `pass`): baixar tudo de uma vez não existe.
+     */
+    download: (aba: number): string => `/arquivos/questionario/download/${aba}/0`,
   },
 } as const;

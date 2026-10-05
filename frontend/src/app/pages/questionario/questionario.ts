@@ -32,7 +32,7 @@ import {
   MAXIMO_ANEXOS_POR_ETAPA,
   MembroEquipe,
   NUMEROS_ETAPA,
-  NotaEtapa,
+  Avaliacao,
   NumeroEtapa,
   ROTULO_NOTA,
   ROTULO_STATUS,
@@ -54,6 +54,7 @@ import {
 import { Icone } from '../../shared/components/icone/icone';
 import { TopoSessao } from '../../shared/components/topo-sessao/topo-sessao';
 import { VisualizadorArquivo } from '../../shared/components/visualizador-arquivo/visualizador-arquivo';
+import { salvarComo } from '../../shared/salvar-como';
 import {
   acessibilizarEditor,
   manterMenusNaTela,
@@ -150,6 +151,15 @@ export class Questionario implements OnInit {
   protected readonly confirmandoEnvio = signal(false);
   /** Anexo aberto no modal de pré-visualização; `null` quando fechado. */
   protected readonly arquivoPreview = signal<Anexo | null>(null);
+  /** A etapa de onde o anexo aberto veio — a rota de download precisa da aba. */
+  private readonly abaPreview = signal<NumeroEtapa>(6);
+  /**
+   * Conteúdo do anexo aberto, para a modal desenhar o arquivo de verdade. Fica
+   * `null` enquanto baixa, quando falha e sempre no modo avaliação.
+   */
+  protected readonly conteudoPreview = signal<Blob | null>(null);
+  protected readonly baixandoPreview = signal(false);
+  protected readonly erroPreview = signal('');
   /**
    * Só depois de tentar avançar os campos vazios ficam vermelhos. Antes disso
    * a etapa recém-aberta apareceria toda em erro, o que assusta sem ajudar.
@@ -164,8 +174,6 @@ export class Questionario implements OnInit {
   protected readonly valores: readonly (1 | 2 | 3 | 4 | 5)[] = [1, 2, 3, 4, 5];
   protected readonly rotuloNota = ROTULO_NOTA;
   protected readonly classeNota = CLASSE_NOTA;
-  /** A especialidade que assina as notas; vem do `UserRead` e é editável aqui. */
-  protected readonly especialidade = signal('');
   /** Rascunho local da nota por etapa, antes de gravar. */
   protected readonly escolhido = signal<Record<string, 1 | 2 | 3 | 4 | 5 | null>>({});
   protected readonly comentario = signal<Record<string, string>>({});
@@ -174,32 +182,23 @@ export class Questionario implements OnInit {
   /** Etapa cuja nota já gravada foi reaberta para edição. */
   protected readonly editandoNota = signal<NumeroEtapa | null>(null);
 
-  /** A minha nota em cada etapa, para o card abrir preenchido. */
-  protected readonly minhas = computed<Map<string, NotaEtapa>>(() => {
+  /** A minha avaliação em cada etapa, para o card abrir preenchido. */
+  protected readonly minhas = computed<Map<string, Avaliacao>>(() => {
     const email = this.user()?.email;
     const json = this.json();
-    const minhas = new Map<string, NotaEtapa>();
+    const minhas = new Map<string, Avaliacao>();
     for (const numero of NUMEROS_ETAPA) {
       const chave = String(numero);
-      const minha = json[chave as ChaveEtapa].notas.find((nota) => nota.avaliador === email);
-      if (minha) {
-        minhas.set(chave, minha);
+      const avaliacao = json[chave as ChaveEtapa].avaliacao;
+      if (avaliacao && avaliacao.avaliador === email) {
+        minhas.set(chave, avaliacao);
       }
     }
     return minhas;
   });
 
-  /**
-   * Todas as avaliações da etapa aberta — inclusive a minha, que passa a aparecer
-   * na lista assim que é salva (o formulário abaixo segue editável para trocá-la).
-   */
-  protected readonly avaliacoesDaEtapa = computed<readonly NotaEtapa[]>(() => {
-    const chave = String(this.numero()) as ChaveEtapa;
-    return this.json()[chave].notas;
-  });
-
-  /** A minha nota da etapa aberta, quando já gravada. */
-  protected readonly minhaDaEtapa = computed<NotaEtapa | null>(
+  /** A minha avaliação da etapa aberta, quando já gravada. */
+  protected readonly minhaDaEtapa = computed<Avaliacao | null>(
     () => this.minhas().get(String(this.numero())) ?? null,
   );
 
@@ -230,8 +229,8 @@ export class Questionario implements OnInit {
   }
 
   /** A nota desta etapa: a minha, ou a de quem avaliou antes — a etapa tem uma só. */
-  protected readonly notaDaEtapa = computed<NotaEtapa | null>(
-    () => this.avaliacoesDaEtapa()[0] ?? null,
+  protected readonly notaDaEtapa = computed<Avaliacao | null>(
+    () => this.json()[String(this.numero()) as ChaveEtapa].avaliacao,
   );
 
   /**
@@ -240,11 +239,11 @@ export class Questionario implements OnInit {
    * pelo rascunho.
    */
   protected readonly valorEmTela = computed<1 | 2 | 3 | 4 | 5 | null>(() =>
-    this.formularioAberto() ? this.valorDe(this.numero()) : (this.notaDaEtapa()?.valor ?? null),
+    this.formularioAberto() ? this.valorDe(this.numero()) : (this.notaDaEtapa()?.nota ?? null),
   );
 
   protected readonly textoEmTela = computed(() =>
-    this.formularioAberto() ? this.textoDe(this.numero()) : (this.notaDaEtapa()?.texto ?? ''),
+    this.formularioAberto() ? this.textoDe(this.numero()) : (this.notaDaEtapa()?.comentario ?? ''),
   );
 
   /** Os dois rótulos do card: é por eles que se sabe em que estado ele está. */
@@ -282,12 +281,8 @@ export class Questionario implements OnInit {
    * O autor da nota continua podendo editar a dele.
    */
   protected readonly etapaBloqueada = computed(() => {
-    const notas = this.avaliacoesDaEtapa();
-    if (notas.length === 0) {
-      return false;
-    }
-    const eu = this.user()?.email;
-    return !notas.some((nota) => nota.avaliador === eu);
+    const avaliacao = this.notaDaEtapa();
+    return avaliacao !== null && avaliacao.avaliador !== this.user()?.email;
   });
 
   // ----- decisão da coordenação (aprovar / devolver) -----
@@ -307,7 +302,7 @@ export class Questionario implements OnInit {
   /** Quantas das nove etapas já receberam nota, de qualquer avaliador. */
   protected readonly etapasAvaliadas = computed(
     () =>
-      NUMEROS_ETAPA.filter((numero) => this.json()[String(numero) as ChaveEtapa].notas.length > 0)
+      NUMEROS_ETAPA.filter((numero) => this.json()[String(numero) as ChaveEtapa].avaliacao !== null)
         .length,
   );
 
@@ -321,11 +316,9 @@ export class Questionario implements OnInit {
   /** Média das notas pontuadas do plano, para a barra resumir a leitura. */
   protected readonly mediaDoPlano = computed(() => {
     const json = this.json();
-    const valores = NUMEROS_ETAPA.flatMap((numero) =>
-      json[String(numero) as ChaveEtapa].notas
-        .map((nota) => nota.valor)
-        .filter((valor): valor is 1 | 2 | 3 | 4 | 5 => valor !== null),
-    );
+    const valores = NUMEROS_ETAPA.map(
+      (numero) => json[String(numero) as ChaveEtapa].avaliacao?.nota,
+    ).filter((nota): nota is 1 | 2 | 3 | 4 | 5 => nota != null);
     if (!valores.length) {
       return null;
     }
@@ -454,7 +447,7 @@ export class Questionario implements OnInit {
       nome: `${numero}. ${ROTULO_CURTO[numero]}`,
       completa: avaliacao
         ? coordenacao
-          ? json[String(numero) as ChaveEtapa].notas.length > 0
+          ? json[String(numero) as ChaveEtapa].avaliacao !== null
           : minhas.has(String(numero))
         : etapaCompleta(json, numero),
       acessivel: avaliacao ? true : etapaAcessivel(json, numero),
@@ -549,7 +542,6 @@ export class Questionario implements OnInit {
       .subscribe({
         next: (user) => {
           this.user.set(user);
-          this.especialidade.set(user.especialidade ?? '');
         },
         error: () => {
           this.auth.clearSession();
@@ -765,9 +757,9 @@ export class Questionario implements OnInit {
       return false;
     }
     const salva = this.minhas().get(chave);
-    const valor = rascunhoValor === undefined ? (salva?.valor ?? null) : rascunhoValor;
-    const texto = rascunhoTexto === undefined ? (salva?.texto ?? '') : rascunhoTexto;
-    return valor !== (salva?.valor ?? null) || texto.trim() !== (salva?.texto ?? '').trim();
+    const valor = rascunhoValor === undefined ? (salva?.nota ?? null) : rascunhoValor;
+    const texto = rascunhoTexto === undefined ? (salva?.comentario ?? '') : rascunhoTexto;
+    return valor !== (salva?.nota ?? null) || texto.trim() !== (salva?.comentario ?? '').trim();
   }
 
   /** "Sair sem salvar": descarta o rascunho e vai para a etapa pendente. */
@@ -873,14 +865,81 @@ export class Questionario implements OnInit {
 
   // ----- pré-visualização de anexo -----
 
-  protected abrirPreview(arquivo: Anexo): void {
+  /**
+   * Abre a modal e já busca o conteúdo, para a prévia ser o arquivo e não um
+   * desenho. No modo avaliação não busca nada: a rota devolve o anexo de quem
+   * está logado, então baixar aqui traria o arquivo errado (nota 6b).
+   */
+  protected abrirPreview(arquivo: Anexo, numero: NumeroEtapa): void {
+    this.abaPreview.set(numero);
     this.arquivoPreview.set(arquivo);
+    this.conteudoPreview.set(null);
+    this.erroPreview.set('');
+
+    if (this.ehAvaliacao()) {
+      return;
+    }
+
+    this.baixandoPreview.set(true);
+    this.arquivos
+      .baixar(numero, arquivo.nome)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (conteudo) => {
+          this.baixandoPreview.set(false);
+          // O modal pode ter sido fechado enquanto baixava; aí não há o que mostrar.
+          if (this.arquivoPreview()?.nome === arquivo.nome) {
+            this.conteudoPreview.set(conteudo);
+          }
+        },
+        error: (err: ApiError) => {
+          this.baixandoPreview.set(false);
+          this.erroPreview.set(err.message);
+        },
+      });
   }
 
   protected fecharPreview(): void {
     if (this.arquivoPreview()) {
       this.arquivoPreview.set(null);
+      this.conteudoPreview.set(null);
+      this.erroPreview.set('');
+      this.baixandoPreview.set(false);
     }
+  }
+
+  /**
+   * Salva o anexo aberto no disco do usuário. Reaproveita o que a prévia já
+   * baixou; se não há nada (falhou, ou é tipo sem prévia), busca de novo.
+   */
+  protected baixarAnexo(): void {
+    const arquivo = this.arquivoPreview();
+    if (!arquivo) {
+      return;
+    }
+
+    const pronto = this.conteudoPreview();
+    if (pronto) {
+      salvarComo(pronto, arquivo.nome);
+      return;
+    }
+
+    this.baixandoPreview.set(true);
+    this.erroPreview.set('');
+    this.arquivos
+      .baixar(this.abaPreview(), arquivo.nome)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (conteudo) => {
+          this.baixandoPreview.set(false);
+          this.conteudoPreview.set(conteudo);
+          salvarComo(conteudo, arquivo.nome);
+        },
+        error: (err: ApiError) => {
+          this.baixandoPreview.set(false);
+          this.erroPreview.set(err.message);
+        },
+      });
   }
 
   /** Prende o Tab dentro da modal. O `shift` vem do template, como no padrão. */
@@ -1010,12 +1069,26 @@ export class Questionario implements OnInit {
       antes: 'Tem certeza que deseja remover o arquivo',
       nome,
       depois: '?',
-      // Tira a ficha; o arquivo fica no disco do backend, que não tem rota
-      // para apagar.
+      // Apaga do disco primeiro; a ficha só sai se o backend confirmou, para o
+      // documento nunca ficar mais limpo que o disco.
       remover: () => {
-        const chave = numero === 6 ? '6' : '9';
-        const arquivos = this.json()[chave].arquivos.filter((anexo) => anexo.nome !== nome);
-        this.gravar(this.documentoCom(numero, { arquivos }));
+        this.salvando.set(true);
+        this.mensagemErro.set('');
+        this.arquivos
+          .apagar(numero, [nome])
+          .pipe(takeUntilDestroyed(this.destroyRef))
+          .subscribe({
+            next: () => {
+              this.salvando.set(false);
+              const chave = numero === 6 ? '6' : '9';
+              const arquivos = this.json()[chave].arquivos.filter((anexo) => anexo.nome !== nome);
+              this.gravar(this.documentoCom(numero, { arquivos }));
+            },
+            error: (err: ApiError) => {
+              this.salvando.set(false);
+              this.mensagemErro.set(err.message);
+            },
+          });
       },
     });
   }
@@ -1103,12 +1176,14 @@ export class Questionario implements OnInit {
   /** Valor escolhido na etapa, ou `null` para quem só quer comentar. */
   protected valorDe(numero: NumeroEtapa): 1 | 2 | 3 | 4 | 5 | null {
     const escolhido = this.escolhido()[String(numero)];
-    return escolhido === undefined ? (this.minhas().get(String(numero))?.valor ?? null) : escolhido;
+    return escolhido === undefined ? (this.minhas().get(String(numero))?.nota ?? null) : escolhido;
   }
 
   protected textoDe(numero: NumeroEtapa): string {
     const digitado = this.comentario()[String(numero)];
-    return digitado === undefined ? (this.minhas().get(String(numero))?.texto ?? '') : digitado;
+    return digitado === undefined
+      ? (this.minhas().get(String(numero))?.comentario ?? '')
+      : digitado;
   }
 
   protected escolher(numero: NumeroEtapa, valor: 1 | 2 | 3 | 4 | 5): void {
@@ -1141,9 +1216,8 @@ export class Questionario implements OnInit {
     this.planos
       .avaliar(this.email(), {
         aba: numero,
-        valor: this.valorDe(numero),
-        texto: this.textoDe(numero).trim(),
-        especialidade: this.especialidade().trim(),
+        nota: this.valorDe(numero),
+        comentario: this.textoDe(numero).trim(),
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({

@@ -33,10 +33,14 @@ export interface DecisaoEntrada {
   justificativa: string;
 }
 
-/** O que o avaliador envia ao avaliar uma etapa. Sem status: avaliar não aprova. */
+/**
+ * O que o avaliador envia ao avaliar uma etapa. Sem status: avaliar não aprova.
+ *
+ * `avaliador` não vai no corpo — quem assina é o token, decidido no servidor.
+ * Os nomes espelham a chave `avaliacao` do documento (`nota`, `comentario`).
+ */
 export interface NotaEntrada {
   aba: NumeroEtapa;
-  valor: 1 | 2 | 3 | 4 | 5 | null;
-  texto: string;
-  especialidade: string;
+  nota: 1 | 2 | 3 | 4 | 5 | null;
+  comentario: string;
 }

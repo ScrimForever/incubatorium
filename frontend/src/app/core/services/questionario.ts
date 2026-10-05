@@ -6,7 +6,7 @@ import {
   ChaveEtapa,
   JsonQuestionario,
   NUMEROS_ETAPA,
-  NotaEtapa,
+  Avaliacao,
   NumeroEtapa,
   Questionario,
   QuestionarioEntrada,
@@ -139,7 +139,7 @@ export function normalizar(resposta: Questionario): Questionario {
   }
   for (const numero of NUMEROS_ETAPA) {
     const aba = json[String(numero) as ChaveEtapa];
-    aba.notas = migrarNotas(aba);
+    aba.avaliacao = migrarAvaliacao(aba);
   }
   // A decisão não é etapa: o `Object.fromEntries` acima só reconstrói de "1" a
   // "9" e a deixaria cair fora do documento na próxima gravação.
@@ -150,34 +150,47 @@ export function normalizar(resposta: Questionario): Questionario {
 }
 
 /**
- * Até 23/09/2026 cada aba tinha **uma** `nota`; agora tem uma lista, porque
- * vários avaliadores avaliam o mesmo plano. Documento antigo é convertido na
- * leitura, e o campo velho desaparece na primeira gravação.
+ * O formato da avaliação mudou duas vezes: era **uma** `nota` por aba, virou uma
+ * lista `notas[]`, e desde 28/09/2026 é **um** objeto `avaliacao`, no formato que
+ * o Scrim fechou para as rotas que vai publicar. Documento antigo é convertido na
+ * leitura, e os campos velhos desaparecem na primeira gravação.
  *
- * A nota antiga só vira entrada se tiver conteúdo: a vazia (`valor: null` e
- * texto em branco) era só o lugar reservado do formato anterior.
+ * Avaliação vazia não é convertida: `valor: null` com texto em branco era só o
+ * lugar reservado do formato mais antigo, não uma avaliação de verdade.
+ *
+ * Da lista sobra a **primeira** entrada — a regra desde 26/09 é uma nota por
+ * etapa, então documento com mais de uma é resto do formato anterior.
  */
-function migrarNotas(aba: { notas?: NotaEtapa[]; nota?: unknown }): NotaEtapa[] {
-  const antiga = aba.nota as Partial<NotaEtapa> | undefined;
-  // O campo velho sai sempre: deixado aqui, voltaria para o banco no próximo PUT.
+function migrarAvaliacao(aba: {
+  avaliacao?: Avaliacao | null;
+  notas?: AvaliacaoAntiga[];
+  nota?: unknown;
+}): Avaliacao | null {
+  const lista = aba.notas;
+  const antiga = aba.nota as AvaliacaoAntiga | undefined;
+  // Os campos velhos saem sempre: deixados aqui, voltariam para o banco no PUT.
   delete aba.nota;
-  // A lista já tem dono quando veio preenchida — `notas: []` não conta, porque é
-  // o que o `documentoVazio()` põe no merge desta mesma função.
-  if (aba.notas?.length) {
-    return aba.notas;
+  delete aba.notas;
+
+  if (aba.avaliacao) {
+    return aba.avaliacao;
   }
-  if (!antiga || (antiga.valor == null && !antiga.texto?.trim())) {
-    return [];
+  const origem = lista?.[0] ?? antiga;
+  if (!origem || (origem.valor == null && !origem.texto?.trim())) {
+    return null;
   }
-  return [
-    {
-      avaliador: antiga.avaliador ?? 'avaliador não identificado',
-      especialidade: antiga.especialidade ?? '',
-      valor: antiga.valor ?? null,
-      texto: antiga.texto ?? '',
-      em: antiga.em ?? '',
-    },
-  ];
+  return {
+    avaliador: origem.avaliador ?? 'avaliador não identificado',
+    nota: origem.valor ?? null,
+    comentario: origem.texto ?? '',
+  };
+}
+
+/** O formato anterior, só para a conversão acima conseguir lê-lo. */
+interface AvaliacaoAntiga {
+  avaliador?: string;
+  valor?: 1 | 2 | 3 | 4 | 5 | null;
+  texto?: string;
 }
 
 const preenchido = (texto: string): boolean => texto.trim().length > 0;
@@ -190,9 +203,9 @@ export function temConteudo(json: JsonQuestionario): boolean {
   return NUMEROS_ETAPA.some((numero) => {
     const aba = json[String(numero) as ChaveEtapa] as unknown as Record<string, unknown>;
     return Object.entries(aba).some(([chave, valor]) => {
-      // `notas` é array: sem esta saída, a nota de um avaliador faria o plano
-      // parecer preenchido e promoveria `iniciado` para `pendente`.
-      if (chave === 'notas') {
+      // A avaliação é do consultor, não conteúdo do incubado: sem esta saída
+      // ela promoveria um plano vazio de `iniciado` para `pendente`.
+      if (chave === 'avaliacao') {
         return false;
       }
       if (typeof valor === 'string') {

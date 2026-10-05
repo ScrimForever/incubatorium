@@ -44,23 +44,19 @@ describe('PlanosService', () => {
       json_questionario: { '2': { business_canvas: 'texto' } },
     });
 
-    // As nove abas chegam completas e com `notas`, mesmo faltando no JSONB.
-    expect((json as Record<string, { notas: unknown[] }>)['9'].notas).toEqual([]);
+    // As nove abas chegam completas e com `avaliacao`, mesmo faltando no JSONB.
+    expect((json as Record<string, { avaliacao: unknown }>)['9'].avaliacao).toBeNull();
   });
 
-  it('avaliar manda so aba, valor, texto e especialidade — nunca status', () => {
-    service
-      .avaliar('ana@teccampos.com', { aba: 6, valor: 4, texto: 'ok', especialidade: 'Mercado' })
-      .subscribe();
+  it('avaliar manda so aba, nota e comentario — nunca status nem avaliador', () => {
+    service.avaliar('ana@teccampos.com', { aba: 6, nota: 4, comentario: 'ok' }).subscribe();
 
     const pedido = http.expectOne('/api/questionario/ana%40teccampos.com/nota');
     expect(pedido.request.method).toBe('PATCH');
-    expect(pedido.request.body).toEqual({
-      aba: 6,
-      valor: 4,
-      texto: 'ok',
-      especialidade: 'Mercado',
-    });
+    expect(pedido.request.body).toEqual({ aba: 6, nota: 4, comentario: 'ok' });
+    // Quem assina a nota e o token: mandar o avaliador daqui deixaria qualquer
+    // um assinar em nome de outro.
+    expect(Object.keys(pedido.request.body as object)).not.toContain('avaliador');
     // A regra de produto no formato: avaliar não aprova.
     expect(Object.keys(pedido.request.body as object)).not.toContain('status_questionario');
 
