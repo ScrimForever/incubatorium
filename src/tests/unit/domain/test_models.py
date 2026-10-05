@@ -146,10 +146,10 @@ class TestQuestionarioModel:
         assert questionario.criado_em is not None
 
     @pytest.mark.asyncio
-    async def test_questionario_usuario_email_primary_key(
+    async def test_questionario_pk_e_id_e_email_nao_e_unico(
         self, async_db: AsyncSession, sample_email
     ):
-        """Teste se usuario_email é primary key"""
+        """A PK é id; usuario_email não é único no banco (regra só no código)"""
         questionario = Questionario(
             usuario_email=sample_email,
             status_questionario=StatusEnum.iniciado,
@@ -167,5 +167,6 @@ class TestQuestionarioModel:
 
         async_db.add(questionario2)
 
-        with pytest.raises(IntegrityError):
-            await async_db.commit()
+        await async_db.commit()
+
+        assert questionario.id != questionario2.id

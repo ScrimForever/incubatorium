@@ -14,55 +14,14 @@ src_path = str(Path(__file__).parent.parent)
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
-# Setup import redirection for src.* modules BEFORE any other imports
-import importlib.abc
-import importlib.machinery
+# Redireciona src.* antes de qualquer outro import
+from tests.src_redirect import instalar
 
-
-class SrcRedirectFinder(importlib.abc.MetaPathFinder):
-    """Redirect src.* imports to their non-src counterparts"""
-
-    def find_spec(self, fullname, path, target=None):
-        if fullname.startswith("src."):
-            redirect_name = fullname[4:]  # Remove 'src.' prefix
-            try:
-                # Find the spec for the target module
-                import importlib.util
-
-                spec = importlib.util.find_spec(redirect_name)
-                if spec and spec.loader:
-                    # Return a spec that loads the redirect module under the src name
-                    return importlib.machinery.ModuleSpec(
-                        fullname, SrcRedirectLoader(redirect_name), origin=spec.origin
-                    )
-            except ImportError, ValueError, AttributeError:
-                pass
-        return None
-
-
-class SrcRedirectLoader(importlib.abc.Loader):
-    """Loader that imports a non-src module and caches it under the src name"""
-
-    def __init__(self, redirect_name):
-        self.redirect_name = redirect_name
-
-    def create_module(self, spec):
-        # Return the already-loaded or load-on-demand module
-        if self.redirect_name in sys.modules:
-            return sys.modules[self.redirect_name]
-        return None
-
-    def exec_module(self, module):
-        # Import and cache the redirect module
-        redirect_module = __import__(self.redirect_name, fromlist=["*"])
-        sys.modules[module.__name__] = redirect_module
-
-
-# Install the import hook at the beginning of sys.meta_path
-sys.meta_path.insert(0, SrcRedirectFinder())
+instalar()
 
 # Now import all modules we need
 from domain.models.base_models import Base
+from infra.db import User
 
 
 def patch_jsonb_for_sqlite():
@@ -140,3 +99,73 @@ def sample_questionario_data(sample_email):
         "status_questionario": "iniciado",
         "json_questionario": {"pergunta_1": "resposta_1"},
     }
+
+
+PERFIS = ("admin", "colaborador", "consultor", "incubado")
+
+
+@pytest_asyncio.fixture
+async def criar_usuario(async_db):
+    """Fábrica de usuários ativos por perfil: exatamente um perfil verdadeiro."""
+
+    async def _criar(perfil: str = "incubado", email: str | None = None) -> User:
+        assert perfil in PERFIS, f"perfil inválido: {perfil}"
+        usuario = User(
+            email=email or f"{perfil}-{uuid.uuid4().hex[:8]}@example.com",
+            hashed_password="hashed_pwd",
+            is_active=True,
+            is_admin=perfil == "admin",
+            is_colaborador=perfil == "colaborador",
+            is_consultor=perfil == "consultor",
+            is_incubado=perfil == "incubado",
+        )
+        async_db.add(usuario)
+        await async_db.commit()
+        # o listener before_insert força is_active=False; ativa explicitamente
+        usuario.is_active = True
+        await async_db.commit()
+        return usuario
+
+    return _criar
+
+
+@pytest_asyncio.fixture
+async def cliente_api(async_db):
+    """Fábrica de clientes HTTP assíncronos contra um app com os routers informados.
+
+    Uso: `cliente = await cliente_api([router], usuario)`; as requisições passam por
+    `current_active_user` (fixado em `usuario`) e usam a sessão `async_db`.
+    """
+    import httpx
+    from fastapi import FastAPI
+
+    from domain.models.user_model import current_active_user
+    from infra.db import get_async_session
+    from shared.handlers import registrar_handlers
+
+    clientes = []
+
+    async def _criar(routers, usuario):
+        app = FastAPI()
+        registrar_handlers(app)
+        for router in routers:
+            app.include_router(router)
+
+        async def _usuario():
+            return usuario
+
+        async def _sessao():
+            return async_db
+
+        app.dependency_overrides[current_active_user] = _usuario
+        app.dependency_overrides[get_async_session] = _sessao
+        cliente = httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        )
+        clientes.append(cliente)
+        return cliente
+
+    yield _criar
+
+    for cliente in clientes:
+        await cliente.aclose()

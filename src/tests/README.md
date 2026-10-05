@@ -13,13 +13,12 @@ tests/
     ├── domain/
     │   ├── test_models.py
     │   └── test_schemas.py
-    ├── repository/
-    │   ├── test_user_repository.py
-    │   └── test_questionario_repository.py
-    ├── services/
-    │   └── test_user_service.py
-    ├── routers/
-    │   └── test_questionario_router.py
+    ├── repository/          # user, questionario
+    ├── services/            # user, usuarios
+    ├── routers/             # questionario, usuarios, arquivos
+    │   └── test_isolamento_dados.py   # toda rota exige login; ninguém lê dados alheios
+    ├── shared/              # permissoes, handlers
+    ├── scripts/             # criar_admin
     └── test_infra_db.py
 ```
 
@@ -104,3 +103,17 @@ pytest --cov=src --cov-report=html tests/
 ```
 
 Relatório HTML será gerado em `htmlcov/index.html`
+
+
+## Fixtures úteis (`conftest.py`)
+
+- `async_db`: sessão SQLite em memória com todas as tabelas.
+- `criar_usuario(perfil, email=None)`: usuário ativo com exatamente um perfil
+  (`admin`, `colaborador`, `consultor` ou `incubado`).
+- `cliente_api([routers], usuario)`: cliente HTTP assíncrono já autenticado como `usuario`.
+
+## Migrações
+
+As tabelas dos testes vêm de `Base.metadata.create_all`. O esquema real é versionado em
+`src/migrations/` (Alembic); depois de alterar um model, gere a migração e confira com
+`ALEMBIC_FORCE_LOCAL=1 uv run alembic check`.

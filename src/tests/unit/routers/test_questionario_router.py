@@ -58,7 +58,7 @@ async def test_criar_questionario(setup_questionario_router, sample_email):
     }
 
     with patch(
-        "routers.questionario.r_questionario.QuestionarioRepository"
+        "routers.questionario.r_questionario.QuestionarioService"
     ) as mock_repo_class:
         mock_repo = MagicMock()
         mock_repo_class.return_value = mock_repo
@@ -69,7 +69,7 @@ async def test_criar_questionario(setup_questionario_router, sample_email):
             json_questionario={"pergunta_1": "resposta_1"},
         )
 
-        mock_repo.gravar_questionario = AsyncMock(return_value=questionario)
+        mock_repo.criar = AsyncMock(return_value=questionario)
 
         await router.iniciar()
 
@@ -86,7 +86,7 @@ async def test_buscar_questionario(setup_questionario_router, sample_email):
     client = TestClient(app)
 
     with patch(
-        "routers.questionario.r_questionario.QuestionarioRepository"
+        "routers.questionario.r_questionario.QuestionarioService"
     ) as mock_repo_class:
         mock_repo = MagicMock()
         mock_repo_class.return_value = mock_repo
@@ -97,7 +97,7 @@ async def test_buscar_questionario(setup_questionario_router, sample_email):
             json_questionario={},
         )
 
-        mock_repo.buscar_questionario = AsyncMock(return_value=questionario)
+        mock_repo.buscar = AsyncMock(return_value=questionario)
 
         await router.iniciar()
 
@@ -107,33 +107,35 @@ async def test_buscar_questionario(setup_questionario_router, sample_email):
 
 
 @pytest.mark.asyncio
-async def test_atualizar_questionario(setup_questionario_router, sample_email):
-    """Teste para atualizar questionário"""
+async def test_atualizar_questionario(
+    setup_questionario_router, async_db, sample_email
+):
+    """PUT grava as respostas sem alterar o status"""
     router, app = setup_questionario_router
+    async_db.add(
+        Questionario(
+            usuario_email=sample_email,
+            status_questionario=StatusEnum.iniciado,
+            json_questionario={},
+            criado_por=sample_email,
+        )
+    )
+    await async_db.commit()
 
+    await router.iniciar()
+    from fastapi.testclient import TestClient
+
+    from shared.handlers import registrar_handlers
+
+    registrar_handlers(app)
     client = TestClient(app)
 
     payload = {
         "status_questionario": StatusEnum.pendente,
-        "json_questionario": {"pergunta_1": "resposta_2"},
+        "json_questionario": {"2": {"business_canvas": "Canvas"}},
     }
+    response = client.put("/questionario", json=payload)
 
-    with patch(
-        "routers.questionario.r_questionario.QuestionarioRepository"
-    ) as mock_repo_class:
-        mock_repo = MagicMock()
-        mock_repo_class.return_value = mock_repo
-
-        questionario = Questionario(
-            usuario_email=sample_email,
-            status_questionario=StatusEnum.pendente,
-            json_questionario={"pergunta_1": "resposta_2"},
-        )
-
-        mock_repo.atualizar_questionario = AsyncMock(return_value=questionario)
-
-        await router.iniciar()
-
-        response = client.put("/questionario", json=payload)
-
-        assert response.status_code in [200, 422]
+    assert response.status_code == 200
+    assert response.json()["status_questionario"] == "iniciado"
+    assert response.json()["json_questionario"]["2"]["business_canvas"] == "Canvas"

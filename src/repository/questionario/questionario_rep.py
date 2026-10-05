@@ -36,6 +36,42 @@ class QuestionarioRepository:
             logger.error(e)
             return False
 
+    async def buscar_questionarios(
+        self,
+    ) -> list[Questionario] | Literal[False]:
+
+        query = select(Questionario)
+        try:
+            results = await self.db.execute(query)
+            questionarios = results.scalars().all()
+            logger.success("Questionarios encontrados.")
+            return list(questionarios)
+        except NoResultFound as e:
+            logger.warning(
+                f"Não foi possível identificar questionário para o usuário informado: {e}"
+            )
+            return False
+        except SQLAlchemyError as e:
+            logger.error(e)
+            return False
+
+    async def buscar_para_atualizar(self) -> Questionario | None:
+        """Bloqueia a linha até o fim da transação, para o `PUT` não sobrescrever
+        uma nota gravada no mesmo instante pelo consultor (que também lê com `FOR UPDATE`)."""
+        resultado = await self.db.execute(
+            select(Questionario)
+            .where(Questionario.usuario_email == self.user.email)
+            .with_for_update()
+        )
+        return resultado.scalar_one_or_none()
+
+    async def salvar(self) -> None:
+        try:
+            await self.db.commit()
+        except SQLAlchemyError:
+            await self.db.rollback()
+            raise
+
     async def gravar_questionario(
         self, input_questionario: QuestionarioInputSchema
     ) -> Questionario | Literal[False]:

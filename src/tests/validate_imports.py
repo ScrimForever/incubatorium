@@ -10,6 +10,14 @@ src_path = str(Path(__file__).parent.parent)
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
+repo_root = str(Path(__file__).parent.parent.parent)
+if repo_root not in sys.path:
+    sys.path.insert(0, repo_root)  # permite resolver o pacote `src`
+
+from tests.src_redirect import instalar
+
+instalar()  # `src.x` e `x` passam a ser o mesmo módulo, como nos testes
+
 print(f"[IMPORT VALIDATION] Python path: {src_path}")
 print(f"[IMPORT VALIDATION] Current working directory: {Path.cwd()}")
 print(f"[IMPORT VALIDATION] Python version: {sys.version}")
@@ -19,8 +27,12 @@ critical_modules = [
     "infra.db",
     "domain.models.user_model",
     "routers.questionario.r_questionario",
+    "routers.usuarios.r_usuarios",
+    "routers.arquivos.r_arquivos",
     "services",
+    "services.usuarios.usuarios_service",
     "repository",
+    "shared.permissoes",
 ]
 
 success_count = 0

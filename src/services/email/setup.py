@@ -84,3 +84,36 @@ class EmailSetup:
         except ResendError as error:
             logger.error(error)
             return False
+
+    @staticmethod
+    def _destinatario(email: str) -> str:
+        """Em testes de homologação, `EMAIL_DESTINO_OVERRIDE` redireciona todos os envios."""
+        return settings.email_destino_override or email
+
+    async def enviar_notificacao(
+        self, email: str, assunto: str, titulo: str, mensagem: str, detalhe: str = ""
+    ) -> bool:
+        """E-mail genérico de notificação."""
+        template = jinja_env.get_template("notificacao.html")
+        html_renderizado = template.render(
+            titulo=titulo, mensagem=mensagem, detalhe=detalhe
+        )
+        params: resend.Emails.SendParams = {
+            "from": "Acme <onboarding@resend.dev>",
+            "to": self._destinatario(email),
+            "subject": f"Tec Campos - {assunto}",
+            "html": html_renderizado,
+        }
+        if not settings.email_envio_habilitado or not settings.resend_api_key:
+            logger.warning(
+                f"Notificação '{assunto}' não enviada: envio de e-mail desabilitado "
+                "ou RESEND_API_KEY ausente."
+            )
+            return False
+        try:
+            resend.Emails.send(params)
+            logger.success(f"Notificação '{assunto}' enviada para {email}")
+            return True
+        except ResendError as error:
+            logger.error(error)
+            return False
