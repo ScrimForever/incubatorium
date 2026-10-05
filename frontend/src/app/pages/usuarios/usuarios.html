@@ -37,57 +37,74 @@
     <!-- Sem conta escolhida, a lista ocupa a largura inteira. -->
     @if (!semEndpoint()) {
       <div class="usuarios-area" [class.usuarios-area--com-painel]="selecionado()">
-        <section class="cartao">
-          <div class="form-group usuarios-busca">
-            <label for="busca-usuario">Buscar por e-mail</label>
+        <section>
+          <!-- Busca, filtros e lista no padrão do sistema — o mesmo desenho da
+               tela de planos de negócio (`.lista*`, no `styles.scss`). -->
+          <div class="form-group lista-busca">
+            <label for="busca-usuario" class="apenas-leitor-tela">Buscar por e-mail</label>
             <input
               id="busca-usuario"
               type="search"
               [formControl]="busca"
-              placeholder="Digite parte do e-mail"
+              placeholder="Buscar por e-mail"
             />
           </div>
 
-          <div class="usuarios-filtros" role="group" aria-label="Filtrar contas">
-            @for (opcao of filtros; track opcao) {
-              <button
-                type="button"
-                class="usuarios-filtro"
-                [class.usuarios-filtro--ativo]="filtro() === opcao"
-                [attr.aria-pressed]="filtro() === opcao"
-                (click)="filtro.set(opcao)"
-              >
-                {{ rotuloFiltro[opcao] }}
-              </button>
-            }
+          <div class="lista-barra">
+            <div class="filtros" role="group" aria-label="Filtrar contas">
+              @for (opcao of filtros; track opcao) {
+                <button
+                  type="button"
+                  class="filtro"
+                  [class.filtro--ativo]="filtro() === opcao"
+                  [attr.aria-pressed]="filtro() === opcao"
+                  (click)="filtro.set(opcao)"
+                >
+                  {{ rotuloFiltro[opcao] }}
+                </button>
+              }
+            </div>
           </div>
 
           @if (carregando()) {
-            <p class="usuarios-vazio">Carregando contas...</p>
+            <p class="lista-aviso" role="status">Carregando contas...</p>
           } @else if (lista().length) {
-            <ul class="usuarios-lista">
+            <ul class="lista">
               @for (usuario of lista(); track usuario.id) {
                 <li>
                   <button
                     type="button"
-                    class="usuarios-linha"
-                    [class.usuarios-linha--aberta]="usuario.id === selecionadoId()"
+                    class="lista-item"
+                    [class.lista-item--ativo]="usuario.id === selecionadoId()"
                     [attr.aria-current]="usuario.id === selecionadoId() ? 'true' : null"
                     (click)="abrir(usuario)"
                   >
-                    <span class="usuarios-email">{{ usuario.email }}</span>
-                    <span class="usuarios-tags">
-                      <span class="selo selo--neutro">{{ rotuloPapel[papel(usuario)] }}</span>
+                    <span class="lista-identidade">
+                      <!-- Nome quando a conta tem um; senão o e-mail, que é o
+                           que a API devolve hoje. -->
+                      <span class="lista-titulo">{{ usuario.nome || usuario.email }}</span>
+                      <span class="lista-secundaria">
+                        @if (usuario.nome) {
+                          {{ usuario.email }} ·
+                        }
+                        {{ rotuloPapel[papel(usuario)] }}
+                      </span>
+                    </span>
+                    <span class="lista-meta">
                       <span class="selo" [class.selo--ok]="situacao(usuario).ok">
                         {{ situacao(usuario).texto }}
                       </span>
                     </span>
+                    <app-icone nome="seta-direita" />
                   </button>
                 </li>
               }
             </ul>
           } @else {
-            <p class="usuarios-vazio">Nenhuma conta encontrada.</p>
+            <p class="lista-aviso" role="status">
+              <app-icone nome="equipe" />
+              Nenhuma conta encontrada.
+            </p>
           }
         </section>
 
@@ -95,7 +112,12 @@
           <aside class="cartao usuarios-painel" aria-label="Conta selecionada">
             <header class="usuarios-painel-topo">
               <div>
-                <h2>{{ conta.email }}</h2>
+                <!-- Nome no título e o e-mail logo abaixo, como na lista: o
+                     nome identifica, o e-mail confirma de quem é a conta. -->
+                <h2>{{ conta.nome || conta.email }}</h2>
+                @if (conta.nome) {
+                  <p class="usuarios-painel-email">{{ conta.email }}</p>
+                }
                 @if (salvando()) {
                   <span class="usuarios-estado">Salvando...</span>
                 } @else if (salvo() && !alterado()) {

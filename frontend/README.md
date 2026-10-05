@@ -11,6 +11,9 @@ repositório — **sem a API no ar, as telas mostram erro de conexão**.
 ```bash
 docker compose up -d
 ```
+<!-- docker compose ps -->
+<!-- docker compose stop app -->
+<!-- cd frontend; npm start -->
 
 ## Rodar
 

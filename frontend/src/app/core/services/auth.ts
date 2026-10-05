@@ -174,11 +174,21 @@ export class Auth {
 }
 
 /**
- * O `UserRead` do backend não tem `role`. Dos campos que a API devolve, o único
- * que separa papéis é `is_superuser`; o cadastro público entra como incubado
- * (o backend força `is_incubado`). Ponto único a trocar quando `role` existir.
+ * O papel da sessão, e o único lugar do app que o decide.
+ *
+ * A ordem importa: administrador primeiro, porque um admin também pode ser
+ * consultor e o menu dele é o mais amplo. Os booleanos são lidos quando vêm —
+ * hoje só do mock de desenvolvimento, amanhã da API (`docs/contrato-avaliacao.md`);
+ * sem eles, sobra o que a API realmente devolve, que é `is_superuser`.
  */
 function toSessionUser(user: UserRead): SessionUser {
-  const role: Role = user.is_superuser ? 'admin' : 'incubado';
+  const role: Role =
+    user.is_superuser || user.is_admin
+      ? 'admin'
+      : user.is_consultor
+        ? 'avaliador'
+        : user.is_colaborador
+          ? 'colaborador'
+          : 'incubado';
   return { ...user, role };
 }

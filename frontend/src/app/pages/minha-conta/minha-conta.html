@@ -18,7 +18,9 @@
 
         <form [formGroup]="formEmail" (ngSubmit)="salvarEmail()" novalidate>
           <div class="form-group">
-            <label for="conta-email">E-mail</label>
+            <!-- O rótulo fica só para o leitor de tela: quem já diz do que se
+                 trata é o título do cartão, logo acima. -->
+            <label for="conta-email" class="apenas-leitor-tela">E-mail de acesso</label>
             <input
               id="conta-email"
               type="email"
@@ -26,20 +28,22 @@
               autocomplete="email"
               placeholder="seu@email.com"
             />
-            @if (formEmail.controls.email.invalid && formEmail.controls.email.touched) {
+            <!-- Campo único, correção óbvia: aqui o blur já avisa. A senha é
+                 diferente — lá a cobrança só vem no clique. -->
+            @if (
+              (tentouEmail() || formEmail.controls.email.touched) &&
+              formEmail.controls.email.invalid
+            ) {
               <span class="field-error">Informe um e-mail válido.</span>
             }
           </div>
 
           <p class="conta-aviso">
             <app-icone nome="alerta" />
-            <span>
-              Trocar o e-mail marca a conta como <strong>não verificada</strong> até você confirmar
-              o novo endereço.
-            </span>
+            <span>O novo e-mail precisa ser confirmado.</span>
           </p>
 
-          <button type="submit" class="btn btn--azul" [disabled]="salvandoEmail()">
+          <button type="submit" class="btn btn--azul conta-enviar" [disabled]="salvandoEmail()">
             {{ salvandoEmail() ? 'Salvando...' : 'Salvar e-mail' }}
           </button>
         </form>
@@ -73,7 +77,7 @@
                 (toggled)="showPassword.set(!showPassword())"
               />
             </div>
-            @if (formSenha.controls.password.invalid && formSenha.controls.password.touched) {
+            @if (tentouSenha() && formSenha.controls.password.invalid) {
               <span class="field-error">
                 A senha precisa de ao menos {{ minPassword }} caracteres.
               </span>
@@ -96,14 +100,14 @@
                 (toggled)="showConfirm.set(!showConfirm())"
               />
             </div>
-            @if (formSenha.errors?.['passwordsMismatch'] && formSenha.controls.confirm.touched) {
+            @if (tentouSenha() && formSenha.errors?.['passwordsMismatch']) {
               <span class="field-error">As senhas não conferem.</span>
-            } @else if (formSenha.controls.confirm.invalid && formSenha.controls.confirm.touched) {
+            } @else if (tentouSenha() && formSenha.controls.confirm.invalid) {
               <span class="field-error">Repita a senha.</span>
             }
           </div>
 
-          <button type="submit" class="btn btn--verde" [disabled]="salvandoSenha()">
+          <button type="submit" class="btn btn--verde conta-enviar" [disabled]="salvandoSenha()">
             {{ salvandoSenha() ? 'Salvando...' : 'Alterar senha' }}
           </button>
         </form>

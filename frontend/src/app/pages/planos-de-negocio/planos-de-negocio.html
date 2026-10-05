@@ -1,0 +1,60 @@
+@if (user(); as u) {
+  <app-painel [user]="u" ativo="Planos de negócio">
+    <h1>Planos de negócio</h1>
+    <p class="painel-subtitulo">
+      Escolha um plano para ler e avaliar. A sua nota entra etapa por etapa — aprovar ou devolver o
+      plano não é feito aqui.
+    </p>
+
+    <div class="lista-barra">
+      <div class="filtros" role="group" aria-label="Filtrar por situação">
+        @for (opcao of filtros; track opcao.valor) {
+          <button
+            type="button"
+            class="filtro"
+            [class.filtro--ativo]="filtro() === opcao.valor"
+            [attr.aria-pressed]="filtro() === opcao.valor"
+            (click)="trocarFiltro(opcao.valor)"
+          >
+            {{ opcao.rotulo }}
+          </button>
+        }
+      </div>
+    </div>
+
+    @if (mensagemErro()) {
+      <div class="error-message" role="alert"><app-icone nome="erro" />{{ mensagemErro() }}</div>
+    }
+
+    @if (carregando()) {
+      <p class="lista-aviso" role="status">Carregando os planos…</p>
+    } @else if (!linhas().length) {
+      <p class="lista-aviso" role="status">
+        <app-icone nome="documento" />
+        Nenhum plano nesta situação.
+      </p>
+    } @else {
+      <ul class="lista">
+        @for (linha of linhas(); track linha.usuario_email) {
+          <li>
+            <!-- O cartão inteiro é o link: a área de clique é a linha toda. -->
+            <a [routerLink]="linha.rota" class="lista-item">
+              <span class="lista-identidade">
+                <span class="lista-titulo">{{ linha.negocio }}</span>
+                <span class="lista-secundaria">
+                  <app-icone nome="usuario" />
+                  {{ linha.proponente }}
+                </span>
+              </span>
+              <span class="lista-meta">
+                <span [class]="linha.classeStatus">{{ linha.rotuloStatus }}</span>
+                <span class="lista-detalhe">atualizado em {{ linha.quando }}</span>
+              </span>
+              <app-icone nome="seta-direita" />
+            </a>
+          </li>
+        }
+      </ul>
+    }
+  </app-painel>
+}

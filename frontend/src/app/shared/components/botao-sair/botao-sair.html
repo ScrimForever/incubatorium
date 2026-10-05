@@ -1,0 +1,40 @@
+<button #botao type="button" class="btn btn--azul topbar-sair" (click)="pedir()">
+  <app-icone nome="sair" />
+  Sair
+</button>
+
+@if (confirmando()) {
+  <div class="overlay">
+    <div
+      #dialogo
+      class="modal"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="sair-titulo"
+      aria-describedby="sair-texto"
+      tabindex="-1"
+      (keydown.tab)="prenderTab($event, false)"
+      (keydown.shift.tab)="prenderTab($event, true)"
+    >
+      <header class="modal-header">
+        <h2 id="sair-titulo">Sair da conta</h2>
+        <button type="button" class="close" aria-label="Fechar" (click)="cancelar()">
+          &times;
+        </button>
+      </header>
+
+      <div class="modal-body">
+        <p id="sair-texto">
+          Tem certeza que deseja sair? O que ainda não foi salvo nesta tela será perdido.
+        </p>
+      </div>
+
+      <footer class="modal-footer">
+        <button type="button" class="btn-texto" (click)="cancelar()">Cancelar</button>
+        <button type="button" class="btn btn--azul sair-confirmar" (click)="confirmar()">
+          Sair
+        </button>
+      </footer>
+    </div>
+  </div>
+}

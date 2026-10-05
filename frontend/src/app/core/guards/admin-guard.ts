@@ -1,7 +1,7 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { catchError, map, of } from 'rxjs';
-import { APP_ROUTES } from '../constants/app-constants';
+import { APP_ROUTES, entradaDe } from '../constants/app-constants';
 import { Auth } from '../services/auth';
 
 /**
@@ -13,9 +13,7 @@ export const adminGuard: CanActivateFn = () => {
   const router = inject(Router);
 
   return auth.me().pipe(
-    map((user) =>
-      user.role === 'admin' ? true : router.parseUrl(APP_ROUTES.dashboard(user.role)),
-    ),
+    map((user) => (user.role === 'admin' ? true : router.parseUrl(entradaDe(user.role)))),
     catchError(() => of(router.parseUrl(APP_ROUTES.login))),
   );
 };

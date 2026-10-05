@@ -61,9 +61,9 @@ describe('MinhaConta', () => {
     expect(campo.value).toBe('usuario@teccampos.com');
   });
 
-  it('avisa que trocar o e-mail tira a verificação', () => {
+  it('avisa que o e-mail novo terá de ser confirmado', () => {
     expect(fixture.nativeElement.querySelector('.conta-aviso').textContent).toContain(
-      'não verificada',
+      'precisa ser confirmado',
     );
   });
 

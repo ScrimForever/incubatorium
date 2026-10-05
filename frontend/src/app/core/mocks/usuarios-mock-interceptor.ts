@@ -27,6 +27,7 @@ const PREFIXO = `${MARCA}-`;
 function semente(): UsuarioAdmin[] {
   const conta = (
     sufixo: string,
+    nome: string,
     email: string,
     is_active: boolean,
     is_verified: boolean,
@@ -34,6 +35,7 @@ function semente(): UsuarioAdmin[] {
     role: Role,
   ): UsuarioAdmin => ({
     id: `${PREFIXO}${sufixo}`,
+    nome,
     email,
     is_active,
     is_verified,
@@ -41,12 +43,14 @@ function semente(): UsuarioAdmin[] {
     role,
   });
 
+  // O `nome` é invenção do mock: o `User` do backend só tem e-mail (ver
+  // `docs/contrato-usuarios.md`). Sem ele, a lista cai no e-mail.
   return [
-    conta('1', 'ana.souza@teccampos.com', true, true, false, 'incubado'),
-    conta('2', 'bruno.lima@teccampos.com', true, false, false, 'incubado'),
-    conta('3', 'carla.mendes@teccampos.com', false, false, false, 'avaliador'),
-    conta('4', 'diego.rocha@teccampos.com', true, true, true, 'admin'),
-    conta('5', 'elisa.prado@teccampos.com', false, true, false, 'colaborador'),
+    conta('1', 'Ana Souza', 'ana.souza@teccampos.com', true, true, false, 'incubado'),
+    conta('2', 'Bruno Lima', 'bruno.lima@teccampos.com', true, false, false, 'incubado'),
+    conta('3', 'Carla Mendes', 'carla.mendes@teccampos.com', false, false, false, 'avaliador'),
+    conta('4', 'Diego Rocha', 'diego.rocha@teccampos.com', true, true, true, 'admin'),
+    conta('5', 'Elisa Prado', 'elisa.prado@teccampos.com', false, true, false, 'colaborador'),
   ];
 }
 

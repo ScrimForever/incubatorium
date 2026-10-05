@@ -4,6 +4,7 @@
 .painel {
   display: flex;
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--fundo-app);
 }
 
@@ -95,7 +96,9 @@
   flex-direction: column;
 }
 
+/* `flex: none`: numa tela de 320px o e-mail comprido espremia o botão até 23px. */
 .painel-hamburguer {
+  flex: none;
   display: none;
   align-items: center;
   justify-content: center;
@@ -157,5 +160,11 @@
     padding: 0;
     background: rgba(0, 0, 0, 0.4);
     cursor: pointer;
+  }
+}
+
+@media (max-width: 520px) {
+  .painel-conteudo {
+    padding: 24px 16px 40px;
   }
 }

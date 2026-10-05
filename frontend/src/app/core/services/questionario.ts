@@ -3,9 +3,10 @@ import { Observable, catchError, map, of, shareReplay, switchMap, tap, throwErro
 import { API_ROUTES } from '../constants/api-routes';
 import { Api } from '../http/api';
 import {
-  Anexo,
+  ChaveEtapa,
   JsonQuestionario,
   NUMEROS_ETAPA,
+  NotaEtapa,
   NumeroEtapa,
   Questionario,
   QuestionarioEntrada,
@@ -122,11 +123,61 @@ export function normalizar(resposta: Questionario): Questionario {
   const recebido = (resposta.json_questionario ?? {}) as Partial<JsonQuestionario>;
   const json = Object.fromEntries(
     NUMEROS_ETAPA.map((numero) => {
-      const chave = String(numero) as keyof JsonQuestionario;
+      const chave = String(numero) as ChaveEtapa;
       return [chave, { ...vazio[chave], ...(recebido[chave] ?? {}) }];
     }),
   ) as unknown as JsonQuestionario;
+  // Documento gravado antes da rota de upload traz o anexo em base64. Reduzir
+  // à ficha aqui tira esse peso do próximo PUT — o conteúdo era inalcançável
+  // de todo jeito, porque nunca houve tela para baixá-lo.
+  for (const chave of ['6', '9'] as const) {
+    json[chave].arquivos = json[chave].arquivos.map(({ nome, tipo, tamanho }) => ({
+      nome,
+      tipo,
+      tamanho,
+    }));
+  }
+  for (const numero of NUMEROS_ETAPA) {
+    const aba = json[String(numero) as ChaveEtapa];
+    aba.notas = migrarNotas(aba);
+  }
+  // A decisão não é etapa: o `Object.fromEntries` acima só reconstrói de "1" a
+  // "9" e a deixaria cair fora do documento na próxima gravação.
+  if (recebido.decisao) {
+    json.decisao = recebido.decisao;
+  }
   return { ...resposta, json_questionario: json };
+}
+
+/**
+ * Até 23/09/2026 cada aba tinha **uma** `nota`; agora tem uma lista, porque
+ * vários avaliadores avaliam o mesmo plano. Documento antigo é convertido na
+ * leitura, e o campo velho desaparece na primeira gravação.
+ *
+ * A nota antiga só vira entrada se tiver conteúdo: a vazia (`valor: null` e
+ * texto em branco) era só o lugar reservado do formato anterior.
+ */
+function migrarNotas(aba: { notas?: NotaEtapa[]; nota?: unknown }): NotaEtapa[] {
+  const antiga = aba.nota as Partial<NotaEtapa> | undefined;
+  // O campo velho sai sempre: deixado aqui, voltaria para o banco no próximo PUT.
+  delete aba.nota;
+  // A lista já tem dono quando veio preenchida — `notas: []` não conta, porque é
+  // o que o `documentoVazio()` põe no merge desta mesma função.
+  if (aba.notas?.length) {
+    return aba.notas;
+  }
+  if (!antiga || (antiga.valor == null && !antiga.texto?.trim())) {
+    return [];
+  }
+  return [
+    {
+      avaliador: antiga.avaliador ?? 'avaliador não identificado',
+      especialidade: antiga.especialidade ?? '',
+      valor: antiga.valor ?? null,
+      texto: antiga.texto ?? '',
+      em: antiga.em ?? '',
+    },
+  ];
 }
 
 const preenchido = (texto: string): boolean => texto.trim().length > 0;
@@ -137,12 +188,11 @@ const preenchido = (texto: string): boolean => texto.trim().length > 0;
  */
 export function temConteudo(json: JsonQuestionario): boolean {
   return NUMEROS_ETAPA.some((numero) => {
-    const aba = json[String(numero) as keyof JsonQuestionario] as unknown as Record<
-      string,
-      unknown
-    >;
+    const aba = json[String(numero) as ChaveEtapa] as unknown as Record<string, unknown>;
     return Object.entries(aba).some(([chave, valor]) => {
-      if (chave === 'nota') {
+      // `notas` é array: sem esta saída, a nota de um avaliador faria o plano
+      // parecer preenchido e promoveria `iniciado` para `pendente`.
+      if (chave === 'notas') {
         return false;
       }
       if (typeof valor === 'string') {
@@ -230,27 +280,4 @@ export function progresso(json: JsonQuestionario): number {
 /** O formulário ainda está aberto? `iniciado` e `pendente` dizem que sim. */
 export function emPreenchimento(status: StatusQuestionario): boolean {
   return STATUS_EM_PREENCHIMENTO.includes(status);
-}
-
-/**
- * Lê o arquivo escolhido e devolve o anexo pronto para entrar no JSON.
- *
- * Base64 sem o prefixo `data:` — o prefixo é remontado na hora de baixar, a
- * partir de `tipo`, e guardá-lo duplicaria informação dentro do documento.
- */
-export function lerAnexo(arquivo: File): Promise<Anexo> {
-  return new Promise((resolve, reject) => {
-    const leitor = new FileReader();
-    leitor.onerror = (): void => reject(new Error('Não foi possível ler o arquivo.'));
-    leitor.onload = (): void => {
-      const resultado = String(leitor.result);
-      resolve({
-        nome: arquivo.name,
-        tipo: arquivo.type || 'application/octet-stream',
-        tamanho: arquivo.size,
-        conteudo_base64: resultado.slice(resultado.indexOf(',') + 1),
-      });
-    };
-    leitor.readAsDataURL(arquivo);
-  });
 }

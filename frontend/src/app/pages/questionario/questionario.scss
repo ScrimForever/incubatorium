@@ -1,18 +1,22 @@
 /* Questionário em tela cheia, sem menu lateral — mas na identidade do nosso
    sistema, não na do legado: fundo claro, cartão branco, trilha em pílulas e a
-   mesma família de botões das outras telas internas. */
+   mesma família de botões das outras telas internas.
+
+   A trilha, o progresso e o rodapé de ações moram no `styles.scss` (global),
+   compartilhados com o wizard de avaliação. Aqui fica só o que é do incubado. */
 
 .quest {
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--fundo-app);
 }
 
 /* ----- conteúdo ----- */
 
 .quest-conteudo {
-  /* O topo fixo usa margem negativa para encostar nas bordas do `main`; estas
-     variáveis mantêm os dois em sincronia quando o padding muda por breakpoint.
-     Sem isso, o cabeçalho grudado vazava 8px de cada lado no celular. */
+  /* O topo grudado (global) usa margem negativa para encostar nas bordas do
+     `main`; esta variável mantém os dois em sincronia quando o padding muda por
+     breakpoint. */
   --quest-pad-x: 24px;
   --quest-pad-y: 32px;
 
@@ -20,143 +24,6 @@
   max-width: 1200px;
   padding: var(--quest-pad-y) var(--quest-pad-x) 48px;
   margin: 0 auto;
-}
-
-/* Título, progresso e trilha grudam no topo quando a página rola: nas etapas
-   de texto longo o cartão passa da altura da tela, e sem isto o incubado perde
-   de vista em que etapa está. O fundo é opaco para o conteúdo não aparecer por
-   baixo, e as margens negativas compensam o padding lateral do `main`. */
-.quest-topo {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  margin: calc(var(--quest-pad-y) * -1) calc(var(--quest-pad-x) * -1) 0;
-  padding: var(--quest-pad-y) var(--quest-pad-x) 0;
-  background: var(--fundo-app);
-}
-
-.quest-progresso {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 22px;
-}
-
-.quest-barra {
-  flex: 1;
-  height: 6px;
-  border-radius: 999px;
-  background: #e3e8ee;
-  overflow: hidden;
-}
-
-.quest-barra span {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--azul), var(--verde));
-  transition: width 0.3s ease;
-}
-
-.quest-progresso-numero {
-  min-width: 38px;
-  font-size: 13px;
-  font-weight: 600;
-  text-align: right;
-  color: var(--texto-suave);
-}
-
-/* ----- trilha das nove etapas ----- */
-
-/* As nove abas ficam sempre em UMA linha: quebrar em duas ou três fileiras
-   desmancha a leitura de progresso. Quando não cabem, a trilha rola na
-   horizontal e o passo atual é trazido à vista pelo componente. */
-.quest-trilha {
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 6px;
-  margin: 12px 0 16px;
-  /* Folga para o brilho da aba ativa caber: com `overflow-x` qualquer sombra
-     que passe da caixa é cortada em linha reta — era o "quadrado". */
-  padding: 8px 4px 12px;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scroll-snap-type: x proximity;
-  scrollbar-width: thin;
-}
-
-.quest-passo {
-  display: inline-flex;
-  flex: none;
-  scroll-snap-align: center;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 12px 7px 7px;
-  border: 1px solid var(--borda-input);
-  border-radius: 999px;
-  background: white;
-  color: var(--texto-suave);
-  font: inherit;
-  font-size: 13px;
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    border-color 0.2s,
-    color 0.2s,
-    box-shadow 0.2s;
-}
-
-.quest-passo:hover:not(:disabled) {
-  border-color: var(--azul);
-  color: var(--texto);
-}
-
-.quest-passo:disabled {
-  cursor: not-allowed;
-  opacity: 0.65;
-}
-
-.quest-passo app-icone {
-  font-size: 13px;
-}
-
-.quest-passo-numero {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #eef1f5;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.quest-passo--ok .quest-passo-numero {
-  background: var(--sucesso-fundo);
-  color: var(--sucesso-texto);
-}
-
-.quest-passo--atual {
-  border-color: var(--azul);
-  background: var(--azul);
-  color: white;
-  font-weight: 600;
-}
-
-.quest-passo--atual .quest-passo-numero {
-  background: rgba(255, 255, 255, 0.22);
-  color: white;
-}
-
-/* A aba aberta é azul como o botão "Voltar", então o hover dela é o mesmo:
-   o brilho azul, e o texto continua branco. A regra genérica acima pintava o
-   texto de var(--texto) — quase preto sobre azul, ilegível. */
-.quest-passo--atual:hover:not(:disabled) {
-  border-color: var(--azul);
-  color: white;
-  /* Dimensionada para caber no padding da trilha — ver `.quest-trilha`. */
-  box-shadow: 0 2px 8px rgba(36, 105, 179, 0.45);
 }
 
 /* ----- cartão da etapa ----- */
@@ -210,50 +77,44 @@
   margin-bottom: 0;
 }
 
-.quest-membros {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 12px;
-  margin-top: 18px;
-  list-style: none;
-}
-
-.quest-membro {
+/* A margem negativa devolve o que a área de toque dos botões ganhou: o topo do
+   cartão não cresce por causa deles. */
+.quest-membro-acoes {
+  flex: none;
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 14px 16px;
-  border: 1px solid var(--borda-input);
-  border-radius: 10px;
-  background: var(--fundo-app);
-  font-size: 14px;
+  align-items: center;
+  margin: -8px -10px -8px 0;
 }
 
-.quest-membro strong {
-  display: block;
-  color: var(--texto);
-}
-
-.quest-membro span {
-  display: block;
-  font-size: 13px;
+/* Lápis e "×" com 36px de área de toque — tinham 24px e 12px de largura, e no
+   celular o dedo acertava o vizinho. O desenho continua do mesmo tamanho. */
+.quest-editar,
+.quest-remover {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: none;
   color: var(--texto-suave);
+  cursor: pointer;
 }
 
-.quest-membro p {
-  margin-top: 8px;
-  font-size: 13px;
+.quest-editar {
+  font-size: 16px;
 }
 
 .quest-remover {
-  flex: none;
-  border: none;
-  background: none;
-  font-size: 20px;
+  font-size: 22px;
   line-height: 1;
-  color: var(--texto-suave);
-  cursor: pointer;
+}
+
+.quest-editar:hover {
+  color: var(--azul);
 }
 
 .quest-remover:hover {
@@ -312,9 +173,12 @@
   background: rgba(204, 51, 51, 0.06);
 }
 
+/* Três colunas fixas desde o primeiro arquivo: com `auto-fit` as colunas vazias
+   sumiam e um ou dois itens esticavam pela linha inteira. */
 .quest-arquivos {
   margin-top: 12px;
   display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   list-style: none;
 }
@@ -323,7 +187,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
+  border: 1px solid var(--borda-input);
   border-radius: 8px;
   background: var(--fundo-app);
   font-size: 14px;
@@ -335,26 +199,84 @@
   overflow-wrap: anywhere;
 }
 
-/* ----- ações ----- */
-
-.quest-acoes {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
+.quest-arquivos small {
+  flex: none;
+  color: var(--texto-suave);
 }
 
-.quest-acoes-direita {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-left: auto;
+/* Nada de olho ao lado do nome: a ficha inteira é o botão que abre a
+   pré-visualização. Quem espaça é o botão, e não o `li`, para o clique valer na
+   linha toda — nome, ícone e tamanho. */
+.quest-arquivo {
+  padding: 0;
+  overflow: hidden;
 }
 
-@media (max-width: 760px) {
-  .quest-passo-rotulo {
-    display: none;
+.quest-arquivo-abrir {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  color: var(--texto);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.quest-arquivo-abrir app-icone {
+  flex: none;
+  font-size: 16px;
+  color: var(--azul);
+}
+
+/* O realce é da ficha inteira, não só do botão: com o × ao lado, pintar apenas
+   o botão deixava uma faixa branca à direita. O `:has()` leva o hover do botão
+   para o `li`; onde ele não existir, o fundo fica só no botão — que é o
+   comportamento de antes, e não quebra nada. */
+.quest-arquivo:has(.quest-arquivo-abrir:hover) {
+  background: rgba(36, 105, 179, 0.08);
+}
+
+.quest-arquivo-abrir:hover {
+  background: rgba(36, 105, 179, 0.08);
+}
+
+.quest-arquivo:has(.quest-arquivo-abrir:hover) .quest-arquivo-abrir {
+  background: none;
+}
+
+/* Sublinhado só no nome: é ele que diz onde o clique leva. */
+.quest-arquivo-abrir:hover span {
+  text-decoration: underline;
+}
+
+/* Contorno para dentro: o `li` tem `overflow: hidden` e cortaria o de fora. */
+.quest-arquivo-abrir:focus-visible {
+  outline: 2px solid var(--azul);
+  outline-offset: -2px;
+}
+
+.quest-arquivos .quest-remover {
+  margin-right: 4px;
+}
+
+/* ----- telas médias e pequenas ----- */
+
+@media (max-width: 1000px) {
+  .quest-arquivos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .quest-arquivos {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -366,14 +288,10 @@
     padding-bottom: 40px;
   }
 
-  /* Numa tela de celular o cabeçalho grudado não pode comer meia tela: o
-     subtítulo sai, e o resto encolhe. */
+  /* No celular o formulário precisa aparecer logo, sem rolar: o subtítulo
+     sai, e o título encolhe. */
   .quest-subtitulo {
     display: none;
-  }
-
-  .quest-topo {
-    padding-top: 16px;
   }
 
   .quest-conteudo h1 {
@@ -384,19 +302,11 @@
     padding: 12px 14px 12px 22px;
   }
 
-  /* Empilhado, a ação principal fica no topo e "Voltar" no rodapé. */
-  .quest-acoes,
-  .quest-acoes-direita {
-    flex-direction: column-reverse;
-    align-items: stretch;
-    gap: 10px;
+  .quest-equipe-topo {
+    gap: 14px;
   }
 
-  .quest-acoes-direita {
-    margin-left: 0;
-  }
-
-  .quest-membro {
-    flex-wrap: wrap;
+  .quest-equipe-topo .btn {
+    flex: 1 1 100%;
   }
 }

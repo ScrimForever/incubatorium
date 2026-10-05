@@ -10,14 +10,25 @@
 
     <div class="error-message" role="alert">
       <app-icone nome="erro" />
-      O avaliador não aprovou seu plano de negócios.
+      A coordenação devolveu seu plano de negócios para ajustes.
     </div>
 
     <p class="estado-texto">
-      Abaixo está o plano como você enviou, com o que foi apontado em cada etapa. Leia as
-      observações com atenção — <strong>a correção é liberada pelo avaliador</strong>, e você será
-      avisado quando o plano voltar a aceitar edição.
+      Abaixo está o plano como você enviou, com as notas dos consultores em cada etapa. Leia o
+      motivo e as observações com atenção —
+      <strong>quem reabre o formulário é a coordenação</strong>, e você será avisado quando o plano
+      voltar a aceitar edição.
     </p>
+
+    <!-- O motivo escrito por quem devolveu: é a primeira coisa que o incubado
+         precisa ler, antes das notas etapa por etapa. -->
+    @if (devolucao(); as decisao) {
+      <div class="estado-motivo">
+        <h2>Motivo da devolução</h2>
+        <p>{{ decisao.justificativa }}</p>
+        <small>{{ decisao.por }} · {{ dataLegivel(decisao.em) }}</small>
+      </div>
+    }
   </div>
 
   @if (mensagemErro()) {

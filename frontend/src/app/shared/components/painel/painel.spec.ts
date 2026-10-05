@@ -82,9 +82,11 @@ describe('Painel', () => {
     expect(rotulos).not.toContain('Meu plano');
   });
 
-  it('sair encerra a sessão na API e volta ao login', () => {
+  it('sair, depois de confirmar, encerra a sessão na API e volta ao login', () => {
     montar(INCUBADO);
     fixture.nativeElement.querySelector('.topbar-sair').click();
+    fixture.detectChanges();
+    fixture.nativeElement.querySelector('.sair-confirmar').click();
 
     backend
       .expectOne('/api/auth/jwt/logout')

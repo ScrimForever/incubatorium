@@ -32,4 +32,26 @@ export const API_ROUTES = {
    * O usuário vem do token — não entra na URL nem no corpo.
    */
   questionario: '/questionario',
+  /**
+   * Avaliação de planos. Nenhuma destas três existe no backend ainda — o mock
+   * de desenvolvimento responde no shape de `docs/contrato-avaliacao.md`, e são
+   * elas que o Scrim precisa publicar para a tela do avaliador viver de verdade.
+   */
+  avaliacao: {
+    planos: '/questionarios',
+    planoDe: (email: string): string => `/questionario/${encodeURIComponent(email)}`,
+    notaDe: (email: string): string => `/questionario/${encodeURIComponent(email)}/nota`,
+    /** Aprovar ou devolver — só a coordenação, e nunca por aqui a nota. */
+    statusDe: (email: string): string => `/questionario/${encodeURIComponent(email)}/status`,
+  },
+  /**
+   * Anexos do questionário. O dono vem do token, a aba vai na URL.
+   *
+   * `download` não entra aqui: a rota exige corpo JSON num `GET`, e navegador
+   * não manda corpo em `GET` — medido em 23/09/2026 (`docs/contrato-arquivos.md`).
+   */
+  arquivos: {
+    questionario: (aba: number): string => `/arquivos/questionario/${aba}`,
+    nomes: (aba: number): string => `/arquivos/questionario/nome-arquivo/${aba}`,
+  },
 } as const;

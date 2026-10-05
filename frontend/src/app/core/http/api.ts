@@ -31,6 +31,15 @@ export class Api {
     return this.http.delete<T>(this.url(endpoint));
   }
 
+  /**
+   * multipart/form-data - exigido pelo POST /arquivos/questionario/{aba}. Sem
+   * `Content-Type` de propósito: só o navegador conhece o boundary, e declarar
+   * o header aqui quebra o upload.
+   */
+  postMultipart<T>(endpoint: string, dados: FormData): Observable<T> {
+    return this.http.post<T>(this.url(endpoint), dados);
+  }
+
   /** x-www-form-urlencoded - exigido pelo /auth/jwt/login do fastapi-users. */
   postForm<T>(endpoint: string, data: Record<string, string>): Observable<T> {
     return this.http.post<T>(this.url(endpoint), new URLSearchParams(data).toString(), {

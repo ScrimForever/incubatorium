@@ -11,7 +11,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 
-import { APP_ROUTES, ROLE_LABEL } from '../../core/constants/app-constants';
+import { APP_ROUTES, ROLE_LABEL, entradaDe } from '../../core/constants/app-constants';
 import { Role, SessionUser } from '../../core/models/auth';
 import { Auth } from '../../core/services/auth';
 import { Icone } from '../../shared/components/icone/icone';
@@ -80,9 +80,13 @@ export class Dashboard implements OnInit {
       .subscribe({
         next: (user) => {
           this.user.set(user);
-          // URL trocada na mão volta para o papel real, sem entrada no histórico.
-          if (this.role() !== user.role) {
-            void this.router.navigate([APP_ROUTES.dashboard(user.role)], { replaceUrl: true });
+          // URL trocada na mão volta para onde o papel entra — e quem avalia
+          // não tem painel nenhum. Sem entrada no histórico.
+          if (
+            this.role() !== user.role ||
+            entradaDe(user.role) !== APP_ROUTES.dashboard(user.role)
+          ) {
+            void this.router.navigate([entradaDe(user.role)], { replaceUrl: true });
           }
         },
         // O 401 já derruba a sessão no error-interceptor; aqui cobre o resto.
