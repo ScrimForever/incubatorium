@@ -1,7 +1,8 @@
 import enum
+from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Enum, String
+from sqlalchemy import DateTime, Enum, String, Text, Integer
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 from src.domain.models.base_models import Base
@@ -21,8 +22,14 @@ class StatusEnum(str, enum.Enum):
 class Questionario(Base, MixinDate):
     __tablename__ = "questionario"
 
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False, autoincrement=True)
     usuario_email: Mapped[str] = mapped_column(
-        String(255), primary_key=True, nullable=False
+        String(255), nullable=False
     )
     status_questionario: Mapped[str] = mapped_column(Enum(StatusEnum), nullable=False)
     json_questionario: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=True)
+    decidido_por: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    decidido_em: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    motivo_decisao: Mapped[str | None] = mapped_column(Text, nullable=True)
