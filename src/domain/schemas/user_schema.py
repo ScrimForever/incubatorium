@@ -5,7 +5,10 @@ from pydantic import ConfigDict, field_validator
 
 
 class UserRead(schemas.BaseUser[uuid.UUID]):
-    pass
+    is_incubado: bool | None = None
+    is_admin: bool | None = None
+    is_consultor: bool | None = None
+    is_colaborador: bool | None = None
 
 
 class UserCreate(schemas.BaseUserCreate):
