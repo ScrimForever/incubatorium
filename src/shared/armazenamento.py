@@ -1,5 +1,6 @@
 """Caminhos dos anexos do questionário no disco."""
 
+import hashlib
 import shutil
 from pathlib import Path
 
@@ -7,7 +8,12 @@ UPLOAD_DIR = Path("questionarios")
 
 
 def sanitizar_email(email: str) -> str:
-    return email.replace("@", "").replace(".", "")
+    """Nome de pasta do e-mail: SHA-256 em hexadecimal.
+
+    Só `0-9a-f`, então vale em qualquer sistema de arquivos. E-mails distintos geram
+    pastas distintas. O login ignora maiúsculas, então normalizamos antes.
+    """
+    return hashlib.sha256(email.lower().encode()).hexdigest()
 
 
 def pasta_usuario(email: str) -> Path:
@@ -32,6 +38,7 @@ def arquivar_pasta(email: str, ordem: int) -> bool:
     origem = pasta_usuario(email)
     if not origem.exists():
         return False
-    destino = pasta_usuario(f"{email}_{ordem}")
+    destino = origem.with_name(f"{origem.name}_{ordem}")
     shutil.copytree(origem, destino, dirs_exist_ok=True)
     return True
+dd
