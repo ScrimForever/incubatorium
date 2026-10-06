@@ -1,3 +1,5 @@
+import re
+
 import pytest
 from fastapi import FastAPI
 
@@ -6,6 +8,9 @@ from infra.config import settings
 from routers.arquivos.r_arquivos import ArquivosRouter
 from shared import armazenamento
 from shared.handlers import registrar_handlers
+
+PASTA_ANA = armazenamento.sanitizar_email("ana@example.com")
+PASTA_BETO = armazenamento.sanitizar_email("beto@example.com")
 
 PDF = b"%PDF-1.7\n1 0 obj\n<<>>\nendobj\n"
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
@@ -96,10 +101,8 @@ class TestUpload:
         [recebido] = resposta.json()["arquivos_recebidos"]
         assert recebido["nome"] == "balanco.pdf"
         assert recebido["tamanho"] == len(PDF)
-        assert (
-            _pasta_temporaria / "anaexamplecom" / "6" / "balanco.pdf"
-        ).read_bytes() == PDF
-        assert recebido["caminho"] == "anaexamplecom/6/balanco.pdf"
+        assert (_pasta_temporaria / PASTA_ANA / "6" / "balanco.pdf").read_bytes() == PDF
+        assert recebido["caminho"] == PASTA_ANA + "/6/balanco.pdf"
 
     @pytest.mark.asyncio
     async def test_extensao_nao_permitida_da_422(self, criar_usuario, api):
@@ -126,7 +129,7 @@ class TestUpload:
 
         assert resposta.status_code == 422
         assert "conteúdo" in resposta.json()["detail"]
-        assert not (_pasta_temporaria / "anaexamplecom" / "6" / "falso.pdf").exists()
+        assert not (_pasta_temporaria / PASTA_ANA / "6" / "falso.pdf").exists()
 
     @pytest.mark.asyncio
     async def test_png_com_extensao_pdf_e_recusado(self, criar_usuario, api):
@@ -150,7 +153,7 @@ class TestUpload:
         )
 
         assert resposta.status_code == 200
-        assert (_pasta_temporaria / "anaexamplecom" / "6" / "fuga.pdf").exists()
+        assert (_pasta_temporaria / PASTA_ANA / "6" / "fuga.pdf").exists()
         assert not (_pasta_temporaria.parent / "fuga.pdf").exists()
 
     @pytest.mark.asyncio
@@ -167,7 +170,7 @@ class TestUpload:
 
         assert resposta.status_code == 422
         assert "limite" in resposta.json()["detail"]
-        assert not (_pasta_temporaria / "anaexamplecom" / "6" / "grande.pdf").exists()
+        assert not (_pasta_temporaria / PASTA_ANA / "6" / "grande.pdf").exists()
 
     @pytest.mark.asyncio
     async def test_arquivo_vazio_da_422(self, criar_usuario, api):
@@ -304,9 +307,7 @@ class TestRegrasDeEdicao:
         assert not list(_pasta_temporaria.rglob("*.pdf"))
 
     @pytest.mark.asyncio
-    async def test_delete_remove_o_arquivo(
-        self, criar_usuario, api, _pasta_temporaria
-    ):
+    async def test_delete_remove_o_arquivo(self, criar_usuario, api, _pasta_temporaria):
         usuario = await criar_usuario("incubado", "ana@example.com")
         cliente = await api(usuario)
         await cliente.post(
@@ -319,8 +320,8 @@ class TestRegrasDeEdicao:
         )
 
         assert resposta.json()["arquivos_deletados"] == ["a.pdf"]
-        assert not (_pasta_temporaria / "anaexamplecom" / "6" / "a.pdf").exists()
-        assert (_pasta_temporaria / "anaexamplecom" / "6" / "b.pdf").exists()
+        assert not (_pasta_temporaria / PASTA_ANA / "6" / "a.pdf").exists()
+        assert (_pasta_temporaria / PASTA_ANA / "6" / "b.pdf").exists()
 
     @pytest.mark.asyncio
     async def test_delete_em_estado_nao_editavel_da_409(
@@ -353,5 +354,21 @@ class TestIsolamentoDeAnexos:
         await como_beto.post("/arquivos/questionario/6", files=_envio("b.pdf", PDF))
         await como_beto.request("DELETE", "/arquivos/questionario/6", json=["a.pdf"])
 
-        assert (_pasta_temporaria / "anaexamplecom" / "6" / "a.pdf").exists()
-        assert (_pasta_temporaria / "betoexamplecom" / "6" / "b.pdf").exists()
+        assert (_pasta_temporaria / PASTA_ANA / "6" / "a.pdf").exists()
+        assert (_pasta_temporaria / PASTA_BETO / "6" / "b.pdf").exists()
+
+
+def test_emails_distintos_nunca_compartilham_pasta():
+    emails = ["a.b@x.com", "ab@x.com", "a@bx.com", "a@b.com_1", "a@b.com"]
+    pastas = {armazenamento.sanitizar_email(e) for e in emails}
+    assert len(pastas) == len(emails)
+
+
+def test_email_com_caixa_diferente_usa_a_mesma_pasta():
+    assert armazenamento.sanitizar_email("Ana@X.com") == armazenamento.sanitizar_email(
+        "ana@x.com"
+    )
+
+
+def test_nome_da_pasta_e_hexadecimal_de_64_caracteres():
+    assert re.fullmatch(r"[0-9a-f]{64}", PASTA_ANA)
