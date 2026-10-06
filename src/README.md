@@ -42,3 +42,67 @@ Se você alterar o `Dockerfile`, `pyproject.toml` ou `uv.lock`, é necessário r
 ```bash
 docker compose up --build
 ```
+
+## Migrações do banco (Alembic)
+
+O esquema do banco é versionado com Alembic em `src/migrations/`. O serviço `web` roda
+`alembic upgrade head` antes de subir a API.
+
+Fora do docker, a partir de `src/` e com o banco acessível em `127.0.0.1`:
+
+```bash
+ALEMBIC_FORCE_LOCAL=1 uv run alembic upgrade head
+ALEMBIC_FORCE_LOCAL=1 uv run alembic revision --autogenerate -m "descrição"
+```
+
+Bancos que já existiam (criados antes do Alembic) mantêm suas tabelas: a migração baseline
+`0001` só cria o que falta e carimba a revisão.
+
+
+## Perfis e criação da equipe
+
+Há quatro perfis, definidos por flags em `User`: **incubado** (`is_incubado`, o padrão de quem
+se cadastra), **consultor**, **colaborador** e **admin**. Quem se cadastra por `/auth/register`
+é sempre incubado; a conta nasce inativa e ativa pelo link enviado por e-mail.
+
+A equipe (admin, colaborador, consultor) é criada por script, a partir de `src/`:
+
+```bash
+python -m src.scripts.criar_admin --perfil admin --email admin@x.com --password '...'
+python -m src.scripts.criar_admin --perfil colaborador --email colab@x.com --password '...'
+python -m src.scripts.criar_admin --perfil consultor --email cons@x.com --password '...'
+```
+
+Para o admin inicial dá para usar `ADMIN_EMAIL` e `ADMIN_PASSWORD` no ambiente e omitir
+`--email/--password`. O script é idempotente e ativa a conta diretamente. (Endpoints de
+administração de contas pelo admin foram adiados.)
+
+## Principais rotas
+
+Detalhes em `specs/001-gestao-incubacao/contracts/api.md`; a documentação interativa fica em
+`/docs`.
+
+| Área | Rotas |
+|---|---|
+| Questionário (incubado) | `POST /questionario`, `GET /questionario`, `PUT /questionario` (grava as respostas, sem alterar o status) |
+| Plano | `GET /usuarios/{email}/plano` |
+| Gestão (colaborador) | `GET /usuarios?perfil=incubado&situacao=`, `PATCH /usuarios/{email}/situacao` |
+| Anexos | `POST /arquivos/questionario/{aba}` (valida tipo, conteúdo e tamanho), `GET /arquivos/questionario/nome-arquivo/{aba}?email=` |
+
+Regras que valem a pena conhecer:
+
+- E-mails saem em qualquer ambiente com
+  `RESEND_API_KEY`; `EMAIL_ENVIO_HABILITADO=false` desliga o envio e `EMAIL_DESTINO_OVERRIDE`
+  redireciona tudo para um endereço de teste.
+- Anexos entram só por `POST /arquivos/questionario/{aba}` (multipart); o JSON do questionário guarda
+  a referência (`caminho`) em `arquivos[]` da etapa, e `DELETE` remove arquivo e referência. Base64 no
+  JSON é recusado.
+- `UPLOAD_TAMANHO_MAXIMO_MB` (padrão 10) limita os anexos.
+
+## Testes de carga
+
+```bash
+LOCUST_COLABORADOR_EMAIL=... LOCUST_COLABORADOR_SENHA=... \
+LOCUST_INCUBADO_EMAIL=... LOCUST_INCUBADO_SENHA=... \
+uv run locust -f locust_test/locustfile.py --host http://localhost:8000
+```
