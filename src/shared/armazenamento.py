@@ -41,4 +41,3 @@ def arquivar_pasta(email: str, ordem: int) -> bool:
     destino = origem.with_name(f"{origem.name}_{ordem}")
     shutil.copytree(origem, destino, dirs_exist_ok=True)
     return True
-dd
