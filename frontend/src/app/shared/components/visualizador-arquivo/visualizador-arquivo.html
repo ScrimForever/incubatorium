@@ -50,30 +50,21 @@
           <div class="visu-preview">
             <div class="visu-generico">
               <app-icone nome="documento" />
-              @if (!podeBaixar()) {
-                <p>
-                  Os anexos de um plano ainda não abrem nesta tela: falta no backend a rota que dá
-                  acesso ao arquivo de outra pessoa.
-                </p>
-              } @else {
-                <p>Este tipo de arquivo não abre no navegador. Baixe para ver o conteúdo.</p>
-              }
+              <p>Este tipo de arquivo não abre no navegador. Baixe para ver o conteúdo.</p>
             </div>
           </div>
         }
       </div>
 
       <footer class="modal-footer">
-        @if (podeBaixar()) {
-          <button
-            type="button"
-            class="btn btn--azul visu-baixar"
-            [disabled]="carregando()"
-            (click)="baixar.emit()"
-          >
-            {{ carregando() ? 'Baixando…' : 'Baixar' }}
-          </button>
-        }
+        <button
+          type="button"
+          class="btn btn--azul visu-baixar"
+          [disabled]="carregando()"
+          (click)="baixar.emit()"
+        >
+          {{ carregando() ? 'Baixando…' : 'Baixar' }}
+        </button>
         <button type="button" class="btn-texto" (click)="fechar.emit()">Fechar</button>
       </footer>
     </div>

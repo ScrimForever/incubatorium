@@ -13,6 +13,10 @@ const USUARIO: UserRead = {
   is_active: true,
   is_superuser: false,
   is_verified: true,
+  is_incubado: true,
+  is_admin: false,
+  is_consultor: false,
+  is_colaborador: false,
 };
 
 describe('MinhaConta', () => {

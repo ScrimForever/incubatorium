@@ -1,12 +1,8 @@
 /**
- * Questionário Plano de Negócios — nove etapas dentro de um JSON só.
- *
- * O backend guarda o plano em duas colunas: `status_questionario` (enum) e
- * `json_questionario` (JSONB livre). Nenhum campo do formulário existe lá; o
- * formato é definido aqui.
- *
- * O documento é um mapa por aba, de `"1"` a `"9"`, e cada aba carrega os seus
- * campos, a ficha dos seus anexos e **a** avaliação que recebeu — uma por etapa:
+ * Questionário Plano de Negócios — nove etapas num JSON só. O backend guarda
+ * `status_questionario` (enum) e `json_questionario` (JSONB livre); o formato
+ * do documento é definido aqui: um mapa por aba, de `"1"` a `"9"`, cada uma com
+ * seus campos, a ficha dos anexos e a avaliação que recebeu:
  *
  * ```json
  * {
@@ -17,31 +13,23 @@
  *   }
  * }
  * ```
- *
- * O formato da chave `avaliacao` é o que o Scrim definiu no Trello (28/09/2026),
- * para as rotas que ele ainda vai publicar: três campos, e só.
- *
- * Os nomes de campo espelham o sistema em React que veio antes.
  */
 
-/** As nove etapas são identificadas pelo número, como no sistema anterior. */
 export type NumeroEtapa = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
 /**
- * A mesma coisa como chave do documento. Existe separado de
- * `keyof JsonQuestionario` porque o documento tem uma chave que **não** é etapa
- * (`decisao`): indexar por `keyof` traria essa chave junto e quebraria todo
- * `json[chave].notas`.
+ * A etapa como chave do documento. Separado de `keyof JsonQuestionario` porque
+ * o documento tem uma chave que não é etapa (`decisao`), e indexar por `keyof`
+ * quebraria todo `json[chave].avaliacao`.
  */
 export type ChaveEtapa = '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9';
 
 export const NUMEROS_ETAPA: readonly NumeroEtapa[] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
 /**
- * Arquivo anexado a uma etapa — só o registro, não o conteúdo: este vai por
- * `POST /arquivos/questionario/{aba}` e fica no disco do backend. A API não
- * devolve id nem URL, então o vínculo com o arquivo gravado é (dono do token,
- * aba) mais o nome.
+ * Ficha de um anexo, não o conteúdo: este vai por `POST /arquivos/...` e fica
+ * no disco do backend. A API não devolve id nem URL, então o vínculo com o
+ * arquivo gravado é (dono do token, aba) mais o nome.
  */
 export interface Anexo {
   nome: string;
@@ -49,24 +37,34 @@ export interface Anexo {
   tamanho: number;
 }
 
-/**
- * Teto por arquivo. O backend não impõe nenhum — este existe para o upload não
- * virar espera sem fim, já que a tela não tem barra de progresso.
- */
+/** Teto por arquivo, conferido antes do envio: a tela não tem barra de progresso. */
 export const TAMANHO_MAXIMO_ANEXO = 10 * 1024 * 1024;
 
 /** Nove fecha três linhas de três cartões — e segura o tamanho do documento. */
 export const MAXIMO_ANEXOS_POR_ETAPA = 9;
 
 /**
- * A avaliação de **um** avaliador numa etapa.
- *
- * Vários avaliadores avaliam o mesmo plano, cada um pela sua especialidade, e o
- * e-mail é a chave: gravar de novo troca a própria nota e nunca a de outro.
- * `valor` aceita `null` para quem quer só comentar sem pontuar.
- *
- * Avaliar não aprova: nada aqui toca `status_questionario` — a regra está no
- * formato, não só na tela (`docs/contrato-avaliacao.md`).
+ * As extensões que o backend aceita no envio. Vão no `accept` do seletor, mas
+ * `accept` não é trava: quem recusa é o servidor (`422`).
+ */
+export const EXTENSOES_ANEXO = [
+  '.pdf',
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.docx',
+  '.xlsx',
+  '.pptx',
+  '.doc',
+  '.xls',
+  '.ppt',
+  '.txt',
+  '.csv',
+] as const;
+
+/**
+ * A avaliação de um avaliador numa etapa. Avaliar não aprova: nada aqui toca
+ * `status_questionario`.
  */
 export interface Avaliacao {
   /** E-mail de quem avaliou — vem do token, nunca da tela. */
@@ -85,12 +83,9 @@ export const ROTULO_NOTA: Record<1 | 2 | 3 | 4 | 5, string> = {
 };
 
 /**
- * Classe de cor da nota: a escala vai do vermelho (1) ao verde (5).
- *
- * Fica aqui, e não no template, porque a mesma escala pinta a votação do
- * avaliador e o selo da leitura. A classe só carrega as variáveis de cor
- * (`styles.scss`); quem pinta é a regra de cada componente. A cor é reforço —
- * o conceito ("Ruim"…"Excelente") vem escrito ao lado em toda tela.
+ * Classe de cor da nota, do vermelho (1) ao verde (5). Fica aqui porque a mesma
+ * escala pinta a votação e o selo de leitura; a classe só carrega as variáveis
+ * de cor (`styles.scss`), e o rótulo vem sempre escrito ao lado.
  */
 export const CLASSE_NOTA: Record<1 | 2 | 3 | 4 | 5, string> = {
   1: 'nota-1',
@@ -110,10 +105,7 @@ export interface MembroEquipe {
   telefone: string;
 }
 
-/**
- * Toda aba carrega a avaliação que recebeu — **uma só**: quem avalia primeiro
- * fecha a etapa, e só o autor reabre a dele.
- */
+/** Toda aba carrega uma só avaliação: quem avalia primeiro fecha a etapa. */
 interface EtapaBase {
   avaliacao: Avaliacao | null;
 }
@@ -173,12 +165,9 @@ export interface JsonQuestionario {
   '8': Etapa8;
   '9': Etapa9;
   /**
-   * A decisão da coordenação sobre o plano, quando já houve uma.
-   *
-   * Mora no documento, e não numa coluna nova, pelo mesmo motivo das notas: o
-   * `json_questionario` é JSONB livre e é do frontend. O `status_questionario`
-   * continua sendo a verdade sobre a situação — isto guarda **quem decidiu,
-   * quando e por quê**, que o enum sozinho não conta.
+   * A decisão da coordenação, quando já houve uma. O `status_questionario`
+   * segue sendo a verdade sobre a situação; isto guarda quem decidiu, quando e
+   * por quê.
    */
   decisao?: DecisaoPlano;
 }
@@ -219,18 +208,22 @@ export const ROTULO_STATUS: Record<StatusQuestionario, string> = {
 export const STATUS_EM_PREENCHIMENTO: readonly StatusQuestionario[] = ['iniciado', 'pendente'];
 
 /**
- * A resposta da API. `GET` devolve também `usuario_email`, `atualizado_em` e
- * `atualizado_por`; `POST` e `PUT` passam por `QuestionarioOutputSchema` e só
- * trazem `criado_por` e `criado_em` — por isso os opcionais.
+ * A resposta da API. Cada rota devolve um subconjunto dos campos (o plano alheio
+ * não traz `id` nem `criado_por`; `POST` e `PUT` só trazem `criado_*`), por isso
+ * os opcionais. `decidido_*` e `motivo_decisao` ainda vêm sempre `null`.
  */
 export interface Questionario {
   status_questionario: StatusQuestionario;
   json_questionario: JsonQuestionario;
+  id?: number;
   criado_por?: string | null;
   criado_em?: string | null;
   usuario_email?: string;
   atualizado_em?: string | null;
   atualizado_por?: string | null;
+  decidido_por?: string | null;
+  decidido_em?: string | null;
+  motivo_decisao?: string | null;
 }
 
 /** O corpo de `POST` e `PUT` — é sempre o documento inteiro. */

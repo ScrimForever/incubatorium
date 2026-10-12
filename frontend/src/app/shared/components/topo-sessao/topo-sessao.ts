@@ -14,12 +14,9 @@ import { Auth } from '../../../core/services/auth';
 import { BotaoSair } from '../botao-sair/botao-sair';
 
 /**
- * Barra superior das telas que ocupam a tela inteira, fora do painel: logo,
- * quem está logado e o botão de sair. Mesma barra do painel, sem o menu —
- * nessas telas não há para onde navegar.
- *
- * Falha ao carregar o usuário não mostra erro: o 401 já derruba a sessão no
- * interceptor, e o cabeçalho apenas encolhe.
+ * Barra superior das telas cheias, fora do painel: logo, quem está logado e o
+ * Sair. Falha ao carregar o usuário não mostra erro — o 401 já derruba a
+ * sessão no interceptor, e o cabeçalho apenas encolhe.
  */
 @Component({
   selector: 'app-topo-sessao',

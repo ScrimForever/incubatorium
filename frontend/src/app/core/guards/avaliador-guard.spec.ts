@@ -28,6 +28,10 @@ describe('avaliadorGuard', () => {
     is_active: true,
     is_superuser: false,
     is_verified: true,
+    is_incubado: false,
+    is_admin: false,
+    is_consultor: false,
+    is_colaborador: false,
   };
 
   /** Executa o guard e responde o /users/me com o usuário dado. */

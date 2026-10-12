@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 
+import { ApiError } from '../models/auth';
 import { Anexo, JsonQuestionario, Questionario, documentoVazio } from '../models/questionario';
 import {
   QuestionarioService,
@@ -30,7 +31,7 @@ const resposta = (json: JsonQuestionario): Questionario => ({
 describe('etapaCompleta', () => {
   it('etapa 1 exige proponente, negócio e setor — mas não o CNPJ', () => {
     const json = documentoVazio();
-    json['1'].nome_proponente = 'Maicon';
+    json['1'].nome_proponente = 'Ana';
     json['1'].nome_negocio = 'TecCampos Labs';
     expect(etapaCompleta(json, 1)).toBeFalse();
 
@@ -59,7 +60,7 @@ describe('etapaCompleta', () => {
     json['4'].equipe = [
       {
         id: 'm1',
-        nome: 'Maicon',
+        nome: 'Ana',
         formacao_academica: 'Computação',
         experiencia: '',
         email: 'maicon@teccampos.com',
@@ -97,7 +98,7 @@ describe('etapaAcessivel', () => {
 
   it('esvaziar uma etapa fecha todas as seguintes, mesmo preenchidas', () => {
     const json = documentoVazio();
-    json['1'].nome_proponente = 'Maicon';
+    json['1'].nome_proponente = 'Ana';
     json['1'].nome_negocio = 'TecCampos';
     json['1'].setor_atuacao = 'TI';
     json['2'].business_canvas = 'canvas';
@@ -140,7 +141,7 @@ describe('etapaAcessivel', () => {
     const json = documentoVazio();
     expect(etapaAcessivel(json, 2)).toBeFalse();
 
-    json['1'].nome_proponente = 'Maicon';
+    json['1'].nome_proponente = 'Ana';
     json['1'].nome_negocio = 'TecCampos Labs';
     json['1'].setor_atuacao = 'TI';
     expect(etapaAcessivel(json, 2)).toBeTrue();
@@ -167,7 +168,7 @@ describe('etapaParaRetomar', () => {
   const completarAte = (json: ReturnType<typeof documentoVazio>, ate: number): void => {
     const textos: Record<number, () => void> = {
       1: () => {
-        json['1'].nome_proponente = 'Maicon';
+        json['1'].nome_proponente = 'Ana';
         json['1'].nome_negocio = 'TecCampos';
         json['1'].setor_atuacao = 'TI';
       },
@@ -332,7 +333,7 @@ describe('normalizar', () => {
     expect((aba as unknown as Record<string, unknown>)['notas']).toBeUndefined();
   });
 
-  it('documento ja no formato do Scrim passa sem ser mexido', () => {
+  it('documento ja no formato atual passa sem ser mexido', () => {
     const avaliacao = { avaliador: 'ana@teccampos.com', nota: 5 as const, comentario: 'otimo' };
     const novo = {
       status_questionario: 'aguardando_aprovacao',
@@ -418,7 +419,17 @@ describe('QuestionarioService', () => {
     const req = backend.expectOne('/api/questionario');
     expect(req.request.method).toBe('PUT');
     expect(req.request.body.status_questionario).toBe('aguardando_aprovacao');
-    req.flush(resposta(documentoVazio()));
+    req.flush({ status_questionario: 'aguardando_aprovacao', json_questionario: documentoVazio() });
+  });
+
+  it('envio que o servidor nao registrou vira erro, em vez de sucesso calado', () => {
+    // O PUT ignora o status: responde 200 com o plano ainda pendente.
+    let erro: ApiError | undefined;
+    service.enviar(documentoVazio()).subscribe({ error: (e: ApiError) => (erro = e) });
+
+    backend.expectOne('/api/questionario').flush(resposta(documentoVazio()));
+
+    expect(erro?.code).toBe('ENVIO_NAO_REGISTRADO');
   });
 
   describe('cache do plano', () => {

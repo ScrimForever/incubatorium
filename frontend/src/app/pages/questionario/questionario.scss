@@ -1,9 +1,6 @@
-/* Questionário em tela cheia, sem menu lateral — mas na identidade do nosso
-   sistema, não na do legado: fundo claro, cartão branco, trilha em pílulas e a
-   mesma família de botões das outras telas internas.
-
-   A trilha, o progresso e o rodapé de ações moram no `styles.scss` (global),
-   compartilhados com o wizard de avaliação. Aqui fica só o que é do incubado. */
+/* Questionário em tela cheia, sem menu lateral. A trilha, o progresso e o rodapé
+   de ações moram no `styles.scss`, compartilhados com o wizard de avaliação; aqui
+   fica só o que é do incubado. */
 
 .quest {
   min-height: 100vh;
@@ -39,7 +36,7 @@
   color: var(--texto-suave);
 }
 
-/* Os tópicos que orientam a resposta, iguais aos do sistema antigo. */
+/* Os tópicos que orientam a resposta. */
 .quest-instrucao {
   margin: 0 0 12px;
   padding: 12px 16px 12px 32px;
@@ -86,8 +83,8 @@
   margin: -8px -10px -8px 0;
 }
 
-/* Lápis e "×" com 36px de área de toque — tinham 24px e 12px de largura, e no
-   celular o dedo acertava o vizinho. O desenho continua do mesmo tamanho. */
+/* Lápis e "×" com 36px de área de toque: menor que isso, no celular o dedo
+   acertava o vizinho. O desenho continua do mesmo tamanho. */
 .quest-editar,
 .quest-remover {
   flex: none;
@@ -236,9 +233,7 @@
 }
 
 /* O realce é da ficha inteira, não só do botão: com o × ao lado, pintar apenas
-   o botão deixava uma faixa branca à direita. O `:has()` leva o hover do botão
-   para o `li`; onde ele não existir, o fundo fica só no botão — que é o
-   comportamento de antes, e não quebra nada. */
+   o botão deixava uma faixa branca à direita. Sem `:has()`, o fundo fica só no botão. */
 .quest-arquivo:has(.quest-arquivo-abrir:hover) {
   background: rgba(36, 105, 179, 0.08);
 }

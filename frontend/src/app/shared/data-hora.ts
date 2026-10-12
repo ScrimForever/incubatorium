@@ -1,9 +1,6 @@
 /**
- * Quando uma coisa aconteceu, em PT-BR: dd/mm/aaaa hh:mm.
- *
- * Mora no `shared` porque duas telas assinam nota com isto — o card de
- * avaliação e a leitura do plano —, e componente compartilhado não pode
- * depender de página. Data quebrada vira string vazia, e não "Invalid Date".
+ * Data e hora em PT-BR (dd/mm/aaaa hh:mm). Data inválida vira string vazia,
+ * e não "Invalid Date".
  */
 export function formatarQuando(iso: string): string {
   const data = new Date(iso);

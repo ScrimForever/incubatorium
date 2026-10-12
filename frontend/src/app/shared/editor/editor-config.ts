@@ -2,10 +2,9 @@ import type { QuillConfig } from 'ngx-quill/config';
 import type Quill from 'quill';
 
 /**
- * Formatos que o editor aceita. A lista vale também para o que se cola de
- * fora (Word, Google Docs): o que não está aqui é descartado. Imagem e vídeo
- * ficam de fora porque o Quill os grava dentro do HTML — em base64, no caso da
- * imagem — e o `PUT` do questionário reenvia o documento inteiro.
+ * Formatos aceitos, inclusive no que se cola de fora. Imagem e vídeo ficam de
+ * fora porque o Quill os grava dentro do HTML (imagem em base64) e o `PUT` do
+ * questionário reenvia o documento inteiro.
  */
 const FORMATOS = [
   'header',
@@ -89,10 +88,9 @@ export const ROTULOS_BARRA: Readonly<Record<string, string>> = {
 };
 
 /**
- * O valor que vai para o formulário. Substitui o `getSemanticHTML()` puro, que
- * no Quill 2.0.3 troca todo espaço por `&nbsp;` — o texto ficaria sem quebra
- * de linha fora do editor (PDF, relatório) e bem maior no JSON. Numa sequência
- * de espaços só o último volta a ser espaço comum, para os demais não sumirem.
+ * O valor que vai para o formulário. O `getSemanticHTML()` do Quill troca todo
+ * espaço por `&nbsp;`, o que impede quebra de linha fora do editor; aqui só o
+ * último espaço de cada sequência volta a ser comum, para os demais não sumirem.
  */
 export function valorDoEditor(editor: Quill): string {
   if (!editor.getText().trim()) {
@@ -118,9 +116,9 @@ export function deslocamentoParaCaber(
 }
 
 /**
- * Mantém os menus da barra (cor, destaque, estilo) dentro da tela. O tema abre
- * cada menu alinhado à esquerda do botão, com largura fixa: num celular a
- * paleta de 152px de um botão perto da borda saía pela lateral, cortada.
+ * Mantém os menus da barra (cor, destaque, estilo) dentro da tela: o tema os
+ * abre alinhados à esquerda do botão, com largura fixa, e perto da borda eles
+ * saem cortados no celular.
  */
 export function manterMenusNaTela(editor: Quill): void {
   const toolbar = editor.getModule('toolbar') as { container?: HTMLElement } | undefined;

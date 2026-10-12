@@ -5,9 +5,9 @@ import { entradaDe } from '../constants/app-constants';
 import { Auth } from '../services/auth';
 
 /**
- * O oposto do authGuard: quem já está autenticado não vê as telas de entrada,
- * vai direto para a porta de entrada do seu papel. Se o token não servir mais, a própria falha
- * do /users/me libera a tela - melhor mostrar o login do que travar em erro.
+ * O oposto do authGuard: quem já está autenticado vai direto para a entrada do
+ * seu papel. Se o token não servir mais, a falha do /users/me libera a tela —
+ * melhor mostrar o login do que travar em erro.
  */
 export const guestGuard: CanActivateFn = () => {
   const auth = inject(Auth);

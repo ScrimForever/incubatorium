@@ -18,9 +18,6 @@ import { QuestionarioService } from '../services/questionario';
  * rejeitado            → /plano-rejeitado
  * aprovado             → a entrada do papel        (o painel, para o incubado)
  * ```
- *
- * Todo guard daqui deriva desta função — duas versões da mesma regra
- * divergiriam.
  */
 export function destinoPara(status: StatusQuestionario, role: Role): string {
   switch (status) {
@@ -40,11 +37,9 @@ export function destinoPara(status: StatusQuestionario, role: Role): string {
 type ForaDoFluxo = 'passa' | 'painel';
 
 /**
- * Monta um guard que só deixa entrar nos status listados; qualquer outro é
- * mandado para o lugar que lhe cabe, segundo `destinoPara`.
- *
- * Erro na consulta manda o incubado para o questionário, o degrau mais baixo
- * do fluxo, onde o erro aparece. Liberar a tela em caso de falha abriria o
+ * Monta um guard que só deixa entrar nos status listados; qualquer outro vai
+ * para o lugar que lhe cabe, segundo `destinoPara`. Erro na consulta manda o
+ * incubado para o questionário, onde o erro aparece — liberar a tela abriria o
  * painel, que só o plano aprovado abre.
  */
 function somenteCom(permitidos: readonly StatusQuestionario[], fora: ForaDoFluxo): CanActivateFn {
@@ -84,8 +79,7 @@ export const aguardandoAprovacaoGuard = somenteCom(['aguardando_aprovacao'], 'pa
 export const planoRejeitadoGuard = somenteCom(['rejeitado'], 'painel');
 
 /**
- * O painel e tudo que vive dentro dele (visão geral, Meu plano, Minha conta).
- * Para o incubado é a recompensa do plano aprovado; quem não é incubado passa
- * direto, porque não tem questionário nenhum.
+ * O painel e tudo que vive dentro dele. Para o incubado exige o plano aprovado;
+ * quem não é incubado passa direto, porque não tem questionário.
  */
 export const planoAprovadoGuard = somenteCom(['aprovado'], 'passa');

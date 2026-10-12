@@ -9,9 +9,10 @@ import { Anexo, NumeroEtapa } from '../models/questionario';
 /**
  * Anexos do questionário: enviar, listar, baixar e apagar.
  *
- * Tudo é escopado pelo token — o backend monta o caminho a partir do e-mail de
- * quem chama. Não existe rota para ler anexo de outra pessoa, então no modo
- * avaliação nada aqui serve (`docs/contrato-arquivos.md`).
+ * Sem `dono`, tudo é do usuário logado — o backend monta o caminho a partir do
+ * e-mail do token. Listar e baixar aceitam `dono` para ler a pasta de outra
+ * pessoa (o modo avaliação); enviar e apagar, não: anexo alheio é só leitura
+ * (`docs/contrato-arquivos.md`).
  */
 @Injectable({ providedIn: 'root' })
 export class ArquivosService {
@@ -45,16 +46,15 @@ export class ArquivosService {
    * também morre aqui sem prejuízo, porque derrubar a sessão é efeito do
    * error-interceptor, que já aconteceu antes desta linha.
    */
-  listar(aba: NumeroEtapa): Observable<string[]> {
-    return this.api.get<string[]>(API_ROUTES.arquivos.nomes(aba)).pipe(catchError(() => of([])));
+  listar(aba: NumeroEtapa, dono?: string): Observable<string[]> {
+    return this.api
+      .get<string[]>(API_ROUTES.arquivos.nomes(aba, dono))
+      .pipe(catchError(() => of([])));
   }
 
-  /**
-   * O conteúdo de um anexo. A rota é `POST` porque exige corpo JSON — o `GET`
-   * anterior era inalcançável pelo navegador. Arquivo fora do disco vem `404`.
-   */
-  baixar(aba: NumeroEtapa, nome: string): Observable<Blob> {
-    return this.api.postBlob(API_ROUTES.arquivos.download(aba), { nome_arquivo: nome }).pipe(
+  /** O conteúdo de um anexo. A rota é `POST` porque exige corpo JSON. */
+  baixar(aba: NumeroEtapa, nome: string, dono?: string): Observable<Blob> {
+    return this.api.postBlob(API_ROUTES.arquivos.download(aba, dono), { nome_arquivo: nome }).pipe(
       catchError((erro: ApiError) =>
         // Aqui `404` não é rota inexistente, é arquivo que saiu do disco — o
         // recado genérico do interceptor não diria nada a quem está na tela.
@@ -68,9 +68,8 @@ export class ArquivosService {
   }
 
   /**
-   * Apaga do disco os nomes pedidos. O backend responde `200` mesmo para nome
-   * que não existe mais — só o lista em `erros` —, e para a tela isso é o mesmo
-   * que apagado: o que importa é que depois disto ele não está lá.
+   * Apaga do disco os nomes pedidos. Nome que já não existe volta em `erros`
+   * com `200`, e para a tela isso é o mesmo que apagado.
    */
   apagar(aba: NumeroEtapa, nomes: readonly string[]): Observable<RespostaRemocaoArquivos> {
     return this.api.deleteComCorpo<RespostaRemocaoArquivos>(API_ROUTES.arquivos.questionario(aba), [

@@ -6,7 +6,7 @@ export interface CampoTexto {
   readonly nome: string;
   /** Rótulo acima do campo. Vazio quando a etapa tem um campo só. */
   readonly rotulo: string;
-  /** Instrução em tópicos, como no legado. */
+  /** Instrução em tópicos, acima do campo. */
   readonly instrucao: readonly string[];
   readonly placeholder: string;
   readonly linhas: number;
@@ -30,26 +30,9 @@ export interface Etapa {
 }
 
 /**
- * As nove etapas, com títulos, instruções e nomes de campo copiados do
- * `QuestionarioForm.jsx` do sistema antigo. Mudar qualquer texto daqui muda a
- * tela — nenhum rótulo é escrito no template.
- *
- * **Conferido tópico a tópico contra o legado em 12/09/2026.** Tudo bate,
- * menos quatro divergências **deliberadas** (decisão do usuário) — não
- * "corrigir" de volta sem perguntar:
- *
- * 1. Etapa 5, 4º tópico: o legado escreve "demanda do *marcado*"; aqui é
- *    "mercado". Erro de digitação do original.
- * 2. Etapa 6, 5º tópico: concordância e grafia ajustadas ("que seu negócio",
- *    "Por quê?").
- * 3. Etapa 6, títulos das três seções: **o legado inverte dois deles** — chama
- *    de "Análise dos consumidores/clientes" o bloco de perguntas sobre
- *    fornecedores (campo `analiseFornecedores`) e de "Análise dos fornecedores"
- *    o bloco sobre clientes (`planejamentoMercado`). Aqui cada título descreve
- *    as perguntas que estão abaixo dele.
- * 4. Etapa 9, campo "Observações": não existe no legado, é adição nossa e é
- *    opcional. O único textarea daquela etapa no original é o das notas do
- *    avaliador, que aqui é a `nota` de cada aba.
+ * As nove etapas, com títulos, instruções e nomes de campo. Mudar qualquer texto
+ * daqui muda a tela — nenhum rótulo é escrito no template. Os títulos da etapa 6
+ * descrevem as perguntas abaixo de cada um; "Observações" da etapa 9 é opcional.
  */
 export const ETAPAS: readonly Etapa[] = [
   {
@@ -272,14 +255,11 @@ export const CAMPOS_ETAPA_1 = [
     obrigatorio: true,
     erro: 'Informe o setor de atuação.',
   },
-  // O CNPJ é opcional: o legado nunca o cobrou, e há negócio sem CNPJ ainda.
+  // O CNPJ é opcional: há negócio sem CNPJ ainda.
   { nome: 'cnpj', rotulo: 'CNPJ', placeholder: 'Insira o CNPJ', obrigatorio: false, erro: '' },
 ] as const;
 
-/**
- * Rótulo curto para a trilha do topo. Os títulos completos do legado são longos
- * demais para uma pílula — eles continuam inteiros no cabeçalho do cartão.
- */
+/** Rótulo curto para a pílula da trilha; o título completo fica no cabeçalho do cartão. */
 export const ROTULO_CURTO: Record<NumeroEtapa, string> = {
   1: 'Negócio',
   2: 'Canvas',

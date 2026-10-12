@@ -1,12 +1,10 @@
 /* ==========================================================================
-   TecCampos - identidade visual herdada do sistema antigo (frontend/)
-   Gradiente azul→verde, Roboto, card branco, labels em pílula azul.
+   TecCampos - identidade visual: gradiente azul→verde, Roboto, card branco.
    A fonte é carregada por <link> no index.html (@import de CSS bloqueia render).
    ========================================================================== */
 
 /* Tema do editor de texto rico. Vem antes de tudo para as regras deste arquivo
-   ganharem na cascata; entra por aqui, e não pelo angular.json, para o
-   `ng serve` já rodando pegar sem reiniciar. */
+   ganharem na cascata. */
 @use 'quill/dist/quill.snow';
 
 :root {
@@ -28,8 +26,7 @@
   --erro-texto: #c33;
   --sucesso-fundo: #efe;
   --sucesso-texto: #3c3;
-  /* Card de avaliação do consultor: fundo lavanda translúcido (alpha 2b ≈ 17%) e
-     borda lavanda, para destacá-lo do conteúdo (branco) do incubado. */
+  /* Card de avaliação do consultor: lavanda translúcido (alpha 2b ≈ 17%). */
   --aval-fundo: #edecf72b;
   --aval-borda: #d9d5ec;
   /* Escala das notas 1–5: vermelho (Ruim) → verde (Excelente). Três tons por
@@ -92,27 +89,21 @@
   box-sizing: border-box;
 }
 
-/* A barra de rolagem vertical reserva lugar mesmo quando não aparece: sem
-   isto, uma tela alta some com ~15px de largura em relação a uma tela curta, e
-   o cartão do questionário mudava de tamanho de uma aba para outra. */
 html {
-  /* Ligado de novo em 26/09/2026: com `auto`, trocar de aba no questionário
-     mexia na largura do cartão (aba alta tem barra, aba curta não), e a página
-     "pulava" de um lado para o outro a cada passo. */
+  /* A barra de rolagem reserva lugar mesmo quando não aparece: com `auto`, a
+     largura do cartão do questionário muda entre uma aba alta e uma curta. */
   scrollbar-gutter: stable;
 
-  /* No celular, arrastar de lado fazia o fundo (o gradiente) deslizar e voltar:
-     é o overscroll do toque, que a trilha rolável do questionário encadeia para
-     a página. Aqui o pan horizontal deixa de existir — a trilha segue rolando
-     normalmente, porque ela tem o próprio `overflow-x`. */
+  /* Sem isto, no celular o overscroll horizontal da trilha do questionário
+     encadeia para a página e o fundo desliza. A trilha segue rolando, porque
+     tem o próprio `overflow-x`. */
   overflow-x: hidden;
   overscroll-behavior-x: none;
 }
 
 /* `clip`, e não `hidden`, no body: `hidden` o transforma num contêiner de
    rolagem que nunca rola, e todo `position: sticky` da página passa a grudar
-   nele — o topo do questionário deixava de grudar em qualquer tela. O
-   `hidden` fica só de reserva para navegador sem `clip`. */
+   nele. O `hidden` fica só de reserva para navegador sem `clip`. */
 body {
   overflow-x: hidden;
   overflow-x: clip;
@@ -356,9 +347,8 @@ body {
   padding: 10px 6px;
 }
 
-/* No celular a modal ganha a largura quase toda, e os botões empilham: lado a
-   lado, "Enviar para análise" quebrava em duas linhas numa tela de 320px. A
-   ação principal fica em cima, onde o polegar alcança primeiro. */
+/* No celular a modal ganha a largura quase toda e os botões empilham, com a
+   ação principal em cima, onde o polegar alcança primeiro. */
 @media (max-width: 520px) {
   .overlay {
     padding: 12px;
@@ -441,8 +431,8 @@ body {
   margin-left: auto;
 }
 
-/* `min-width: 0` libera o encolhimento do flex item — sem ele o e-mail longo
-   empurra o botão Sair para fora da tela em vez de ser reticenciado. */
+/* `min-width: 0` libera o encolhimento: sem ele o e-mail longo empurra o botão
+   Sair para fora da tela em vez de ser reticenciado. */
 .topbar-identidade {
   display: flex;
   flex-direction: column;
@@ -527,7 +517,6 @@ code {
   cursor: not-allowed;
 }
 
-/* Cartão branco - unidade de conteúdo dos painéis internos. */
 /* Cabeçalho e estado de carregamento das telas internas. Ficam aqui, e não no
    painel, porque o conteúdo é projetado: regra encapsulada não alcança. */
 .painel-conteudo h1,
@@ -551,8 +540,8 @@ code {
 }
 
 /* O cartão do sistema: branco, borda cinza fina e canto de 10px — o mesmo
-   desenho dos itens de lista, para as telas não terem dois tipos de cartão. A
-   sombra saiu: sobre o fundo claro do painel ela só embaçava a borda. */
+   desenho dos itens de lista. Sem sombra: sobre o fundo claro ela só embaça
+   a borda. */
 .cartao {
   background: var(--fundo-cartao);
   border: 1px solid var(--borda-input);
@@ -566,8 +555,8 @@ code {
   margin-bottom: 16px;
 }
 
-/* No celular os 24px de cada lado, somados à margem da página, deixavam o
-   texto do cartão com 224px numa tela de 320. */
+/* No celular, 24px de cada lado somados à margem da página deixam pouco
+   espaço para o texto. */
 @media (max-width: 520px) {
   .cartao {
     padding: 18px 16px;
@@ -581,8 +570,7 @@ code {
   gap: 8px;
 }
 
-/* Filtros em pílula — o padrão do sistema, nascido na tela de usuários e
-   subido para cá quando a lista de planos passou a usar o mesmo desenho. */
+/* Filtros em pílula, compartilhados pelas telas de listagem. */
 .filtros {
   display: flex;
   flex-wrap: wrap;
@@ -642,10 +630,8 @@ code {
 
 /* ==========================================================================
    Listagem — o padrão das telas que listam coisas (Usuários, Planos de
-   negócio). Título e subtítulo vêm do painel; daqui para baixo, as duas telas
-   usam as MESMAS classes: barra de busca/filtros, cartão por item, selos à
-   direita e o vazio em caixa tracejada. Item novo numa tela nasce igual ao da
-   outra, sem copiar CSS.
+   negócio): barra de busca/filtros, cartão por item, selos à direita e o
+   vazio em caixa tracejada. As telas usam as mesmas classes, sem copiar CSS.
    ========================================================================== */
 
 .lista-barra {
@@ -678,10 +664,8 @@ code {
 }
 
 /* O item inteiro é o alvo do clique — `<a>` quando leva a outra tela,
-   `<button>` quando abre um painel ao lado. O desenho é o mesmo nos dois.
-
-   Cartão **neutro**: sem faixa colorida na lateral e sem cor na borda. A cor da
-   lista fica só nos selos, que são informação; o cartão é papel. */
+   `<button>` quando abre um painel ao lado. Cartão neutro: a cor fica só nos
+   selos, que são informação; o cartão é papel. */
 .lista-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;
@@ -828,15 +812,11 @@ code {
   }
 }
 
-/* Cartões da equipe: o questionário (com editar/remover) e a leitura do plano.
-   Cada dado leva o rótulo do formulário, senão ninguém sabe o que está lendo.
-   Altura fixa para a grade ficar alinhada; quem cresce é só a experiência,
-   que rola dentro do próprio cartão. */
-/* Até três colunas, nenhuma abaixo de 280px — medidas na largura da própria
-   lista, e não da tela: a mesma grade vive no questionário, no plano devolvido
-   (860px no máximo) e no painel, que perde 240px para o menu. Com breakpoint
-   de tela, o painel em 1024px espremia três cartões de 221px. `auto-fill`, e
-   não `auto-fit`, para um ou dois cartões não esticarem pela linha inteira. */
+/* Cartões da equipe (questionário e leitura do plano). Altura fixa para a
+   grade ficar alinhada; só a experiência cresce, rolando dentro do cartão.
+   Até três colunas, nenhuma abaixo de 280px, medidas na largura da lista e
+   não da tela, porque a grade vive em containers de larguras diferentes.
+   `auto-fill` para um ou dois cartões não esticarem pela linha inteira. */
 .membros {
   --membros-gap: 12px;
 
@@ -925,16 +905,15 @@ code {
   color: var(--texto-suave);
 }
 
-/* No celular, formação e e-mail quebram em mais linhas: com 340px sobravam
-   duas linhas para a experiência num aparelho de 320px. */
+/* No celular, formação e e-mail quebram em mais linhas e a experiência
+   precisa de mais altura. */
 @media (max-width: 600px) {
   .membro {
     height: 380px;
   }
 }
 
-/* Formulários - identidade do legado, leitura moderna: label simples à
-   esquerda; o azul da marca aparece no estado de foco do campo. */
+/* Formulários: label simples à esquerda; o azul da marca aparece no foco. */
 .form-group {
   margin-bottom: 18px;
   text-align: left;
@@ -1359,8 +1338,8 @@ quill-view .ql-editor {
     box-shadow 0.2s;
 }
 
-/* Só com mouse de verdade: no toque o `:hover` gruda depois do toque, e o
-   botão ficava suspenso e com sombra até o próximo toque em outro lugar. */
+/* Só com mouse de verdade: no toque o `:hover` gruda, e o botão fica suspenso
+   e com sombra até o próximo toque em outro lugar. */
 @media (hover: hover) {
   .btn:hover:not(:disabled) {
     transform: translateY(-2px);
@@ -1501,18 +1480,13 @@ quill-view .ql-editor {
 }
 
 /* ==========================================================================
-   Questionário / avaliação — trilha, progresso e rodapé de ações
-   Global (fora do budget de estilo por componente); usado pelo `Questionario`
-   nos dois modos (incubado e avaliador).
+   Questionário / avaliação — trilha, progresso e rodapé de ações.
+   Usado pelo `Questionario` nos dois modos (incubado e avaliador).
+   `--quest-pad-x` vem de `.quest-conteudo`; o fallback é só defensivo.
    ========================================================================== */
 
-/* ===== trilha, progresso e ações =====
-   Servem tanto o incubado quanto o avaliador (mesma tela, modo leitura).
-   `--quest-pad-x` vem de `.quest-conteudo`; o fallback é só defensivo. */
-
-/* Progresso e trilha grudam no topo quando a página rola: nas etapas de texto
-   longo o cartão passa da altura da tela. O fundo é opaco, e as margens
-   negativas estendem esse fundo até as bordas do container. */
+/* Progresso e trilha grudam no topo quando a página rola. O fundo é opaco, e
+   as margens negativas o estendem até as bordas do container. */
 .quest-topo {
   position: sticky;
   top: 0;
@@ -1755,11 +1729,8 @@ quill-view .ql-editor {
 }
 
 /* ==========================================================================
-   Card de avaliação do consultor (modo avaliação do Questionario)
-   Global (fora do budget de estilo por componente).
+   Card de nota do avaliador (modo avaliação do Questionario)
    ========================================================================== */
-
-/* ===== card de nota do avaliador (modo 'avaliacao') ===== */
 
 .aval-voltar {
   display: inline-block;
@@ -1773,11 +1744,8 @@ quill-view .ql-editor {
   text-decoration: underline;
 }
 
-/* Card do avaliador: fundo rosado e borda suave, para destacá-lo do conteúdo do
-   incubado. Borda no lugar da sombra do `.cartao` — casa melhor com o tom. */
-/* Card de avaliação: mesmo cartão neutro das outras telas. Antes tinha fundo e
-   borda lavanda para se separar do conteúdo do incubado; quem faz essa
-   separação agora é o rótulo ("Sua avaliação") e o lugar dele na página. */
+/* Card de avaliação: o mesmo cartão neutro das outras telas. Quem o separa do
+   conteúdo do incubado é o rótulo ("Sua avaliação") e o lugar dele na página. */
 .aval-card {
   margin-bottom: 20px;
 }
@@ -1862,8 +1830,7 @@ quill-view .ql-editor {
 }
 
 /* Cada botão carrega a classe da sua nota, então a escala aparece já em
-   repouso: borda e número no tom da nota, fundo branco. O fallback vale para
-   botão sem classe de nota, que hoje não existe. */
+   repouso: borda e número no tom da nota, fundo branco. */
 .aval-valor {
   flex: 1 1 88px;
   display: flex;
@@ -1893,9 +1860,9 @@ quill-view .ql-editor {
   color: var(--texto-suave);
 }
 
-/* O hover vale só para botão clicável e **não escolhido**: sem o
-   `:not(.aval-valor--ativo)` esta regra ganhava do estado cheio por
-   especificidade, e o número branco sumia sobre o fundo claro. */
+/* Hover só em botão clicável e não escolhido: sem o `:not(.aval-valor--ativo)`
+   esta regra ganha do estado cheio por especificidade, e o número branco some
+   sobre o fundo claro. */
 @media (hover: hover) {
   .aval-valor:not(:disabled, .aval-valor--ativo):hover {
     border-color: var(--nota-forte, var(--verde));

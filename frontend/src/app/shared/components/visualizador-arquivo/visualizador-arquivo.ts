@@ -33,18 +33,9 @@ const ROTULO: Record<Categoria, string> = {
 const RENDERIZAVEIS: readonly Categoria[] = ['imagem', 'pdf', 'texto'];
 
 /**
- * Modal de pré-visualização de anexo — o arquivo de verdade desde 28/09/2026,
- * quando o backend publicou o download como `POST`.
- *
- * O conteúdo não é buscado aqui: quem baixa é a página, que conhece a aba, e
- * entrega o `Blob` pronto. Tipo que o navegador não desenha (planilha, .docx)
- * fica só com o botão de baixar.
- *
- * No modo avaliação não há prévia nem download — e isso **não é regra de
- * produto**: o backend monta o caminho do arquivo a partir do e-mail do token,
- * então quem avalia procura na própria pasta. Medido em 28/09/2026: consultor
- * pedindo anexo de incubado recebe `404`, e a listagem da aba vem `[]`. Some
- * quando a rota de leitura de anexo alheio existir (`docs/contrato-arquivos.md`).
+ * Modal de pré-visualização de anexo. O conteúdo não é buscado aqui: a página,
+ * que conhece a aba, baixa e entrega o `Blob` pronto. Tipo que o navegador não
+ * desenha (planilha, .docx) fica só com o botão de baixar.
  */
 @Component({
   selector: 'app-visualizador-arquivo',
@@ -66,8 +57,6 @@ export class VisualizadorArquivo {
   readonly conteudo = input<Blob | null>(null);
   readonly carregando = input(false);
   readonly erro = input('');
-  /** Falso no modo avaliação: sem rota para o anexo alheio, não há o que baixar. */
-  readonly podeBaixar = input(true);
   readonly baixar = output<void>();
   readonly fechar = output<void>();
 
@@ -79,8 +68,7 @@ export class VisualizadorArquivo {
 
   /**
    * `blob:` do conteúdo, criado aqui e devolvido ao fechar. O `<img>` usa a URL
-   * crua (o sanitizador do Angular já aceita `blob:`); o `<iframe>` exige a
-   * versão marcada como recurso confiável.
+   * crua; o `<iframe>` exige a versão marcada como recurso confiável.
    */
   protected readonly url = signal<string | null>(null);
   /** O texto já lido, quando o anexo é um arquivo de texto. */
@@ -98,12 +86,10 @@ export class VisualizadorArquivo {
   );
 
   constructor() {
-    // Imagem e PDF viram `blob:`; texto é lido e desenhado como texto, porque
-    // num `<iframe>` o navegador aplica o esquema de cor dele e sai preto.
-    //
-    // O corpo inteiro vai em `untracked`: ele lê e escreve o sinal `url`, e sem
-    // isso o efeito passa a depender do que ele mesmo muda — reagenda-se sem
-    // parar e congela a aba. Só `conteudo` e `categoria`, lidos acima, disparam.
+    // Imagem e PDF viram `blob:`; texto é desenhado como texto, porque num
+    // `<iframe>` o navegador aplica o esquema de cor dele e sai preto.
+    // O corpo vai em `untracked` porque lê e escreve `url`: sem isso o efeito
+    // depende do que ele mesmo muda e se reagenda sem parar.
     effect(() => {
       const conteudo = this.conteudo();
       const categoria = this.categoria();

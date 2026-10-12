@@ -26,9 +26,8 @@ const TECLAS_NAVEGACAO = new Set([
 
 /**
  * Casca da aplicação. Além do outlet, cuida do que só existe uma vez: o atalho
- * para pular o menu, o anúncio da troca de página - numa SPA o leitor de tela
- * não percebe a navegação sozinho, e o foco fica onde estava - e o modo de
- * navegação que liga o anel de foco.
+ * para pular o menu, o anúncio da troca de página (numa SPA o leitor de tela
+ * não percebe a navegação sozinho) e o modo de navegação que liga o anel de foco.
  */
 @Component({
   selector: 'app-root',
@@ -60,9 +59,8 @@ export class App {
       .subscribe(() => {
         this.anuncio.set(this.tituloDaRota());
         // O foco só pode mudar depois que a página nova existir no DOM. Sem
-        // `preventScroll`, focar um `main` mais alto que a tela rolava a página
-        // 64px e escondia a barra do topo, com o botão Sair. Quem põe a página
-        // no topo é o roteador (`withInMemoryScrolling`).
+        // `preventScroll`, focar um `main` mais alto que a tela esconde a barra
+        // do topo; quem põe a página no topo é o roteador (`withInMemoryScrolling`).
         afterNextRender(() => document.getElementById('conteudo')?.focus({ preventScroll: true }), {
           injector: this.injector,
         });
@@ -70,10 +68,9 @@ export class App {
   }
 
   /**
-   * O anel de foco é para quem navega pelo teclado. O `:focus-visible` sozinho
-   * não basta: o Chrome também o acende quando o foco muda por código - abrir
-   * uma modal, devolver o foco ao botão que a abriu -, e quem usou o mouse via
-   * uma borda azul sem ter pedido. A classe na raiz liga e desliga o anel no CSS.
+   * O `:focus-visible` sozinho não basta: o Chrome também o acende quando o
+   * foco muda por código (abrir uma modal, devolvê-lo ao botão), e quem usa o
+   * mouse veria o anel sem ter pedido. A classe na raiz liga e desliga no CSS.
    */
   protected aoTeclar(evento: KeyboardEvent): void {
     if (TECLAS_NAVEGACAO.has(evento.key)) {

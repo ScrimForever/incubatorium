@@ -24,7 +24,7 @@ describe('VisualizadorArquivo', () => {
   /**
    * O efeito que monta a previa le e escreve o mesmo sinal `url`. Sem
    * `untracked` ele se reagenda para sempre: em producao a aba congela e aqui a
-   * deteccao de mudancas estoura. Este spec existe por causa desse bug.
+   * deteccao de mudancas estoura.
    */
   it('monta a previa de imagem sem entrar em laco de efeito', () => {
     expect(() =>
@@ -63,16 +63,6 @@ describe('VisualizadorArquivo', () => {
       'nao abre no navegador'.replace('nao', 'não'),
     );
     expect(fixture.nativeElement.querySelector('.visu-baixar')).toBeTruthy();
-  });
-
-  it('sem permissao de baixar, some o botao e o recado explica o porque', () => {
-    fixture.componentRef.setInput('podeBaixar', false);
-    abrir(anexo('plano.pdf', 'application/pdf'), null);
-
-    expect(fixture.nativeElement.querySelector('.visu-baixar')).toBeNull();
-    expect(texto(fixture.nativeElement.textContent)).toContain(
-      'falta no backend a rota que dá acesso ao arquivo de outra pessoa',
-    );
   });
 
   it('enquanto baixa, mostra o estado e nenhuma previa', () => {

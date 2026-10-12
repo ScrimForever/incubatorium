@@ -25,10 +25,8 @@ const bloqueado = (rotulo: string, icone: IconeNome, pendencia: string): ItemMen
 const SEM_AGENDA = 'aguarda os endpoints de agenda';
 
 /**
- * O menu de cada papel. Fora o avaliador (dois itens, sem cadeado), só "Visão
- * geral" e "Minha conta" existem hoje: o backend publica apenas autenticação e
- * usuários, então todo módulo de negócio entra cadeado, com o motivo à vista em
- * vez de uma tela vazia.
+ * O menu de cada papel. Módulo sem endpoint no backend entra cadeado, com o
+ * motivo à vista, em vez de uma tela vazia.
  */
 export function menuPara(role: Role): readonly ItemMenu[] {
   const visaoGeral: ItemMenu = {

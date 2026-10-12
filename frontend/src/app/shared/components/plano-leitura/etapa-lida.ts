@@ -10,10 +10,8 @@ import { CAMPOS_ETAPA_1, ETAPAS } from '../../../pages/questionario/etapas';
 import { textoParaHtml } from '../../editor/texto-para-html';
 
 /**
- * Uma etapa preenchida, pronta para leitura.
- *
- * Compartilhada entre o `plano-leitura` (as nove de uma vez, nas telas do
- * incubado) e o `plano-etapa-leitura` (uma por vez, no wizard do avaliador).
+ * Uma etapa preenchida, pronta para leitura — a unidade que o `plano-leitura`
+ * e o `plano-etapa-leitura` desenham.
  */
 export interface EtapaLida {
   readonly numero: NumeroEtapa;

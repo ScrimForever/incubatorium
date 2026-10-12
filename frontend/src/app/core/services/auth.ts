@@ -23,12 +23,8 @@ export class Auth {
   private readonly questionario = inject(QuestionarioService);
 
   /**
-   * Quem está logado, guardado para a sessão inteira.
-   *
-   * Sem isto, um único login rendia **cinco** `GET /users/me`: a tela de login,
-   * cada guard da cadeia de redirects e o `ngOnInit` da página de destino
-   * perguntavam a mesma coisa. O cache morre com a sessão (`clearSession`,
-   * `logout`) e é atualizado pelo `updateMe` — nunca fica valendo por engano.
+   * Quem está logado, guardado para a sessão inteira: login, guards e páginas
+   * pedem a mesma coisa. Morre com a sessão e é atualizado pelo `updateMe`.
    */
   private usuario: SessionUser | null = null;
   /** A requisição em voo, para chamadas simultâneas não virarem duas. */
@@ -173,22 +169,22 @@ export class Auth {
   }
 }
 
-/**
- * O papel da sessão, e o único lugar do app que o decide.
- *
- * A ordem importa: administrador primeiro, porque um admin também pode ser
- * consultor e o menu dele é o mais amplo. Os booleanos são lidos quando vêm —
- * hoje só do mock de desenvolvimento, amanhã da API (`docs/contrato-avaliacao.md`);
- * sem eles, sobra o que a API realmente devolve, que é `is_superuser`.
- */
 function toSessionUser(user: UserRead): SessionUser {
-  const role: Role =
-    user.is_superuser || user.is_admin
-      ? 'admin'
-      : user.is_consultor
-        ? 'avaliador'
-        : user.is_colaborador
-          ? 'colaborador'
-          : 'incubado';
-  return { ...user, role };
+  return { ...user, role: papelDaConta(user) };
+}
+
+/**
+ * O papel de uma conta, lido das flags da API — único lugar que o decide. O
+ * consultor do backend é o `avaliador` daqui. Com mais de uma flag, admin vence;
+ * `is_superuser` conta como admin porque é o que `/users/{id}` exige. Sem flag,
+ * incubado.
+ */
+export function papelDaConta(user: UserRead): Role {
+  if (user.is_superuser || user.is_admin) {
+    return 'admin';
+  }
+  if (user.is_consultor) {
+    return 'avaliador';
+  }
+  return user.is_colaborador ? 'colaborador' : 'incubado';
 }

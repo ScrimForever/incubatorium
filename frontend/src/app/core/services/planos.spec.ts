@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 
+import { PlanoResumo } from '../models/plano';
 import { PlanosService } from './planos';
 
 describe('PlanosService', () => {
@@ -18,20 +19,70 @@ describe('PlanosService', () => {
 
   afterEach(() => http.verify());
 
-  it('filtra a lista por status quando pedido', () => {
-    service.listar('aguardando_aprovacao').subscribe();
-    http.expectOne('/api/questionarios?status=aguardando_aprovacao').flush([]);
+  /** Dois planos como a API devolve: a linha inteira, documento junto. */
+  const TODOS = [
+    {
+      id: 1,
+      usuario_email: 'ana@teccampos.com',
+      status_questionario: 'aguardando_aprovacao',
+      criado_em: '2026-09-10T12:00:00Z',
+      atualizado_em: null,
+      json_questionario: { '1': { nome_proponente: 'Ana Souza', nome_negocio: 'NutriData' } },
+    },
+    {
+      id: 2,
+      usuario_email: 'bruno@teccampos.com',
+      status_questionario: 'iniciado',
+      criado_em: '2026-09-12T15:20:00Z',
+      json_questionario: {},
+    },
+  ];
+
+  it('filtra por status na tela, porque a rota devolve todos', () => {
+    let lista: PlanoResumo[] = [];
+    service.listar('aguardando_aprovacao').subscribe((planos) => (lista = planos));
+    http.expectOne('/api/questionario/todos').flush(TODOS);
+
+    expect(lista.map((plano) => plano.usuario_email)).toEqual(['ana@teccampos.com']);
   });
 
-  it('sem status, pede a lista inteira', () => {
-    service.listar().subscribe();
-    http.expectOne('/api/questionarios').flush([]);
+  it('resume cada plano com os nomes da etapa 1, vazios quando ela falta', () => {
+    let lista: PlanoResumo[] = [];
+    service.listar().subscribe((planos) => (lista = planos));
+    http.expectOne('/api/questionario/todos').flush(TODOS);
+
+    expect(lista).toEqual([
+      {
+        usuario_email: 'ana@teccampos.com',
+        status_questionario: 'aguardando_aprovacao',
+        criado_em: '2026-09-10T12:00:00Z',
+        atualizado_em: null,
+        nome_proponente: 'Ana Souza',
+        nome_negocio: 'NutriData',
+      },
+      {
+        usuario_email: 'bruno@teccampos.com',
+        status_questionario: 'iniciado',
+        criado_em: '2026-09-12T15:20:00Z',
+        atualizado_em: null,
+        nome_proponente: '',
+        nome_negocio: '',
+      },
+    ]);
+  });
+
+  it('o false da rota (falha de banco) vira lista vazia', () => {
+    let lista: PlanoResumo[] | undefined;
+    service.listar().subscribe((planos) => (lista = planos));
+    http.expectOne('/api/questionario/todos').flush(false);
+
+    expect(lista).toEqual([]);
   });
 
   it('escapa o e-mail na URL do plano', () => {
     service.plano('ana+teste@teccampos.com').subscribe();
-    const pedido = http.expectOne((req) => req.url.startsWith('/api/questionario/'));
-    expect(pedido.request.url).toBe('/api/questionario/ana%2Bteste%40teccampos.com');
+    const pedido = http.expectOne((req) => req.url.startsWith('/api/usuarios/'));
+    expect(pedido.request.url).toBe('/api/usuarios/ana%2Bteste%40teccampos.com/plano');
     pedido.flush({ status_questionario: 'aguardando_aprovacao', json_questionario: {} });
   });
 
@@ -39,7 +90,7 @@ describe('PlanosService', () => {
     let json: unknown;
     service.plano('ana@teccampos.com').subscribe((plano) => (json = plano.json_questionario));
 
-    http.expectOne('/api/questionario/ana%40teccampos.com').flush({
+    http.expectOne('/api/usuarios/ana%40teccampos.com/plano').flush({
       status_questionario: 'aguardando_aprovacao',
       json_questionario: { '2': { business_canvas: 'texto' } },
     });

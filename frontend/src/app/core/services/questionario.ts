@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, catchError, map, of, shareReplay, switchMap, tap, throwError } from 'rxjs';
 import { API_ROUTES } from '../constants/api-routes';
 import { Api } from '../http/api';
+import { ApiError } from '../models/auth';
 import {
   ChaveEtapa,
   JsonQuestionario,
@@ -16,30 +17,19 @@ import {
 } from '../models/questionario';
 
 /**
- * Service do Questionário Plano de Negócios.
- *
- * Três peculiaridades da API morrem aqui dentro, para que nenhuma página
- * precise conhecê-las:
- *
- *  1. `GET /questionario` responde `200 false` quando o documento não existe —
- *     não é `404`. `meu()` traduz isso em: cria com `POST` e devolve o novo.
- *  2. `POST` responde `409` se o documento já existe. Por isso ele só é chamado
- *     depois do `GET` dizer que não há nada.
- *  3. `PUT` substitui `json_questionario` inteiro — não faz merge. Toda
- *     gravação manda o documento completo, nunca um pedaço.
+ * Service do Questionário Plano de Negócios. Três peculiaridades da API morrem
+ * aqui: `GET` responde `200 false` quando não há documento (`meu()` cria com
+ * `POST`); `POST` responde `409` se já existe; `PUT` substitui o
+ * `json_questionario` inteiro, sem merge — toda gravação manda o documento completo.
  */
 @Injectable({ providedIn: 'root' })
 export class QuestionarioService {
   private readonly api = inject(Api);
 
   /**
-   * O plano guardado desta sessão. Os guards e a página pediam o mesmo
-   * documento a cada passo do redirect — um login rendia três `GET`.
-   *
-   * Toda gravação atualiza o que está guardado (é o próprio servidor quem
-   * responde o documento novo), então o status nunca envelhece por dentro do
-   * app. Mudança feita por fora — o avaliador aprovando, por exemplo — aparece
-   * no próximo carregamento ou via `recarregar()`.
+   * O plano guardado desta sessão: guards e página pedem o mesmo documento.
+   * Toda gravação atualiza o guardado com a resposta do servidor; mudança feita
+   * por fora aparece no próximo carregamento ou via `recarregar()`.
    */
   private plano: Questionario | null = null;
   /** A requisição em voo, para chamadas simultâneas não virarem duas. */
@@ -88,9 +78,20 @@ export class QuestionarioService {
     return this.enviarDocumento(temConteudo(json) ? 'pendente' : 'iniciado', json);
   }
 
-  /** Envio final: o plano sai das mãos do incubado e vai para análise. */
+  /**
+   * Envio final: o plano vai para análise. Confere o status devolvido em vez de
+   * confiar no pedido: o `PUT` ignora `status_questionario`, e sem isto a tela
+   * seguiria para a análise e o guard a devolveria ao formulário, calado.
+   */
   enviar(json: JsonQuestionario): Observable<Questionario> {
-    return this.enviarDocumento('aguardando_aprovacao', json);
+    return this.enviarDocumento('aguardando_aprovacao', json).pipe(
+      map((plano) => {
+        if (plano.status_questionario !== 'aguardando_aprovacao') {
+          throw ENVIO_NAO_REGISTRADO;
+        }
+        return plano;
+      }),
+    );
   }
 
   private criar(): Observable<Questionario> {
@@ -113,10 +114,17 @@ export class QuestionarioService {
   }
 }
 
+/** O servidor gravou o documento, mas não o status de envio. */
+const ENVIO_NAO_REGISTRADO: ApiError = {
+  code: 'ENVIO_NAO_REGISTRADO',
+  message:
+    'Suas respostas foram salvas, mas o servidor não registrou o envio para análise. ' +
+    'Tente de novo mais tarde ou avise a coordenação.',
+};
+
 /**
- * Completa o documento com o que faltar. O `json_questionario` é JSONB livre —
- * pode voltar `null`, vir de uma versão anterior do formato ou ter sido gravado
- * por outra ferramenta. A tela nunca recebe uma aba faltando.
+ * Completa o documento com o que faltar: o `json_questionario` é JSONB livre e
+ * pode voltar `null` ou num formato anterior. A tela nunca recebe aba faltando.
  */
 export function normalizar(resposta: Questionario): Questionario {
   const vazio = documentoVazio();
@@ -127,9 +135,8 @@ export function normalizar(resposta: Questionario): Questionario {
       return [chave, { ...vazio[chave], ...(recebido[chave] ?? {}) }];
     }),
   ) as unknown as JsonQuestionario;
-  // Documento gravado antes da rota de upload traz o anexo em base64. Reduzir
-  // à ficha aqui tira esse peso do próximo PUT — o conteúdo era inalcançável
-  // de todo jeito, porque nunca houve tela para baixá-lo.
+  // Documento antigo pode trazer o conteúdo do anexo em base64; reduzir à ficha
+  // tira esse peso do próximo PUT.
   for (const chave of ['6', '9'] as const) {
     json[chave].arquivos = json[chave].arquivos.map(({ nome, tipo, tamanho }) => ({
       nome,
@@ -141,8 +148,7 @@ export function normalizar(resposta: Questionario): Questionario {
     const aba = json[String(numero) as ChaveEtapa];
     aba.avaliacao = migrarAvaliacao(aba);
   }
-  // A decisão não é etapa: o `Object.fromEntries` acima só reconstrói de "1" a
-  // "9" e a deixaria cair fora do documento na próxima gravação.
+  // A decisão não é etapa: o `Object.fromEntries` acima só reconstrói "1" a "9".
   if (recebido.decisao) {
     json.decisao = recebido.decisao;
   }
@@ -150,16 +156,10 @@ export function normalizar(resposta: Questionario): Questionario {
 }
 
 /**
- * O formato da avaliação mudou duas vezes: era **uma** `nota` por aba, virou uma
- * lista `notas[]`, e desde 28/09/2026 é **um** objeto `avaliacao`, no formato que
- * o Scrim fechou para as rotas que vai publicar. Documento antigo é convertido na
- * leitura, e os campos velhos desaparecem na primeira gravação.
- *
- * Avaliação vazia não é convertida: `valor: null` com texto em branco era só o
- * lugar reservado do formato mais antigo, não uma avaliação de verdade.
- *
- * Da lista sobra a **primeira** entrada — a regra desde 26/09 é uma nota por
- * etapa, então documento com mais de uma é resto do formato anterior.
+ * Converte os formatos anteriores da avaliação (`nota` por aba e lista `notas[]`)
+ * no objeto `avaliacao`; os campos velhos somem na primeira gravação. Entrada
+ * vazia (`valor: null` sem texto) era só lugar reservado e não conta; da lista
+ * sobra a primeira, porque a regra é uma nota por etapa.
  */
 function migrarAvaliacao(aba: {
   avaliacao?: Avaliacao | null;
@@ -196,15 +196,14 @@ interface AvaliacaoAntiga {
 const preenchido = (texto: string): boolean => texto.trim().length > 0;
 
 /**
- * O documento tem alguma coisa dentro? Vale texto preenchido, membro de equipe
- * ou anexo — a nota do avaliador não conta, porque não é conteúdo do incubado.
+ * O documento tem alguma coisa dentro? Vale texto, membro de equipe ou anexo —
+ * a avaliação não conta, porque não é conteúdo do incubado.
  */
 export function temConteudo(json: JsonQuestionario): boolean {
   return NUMEROS_ETAPA.some((numero) => {
     const aba = json[String(numero) as ChaveEtapa] as unknown as Record<string, unknown>;
     return Object.entries(aba).some(([chave, valor]) => {
-      // A avaliação é do consultor, não conteúdo do incubado: sem esta saída
-      // ela promoveria um plano vazio de `iniciado` para `pendente`.
+      // Sem esta saída a avaliação promoveria um plano vazio a `pendente`.
       if (chave === 'avaliacao') {
         return false;
       }
@@ -216,11 +215,7 @@ export function temConteudo(json: JsonQuestionario): boolean {
   });
 }
 
-/**
- * Uma etapa está completa segundo as mesmas regras do sistema antigo
- * (`isStepComplete` do QuestionarioForm.jsx) — nem todas exigem tudo: a etapa 1
- * não cobra o CNPJ, e a 9 depende só do anexo.
- */
+/** Nem toda etapa exige tudo: a 1 não cobra o CNPJ, e a 9 depende só do anexo. */
 export function etapaCompleta(json: JsonQuestionario, numero: NumeroEtapa): boolean {
   switch (numero) {
     case 1:
@@ -254,15 +249,9 @@ export function etapaCompleta(json: JsonQuestionario, numero: NumeroEtapa): bool
 }
 
 /**
- * A etapa só abre quando **todas** as anteriores estão completas.
- *
- * A cascata importa: se o incubado voltar e esvaziar a etapa 4, as etapas 5 a 9
- * se fecham de novo, mesmo já preenchidas — ele precisa refazer a 4 antes de
- * seguir. Olhar só a etapa imediatamente anterior deixava um buraco: com a 4
- * vazia e a 5 cheia, a 6 continuava aberta.
- *
- * O conteúdo do que já foi respondido **não se perde**: fechar é só travar o
- * caminho; o documento segue inteiro no servidor.
+ * A etapa só abre quando todas as anteriores estão completas — não só a
+ * imediatamente anterior, senão esvaziar a 4 deixaria a 6 aberta. Fechar é só
+ * travar o caminho; o conteúdo segue inteiro no servidor.
  */
 export function etapaAcessivel(json: JsonQuestionario, numero: NumeroEtapa): boolean {
   return NUMEROS_ETAPA.filter((anterior) => anterior < numero).every((anterior) =>
@@ -271,12 +260,9 @@ export function etapaAcessivel(json: JsonQuestionario, numero: NumeroEtapa): boo
 }
 
 /**
- * Onde reabrir o questionário: a primeira etapa incompleta — e a última quando
- * já estiver tudo pronto, que é onde fica o botão de enviar.
- *
- * É o que "retomar de onde parou" significa aqui. Nada disso é gravado: a
- * trilha é travada, então as etapas completas formam sempre um prefixo, e a
- * primeira incompleta é a etapa em que o incubado estava.
+ * Onde reabrir o questionário: a primeira etapa incompleta, ou a última (onde
+ * fica o botão de enviar). Nada é gravado: como a trilha é travada, as etapas
+ * completas formam um prefixo, e a primeira incompleta é onde o incubado estava.
  */
 export function etapaParaRetomar(json: JsonQuestionario): NumeroEtapa {
   return NUMEROS_ETAPA.find((numero) => !etapaCompleta(json, numero)) ?? 9;

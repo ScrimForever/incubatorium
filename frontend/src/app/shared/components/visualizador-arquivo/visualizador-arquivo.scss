@@ -1,8 +1,6 @@
-/* Reaproveita `.overlay`/`.modal`/`.modal-*` globais; aqui só o conteúdo da
-   pré-visualização. */
-/* Bem mais larga que a modal padrão de 480px: aqui o conteúdo é um documento,
-   e PDF ou planilha em 640px obriga a pessoa a apertar os olhos. A altura
-   também acompanha a janela — o corpo é que rola, como nas outras modais. */
+/* Reaproveita `.overlay`/`.modal`/`.modal-*` globais. Bem mais larga que a
+   modal padrão porque o conteúdo é um documento; a altura acompanha a janela
+   e o corpo é que rola, como nas outras modais. */
 .visu-modal {
   width: 100%;
   max-width: min(1120px, 94vw);

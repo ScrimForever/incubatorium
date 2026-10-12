@@ -7,27 +7,29 @@ import { Questionario, StatusQuestionario } from '../models/questionario';
 import { normalizar } from './questionario';
 
 /**
- * Planos de negócio vistos por quem avalia.
- *
- * Separado do `QuestionarioService` de propósito: aquele cuida do **meu** plano
- * (guarda em cache, cria no primeiro acesso, grava o documento inteiro), e este
- * lê o plano **de outra pessoa** e grava só nota. Misturar os dois faria o cache
- * de um vazar no outro.
- *
- * Avaliar não aprova: `avaliar()` não manda status, e quem muda a situação do
- * plano é `decidir()` — rota separada, restrita à coordenação no servidor. São
- * duas ações diferentes porque são dois papéis diferentes.
+ * Planos de negócio vistos por quem avalia. Separado do `QuestionarioService`
+ * (o meu plano, com cache) para o cache de um não vazar no outro. Avaliar não
+ * aprova: `avaliar()` não manda status; quem muda a situação é `decidir()`.
  */
 @Injectable({ providedIn: 'root' })
 export class PlanosService {
   private readonly api = inject(Api);
 
-  /** A lista para escolher qual plano abrir; sem `status`, vêm todos. */
+  /**
+   * A lista de planos; sem `status`, vêm todos. O backend não filtra e devolve
+   * o documento inteiro, então filtro e resumo são feitos aqui. Em falha de
+   * banco a rota responde `false`, que vira lista vazia.
+   */
   listar(status?: StatusQuestionario): Observable<PlanoResumo[]> {
-    const url = status
-      ? `${API_ROUTES.avaliacao.planos}?status=${status}`
-      : API_ROUTES.avaliacao.planos;
-    return this.api.get<PlanoResumo[]>(url);
+    return this.api
+      .get<Questionario[] | false>(API_ROUTES.avaliacao.planos)
+      .pipe(
+        map((planos) =>
+          (planos || [])
+            .filter((plano) => !status || plano.status_questionario === status)
+            .map(resumoDe),
+        ),
+      );
   }
 
   /** O documento de um incubado, em leitura. */
@@ -37,9 +39,7 @@ export class PlanosService {
 
   /**
    * Grava a nota do avaliador numa etapa e devolve o documento atualizado.
-   *
-   * `avaliador` e `em` não vão no corpo: quem assina a nota é o token, decidido
-   * no servidor. Se fossem daqui, qualquer um assinaria em nome de outro.
+   * `avaliador` não vai no corpo: quem assina é o token, no servidor.
    */
   avaliar(email: string, nota: NotaEntrada): Observable<Questionario> {
     return this.api
@@ -48,15 +48,26 @@ export class PlanosService {
   }
 
   /**
-   * Aprova ou devolve o plano — **só a coordenação** (`is_admin`), e a trava que
-   * vale é a do servidor: a interface apenas não oferece o botão aos outros.
-   *
-   * Rota própria, separada da nota, para que nenhuma gravação de avaliador
-   * possa carregar um status junto.
+   * Aprova ou devolve o plano — só a coordenação, e a trava que vale é a do
+   * servidor. Rota separada da nota para que nenhuma gravação de avaliador
+   * carregue um status junto.
    */
   decidir(email: string, decisao: DecisaoEntrada): Observable<Questionario> {
     return this.api
       .patch<Questionario>(API_ROUTES.avaliacao.statusDe(email), decisao)
       .pipe(map(normalizar));
   }
+}
+
+/** Uma linha da lista: quem é o plano sai da etapa 1, que pode não existir ainda. */
+function resumoDe(plano: Questionario): PlanoResumo {
+  const etapa1 = plano.json_questionario?.['1'];
+  return {
+    usuario_email: plano.usuario_email ?? '',
+    status_questionario: plano.status_questionario,
+    criado_em: plano.criado_em ?? null,
+    atualizado_em: plano.atualizado_em ?? null,
+    nome_proponente: etapa1?.nome_proponente ?? '',
+    nome_negocio: etapa1?.nome_negocio ?? '',
+  };
 }
