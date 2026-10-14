@@ -7,7 +7,10 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 from src.domain.models.base_models import Base
-from src.domain.models.questionarios.questionario import Questionario  # noqa: F401
+from src.domain.models.questionarios.questionario import (  # noqa: F401
+    Questionario,
+    QuestionarioHistorico,
+)
 from src.infra.config import settings
 
 # Importar os models garante que suas tabelas estejam em Base.metadata.

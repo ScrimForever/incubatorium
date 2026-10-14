@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.domain.models.questionarios.questionario import Questionario
+from src.domain.models.questionarios.questionario import Questionario, QuestionarioHistorico
 from src.domain.schemas.questionario_schema import QuestionarioInputSchema
 from src.infra.db import User
 from src.logger import logger
@@ -43,6 +43,13 @@ class QuestionarioService:
             raise NaoEncontradoError("Questionário não encontrado.")
         if "json_questionario" in entrada.model_fields_set:
             questionario.json_questionario = entrada.json_questionario
+            self.repository.db.add(
+                QuestionarioHistorico(
+                    questionario_id=questionario.id,
+                    usuario_email=questionario.usuario_email,
+                    json_questionario=entrada.json_questionario,
+                )
+            )
         questionario.atualizado_por = self.user.email
         questionario.atualizado_em = datetime.now(UTC)
         await self.repository.salvar()
