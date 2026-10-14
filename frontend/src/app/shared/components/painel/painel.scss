@@ -96,7 +96,7 @@
   flex-direction: column;
 }
 
-/* `flex: none`: numa tela de 320px o e-mail comprido espremia o botão até 23px. */
+/* `flex: none`: sem isso um e-mail comprido espreme o botão em telas estreitas. */
 .painel-hamburguer {
   flex: none;
   display: none;

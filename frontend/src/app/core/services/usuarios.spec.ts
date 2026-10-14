@@ -11,18 +11,26 @@ const CONTA: UsuarioAdmin = {
   is_active: true,
   is_superuser: false,
   is_verified: false,
+  is_incubado: true,
+  is_admin: false,
+  is_consultor: false,
+  is_colaborador: false,
 };
 
 describe('papelDe', () => {
-  it('prefere o campo role quando ele existe', () => {
+  it('prefere o role que o mock da listagem guardou', () => {
     expect(papelDe({ ...CONTA, role: 'avaliador' })).toBe('avaliador');
   });
 
-  it('sem role, superusuário é admin', () => {
-    expect(papelDe({ ...CONTA, is_superuser: true })).toBe('admin');
+  it('conta real, sem role, lê as flags da API — como a sessão', () => {
+    const sem = { ...CONTA, is_incubado: false };
+    expect(papelDe({ ...sem, is_consultor: true })).toBe('avaliador');
+    expect(papelDe({ ...sem, is_colaborador: true })).toBe('colaborador');
+    expect(papelDe({ ...sem, is_admin: true })).toBe('admin');
+    expect(papelDe({ ...sem, is_superuser: true })).toBe('admin');
   });
 
-  it('sem role e sem superusuário, cai em incubado — o máximo que a API permite afirmar', () => {
+  it('só com is_incubado, é incubado', () => {
     expect(papelDe(CONTA)).toBe('incubado');
   });
 });

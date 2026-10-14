@@ -16,20 +16,16 @@ export const APP_ROUTES = {
   meuPlano: '/meu-plano',
   /** Lista de planos para quem avalia, e a avaliação de um deles. */
   planosDeNegocio: '/planos-de-negocio',
-  /** Sem `encodeURIComponent`: o Router escapa o segmento, e escapar duas vezes
-   *  transformava o `@` em `%2540` e o e-mail deixava de bater. */
+  /** Sem `encodeURIComponent`: o Router já escapa o segmento, e escapar duas
+   *  vezes quebra o e-mail (`@` vira `%2540`). */
   planoDe: (email: string): string => `/planos-de-negocio/${email}`,
   usuarios: '/usuarios',
   dashboard: (role: Role): string => `/dashboard/${role}`,
 } as const;
 
 /**
- * Por onde cada papel entra no sistema, depois do login e sempre que um guard
- * precisa devolver alguém ao seu lugar.
- *
- * Avaliador e consultor **não têm painel**: o trabalho deles é a lista de
- * planos, em tela cheia, e é nela que caem. Quem tem painel entra por ele.
- * Regra em um lugar só — duas cópias divergiriam na primeira mudança.
+ * Por onde cada papel entra depois do login e para onde os guards devolvem
+ * alguém. O avaliador não tem painel: cai na lista de planos.
  */
 export function entradaDe(role: Role): string {
   return role === 'avaliador' ? APP_ROUTES.planosDeNegocio : APP_ROUTES.dashboard(role);

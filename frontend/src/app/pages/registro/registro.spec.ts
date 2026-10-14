@@ -78,6 +78,10 @@ describe('Registro', () => {
         is_active: false,
         is_superuser: false,
         is_verified: false,
+        is_incubado: true,
+        is_admin: false,
+        is_consultor: false,
+        is_colaborador: false,
       },
       { status: 201, statusText: 'Created' },
     );

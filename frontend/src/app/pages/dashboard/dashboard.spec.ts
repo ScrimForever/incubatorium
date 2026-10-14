@@ -13,6 +13,10 @@ const COMUM: UserRead = {
   is_active: true,
   is_superuser: false,
   is_verified: true,
+  is_incubado: true,
+  is_admin: false,
+  is_consultor: false,
+  is_colaborador: false,
 };
 
 describe('Dashboard', () => {
@@ -66,7 +70,7 @@ describe('Dashboard', () => {
       fixture.nativeElement.querySelectorAll('.dash-pendentes li'),
     );
 
-    // Meu plano saiu da lista: o módulo já existe (contra o mock de dev).
+    // Meu plano não entra: o módulo já existe.
     expect(itens.length).toBe(2);
     expect(itens.map((li) => li.textContent)).toContain(jasmine.stringContaining('Equipe'));
   });

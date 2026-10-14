@@ -5,11 +5,9 @@ import { PlanoEtapaLeitura } from '../plano-etapa-leitura/plano-etapa-leitura';
 import { EtapaLida, montarEtapaLida } from './etapa-lida';
 
 /**
- * As nove etapas do plano em leitura, com a avaliação de cada uma.
- *
- * Compartilhado porque mais de uma tela mostra o mesmo conteúdo: o "Meu plano"
- * dentro do painel e o plano devolvido. A tela de quem avalia mostra uma etapa
- * por vez e usa direto o `plano-etapa-leitura`.
+ * As nove etapas do plano em leitura, com a avaliação de cada uma. Usado pelo
+ * "Meu plano" e pelo plano devolvido; quem avalia mostra uma etapa por vez e
+ * usa direto o `plano-etapa-leitura`.
  */
 @Component({
   selector: 'app-plano-leitura',

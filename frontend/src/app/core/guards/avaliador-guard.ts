@@ -5,11 +5,9 @@ import { APP_ROUTES, entradaDe } from '../constants/app-constants';
 import { Auth } from '../services/auth';
 
 /**
- * Planos de negócio: quem avalia e quem administra entram; o incubado, não —
- * ele não tem o que fazer no plano de outra pessoa.
- *
- * Como todo guard daqui, isto é conforto de navegação, não segurança: a trava
- * que vale é a do servidor, e ela ainda não existe (`docs/contrato-avaliacao.md`).
+ * Planos de negócio: avaliador e admin entram; o incubado, não. Como todo guard,
+ * é conforto de navegação, não segurança — a trava que vale é a do servidor, e
+ * o backend ainda não confere papel nessas rotas.
  */
 export const avaliadorGuard: CanActivateFn = () => {
   const auth = inject(Auth);

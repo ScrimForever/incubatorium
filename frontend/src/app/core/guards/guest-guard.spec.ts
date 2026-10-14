@@ -61,6 +61,10 @@ describe('guestGuard', () => {
       is_active: true,
       is_superuser: true,
       is_verified: true,
+      is_incubado: false,
+      is_admin: true,
+      is_consultor: false,
+      is_colaborador: false,
     });
   });
 

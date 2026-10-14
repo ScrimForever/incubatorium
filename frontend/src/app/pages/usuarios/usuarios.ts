@@ -49,14 +49,9 @@ const plural = (quantidade: number, singular: string, plural: string): string =>
   `${quantidade} ${quantidade === 1 ? singular : plural}`;
 
 /**
- * Usuários do sistema — administração de contas, só para superusuário.
- *
- * A lista é para varrer; a edição acontece no painel que abre ao escolher uma
- * conta, e as mudanças ficam em rascunho até o Salvar. Excluir fica à parte, com
- * confirmação.
- *
- * Ler, alterar e excluir são chamadas reais; só a lista vem do mock, porque
- * `GET /users` não existe no backend.
+ * Administração de contas, só para superusuário. A lista é para varrer; a edição
+ * acontece no painel lateral, em rascunho até o Salvar. Ler, alterar e excluir são
+ * chamadas reais; só a lista vem do mock, porque `GET /users` não existe no backend.
  */
 @Component({
   selector: 'app-usuarios',

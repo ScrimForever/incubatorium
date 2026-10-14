@@ -4,7 +4,7 @@ import { TestBed } from '@angular/core/testing';
 
 import { TokenStore } from '../auth/token-store';
 import { UserRead, SessionUser } from '../models/auth';
-import { Auth } from './auth';
+import { Auth, papelDaConta } from './auth';
 
 const USUARIO: UserRead = {
   id: '3f8c1e6a-0000-0000-0000-000000000000',
@@ -12,6 +12,10 @@ const USUARIO: UserRead = {
   is_active: true,
   is_superuser: false,
   is_verified: true,
+  is_incubado: true,
+  is_admin: false,
+  is_consultor: false,
+  is_colaborador: false,
 };
 
 /** JWT de mentira: só o payload importa, e só o campo exp dentro dele. */
@@ -73,6 +77,32 @@ describe('Auth', () => {
     backend.expectOne('/api/users/me').flush({ ...USUARIO, is_superuser: true });
 
     expect(sessao?.role).toBe('admin');
+  });
+
+  describe('papelDaConta — as flags que o /users/me devolve', () => {
+    const sem: UserRead = { ...USUARIO, is_incubado: false };
+
+    it('is_admin é admin, mesmo sem superusuário', () => {
+      expect(papelDaConta({ ...sem, is_admin: true })).toBe('admin');
+    });
+
+    it('is_consultor é o avaliador do frontend', () => {
+      expect(papelDaConta({ ...sem, is_consultor: true })).toBe('avaliador');
+    });
+
+    it('is_colaborador é colaborador', () => {
+      expect(papelDaConta({ ...sem, is_colaborador: true })).toBe('colaborador');
+    });
+
+    it('com mais de uma flag, admin vence — o menu mais amplo', () => {
+      // Conta com duas flags não deveria existir, mas o frontend precisa decidir.
+      expect(papelDaConta({ ...sem, is_admin: true, is_consultor: true })).toBe('admin');
+    });
+
+    it('flags nulas, sem nenhuma verdadeira, caem em incubado', () => {
+      const nulas = { is_incubado: null, is_admin: null, is_consultor: null, is_colaborador: null };
+      expect(papelDaConta({ ...USUARIO, ...nulas })).toBe('incubado');
+    });
   });
 
   it('manda só os campos informados no PATCH da conta', () => {

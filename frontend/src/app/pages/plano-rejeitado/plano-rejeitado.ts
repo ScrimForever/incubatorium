@@ -17,11 +17,8 @@ import { PlanoLeitura } from '../../shared/components/plano-leitura/plano-leitur
 import { TopoSessao } from '../../shared/components/topo-sessao/topo-sessao';
 
 /**
- * Plano devolvido pelo avaliador, somente leitura.
- *
- * Quem reabre o plano é o avaliador, mudando o status — não há caminho de volta
- * ao formulário por aqui. O que resta ao incubado é ler o que foi apontado em
- * cada etapa, e é isso que a tela mostra.
+ * Plano devolvido, somente leitura. Quem reabre o plano é a coordenação, mudando
+ * o status — não há caminho de volta ao formulário por aqui.
  */
 @Component({
   selector: 'app-plano-rejeitado',

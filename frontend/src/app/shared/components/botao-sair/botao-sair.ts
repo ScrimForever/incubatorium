@@ -14,10 +14,8 @@ import { Icone } from '../icone/icone';
 const FOCAVEIS = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 /**
- * O botão "Sair" das barras superiores, com a confirmação antes de encerrar a
- * sessão. Compartilhado porque o painel e as telas cheias (questionário,
- * plano em análise, plano devolvido) usam o mesmo — e um clique sem querer
- * ali descartaria o que ainda não foi salvo.
+ * Botão "Sair" das barras superiores, com confirmação antes de encerrar a
+ * sessão: um clique sem querer descartaria o que ainda não foi salvo.
  */
 @Component({
   selector: 'app-botao-sair',

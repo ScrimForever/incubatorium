@@ -5,10 +5,8 @@ import { APP_ROUTES } from '../../core/constants/app-constants';
 import { Icone } from '../../shared/components/icone/icone';
 
 /**
- * Destino do redirect do backend depois que o link do e-mail ativa a conta
- * (GET /validar_email/{email}/{codigo} → RedirectResponse). Tela estática e
- * pública: não chama a API nem lê parâmetro, só confirma e leva ao login.
- * Quem ativa é o backend — o frontend nunca chama /validar_email.
+ * Destino do redirect do backend depois que o link do e-mail ativa a conta. Tela
+ * estática e pública: não chama a API nem lê parâmetro, só confirma e leva ao login.
  */
 @Component({
   selector: 'app-conta-ativada',

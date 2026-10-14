@@ -11,9 +11,6 @@ repositório — **sem a API no ar, as telas mostram erro de conexão**.
 ```bash
 docker compose up -d
 ```
-<!-- docker compose ps -->
-<!-- docker compose stop app -->
-<!-- cd frontend; npm start -->
 
 ## Rodar
 
@@ -38,8 +35,9 @@ Sem passar pelo e-mail, ativar direto no banco:
 docker compose exec db psql -U teccampos -d teccampos -c "UPDATE \"user\" SET is_active = true WHERE email = 'alguem@teccampos.com';"
 ```
 
-Para entrar como administrador, marcar também `is_superuser = true` — é desse campo que
-o papel é derivado hoje.
+O papel vem das flags da conta: `is_superuser` ou `is_admin` é administrador,
+`is_consultor` é avaliador, `is_colaborador` é colaborador e o restante é incubado.
+Para entrar como administrador, marcar `is_superuser = true` no mesmo `UPDATE`.
 
 ## Verificar
 
@@ -67,9 +65,11 @@ npm run test:ci
 | `/meu-plano` | Plano com a avaliação por etapa | incubado, plano aprovado |
 | `/dashboard/:role` | Visão geral | incubado com plano aprovado; demais papéis |
 | `/minha-conta` | Troca de e-mail e de senha | incubado com plano aprovado; demais papéis |
+| `/planos-de-negocio` | Lista de planos para avaliar | avaliador e administrador |
+| `/planos-de-negocio/:email` | Plano de um incubado, com nota por etapa | avaliador e administrador |
 | `/usuarios` | Administração de contas | administrador |
 | `**` | Página não encontrada | pública |
-<!-- teste -->
+
 A tela do incubado logo após o login é decidida pelo status do plano: em preenchimento
 abre o questionário, enviado abre o acompanhamento, devolvido abre a tela de ajustes e
 aprovado libera o painel. Os demais papéis não passam por essa triagem.

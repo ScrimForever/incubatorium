@@ -17,9 +17,8 @@
     }
 
     @if (carregado()) {
-      <!-- Progresso e trilha grudam no topo: com a página rolada, o incubado
-           continua vendo em que etapa está e quanto falta. O título fica de
-           fora — grudado, ele comia metade da altura de um celular deitado. -->
+      <!-- Progresso e trilha grudam no topo; o título fica de fora porque, grudado,
+           comia metade da altura de um celular deitado. -->
       <div class="quest-topo">
         <div class="quest-progresso">
           <div class="quest-barra"><span [style.width.%]="progresso()"></span></div>
@@ -232,7 +231,13 @@
                 <app-icone nome="documento" />
                 Enviar arquivos
               </label>
-              <input id="anexo-mercado" type="file" multiple (change)="anexar($event, 6)" />
+              <input
+                id="anexo-mercado"
+                type="file"
+                multiple
+                [accept]="tiposAceitos"
+                (change)="anexar($event, 6)"
+              />
               @if (anexoFaltando()) {
                 <span class="field-error">Anexe o arquivo da análise de mercado.</span>
               }
@@ -246,8 +251,8 @@
                       type="button"
                       class="quest-arquivo-abrir"
                       [attr.aria-label]="'Pré-visualizar ' + arquivo.nome"
-                      title="Pré-visualizar (exemplo)"
-                      (click)="abrirPreview(arquivo)"
+                      title="Pré-visualizar"
+                      (click)="abrirPreview(arquivo, 6)"
                     >
                       <app-icone nome="documento" />
                       <span>{{ arquivo.nome }}</span>
@@ -284,7 +289,13 @@
                 <app-icone nome="documento" />
                 Enviar planilhas
               </label>
-              <input id="anexo-planilhas" type="file" multiple (change)="anexar($event, 9)" />
+              <input
+                id="anexo-planilhas"
+                type="file"
+                multiple
+                [accept]="tiposAceitos"
+                (change)="anexar($event, 9)"
+              />
               @if (anexoFaltando()) {
                 <span class="field-error">Anexe a planilha do planejamento financeiro.</span>
               }
@@ -298,8 +309,8 @@
                       type="button"
                       class="quest-arquivo-abrir"
                       [attr.aria-label]="'Pré-visualizar ' + arquivo.nome"
-                      title="Pré-visualizar (exemplo)"
-                      (click)="abrirPreview(arquivo)"
+                      title="Pré-visualizar"
+                      (click)="abrirPreview(arquivo, 9)"
                     >
                       <app-icone nome="documento" />
                       <span>{{ arquivo.nome }}</span>
@@ -325,10 +336,8 @@
         }
       </section>
 
-      <!-- Só na avaliação: o card da nota desta etapa, entre o cartão e o rodapé.
-           É sempre o MESMO layout — escala, comentário e rodapé. O que muda é se
-           está travado (nota já dada) ou aberto para edição: os dois rótulos
-           trocam de texto e os controles destravam. -->
+      <!-- Só na avaliação: o card da nota desta etapa. O layout é sempre o mesmo;
+           travado (nota já dada) ou aberto para edição, mudam só rótulos e controles. -->
       @if (ehAvaliacao()) {
         <section class="cartao aval-card" [class.aval-card--travado]="!formularioAberto()">
           <span class="aval-rotulo" id="aval-nota-rotulo">{{ rotuloAvaliacao() }}</span>
@@ -382,18 +391,13 @@
               }
               <span class="aval-dica">Dê a nota, o comentário, ou os dois.</span>
             } @else if (notaDaEtapa(); as nota) {
+              <!-- A assinatura é só o e-mail: `avaliacao` tem três campos, sem nome nem data. -->
               <span class="aval-assinatura">
                 <app-icone nome="usuario" />
                 @if (minhaDaEtapa() && !ehCoordenacao()) {
                   <strong>Você</strong>
                 } @else {
-                  @if (nota.nome) {
-                    <strong>{{ nota.nome }}</strong>
-                  }
                   <span class="aval-assinatura-email">{{ nota.avaliador }}</span>
-                }
-                @if (dataNota(nota.em)) {
-                  <time class="aval-nota-data">{{ dataNota(nota.em) }}</time>
                 }
               </span>
               @if (minhaDaEtapa() && !ehCoordenacao()) {
@@ -738,7 +742,14 @@
   </div>
 }
 
-<app-visualizador-arquivo [arquivo]="arquivoPreview()" (fechar)="fecharPreview()" />
+<app-visualizador-arquivo
+  [arquivo]="arquivoPreview()"
+  [conteudo]="conteudoPreview()"
+  [carregando]="baixandoPreview()"
+  [erro]="erroPreview()"
+  (baixar)="baixarAnexo()"
+  (fechar)="fecharPreview()"
+/>
 
 @if (decidindo(); as status) {
   <div class="overlay">

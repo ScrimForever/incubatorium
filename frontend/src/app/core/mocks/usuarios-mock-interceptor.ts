@@ -4,15 +4,10 @@ import { Role } from '../models/auth';
 import { UsuarioAdmin } from '../services/usuarios';
 
 /**
- * Backend falso da listagem de usuários, só em desenvolvimento.
- *
- * `GET /users/{id}`, `PATCH` e `DELETE` são atendidos pela API real; o que falta
- * no backend é `GET /users`, e é só isso que este arquivo responde. As contas da
- * lista são fictícias, então as ações sobre elas param aqui — id real digitado na
- * busca segue para a API e é alterado de verdade.
- *
- * Quando `GET /users` existir, apague este arquivo e a linha que o importa em
- * `environments/environment.development.ts`.
+ * Backend falso da listagem de usuários, só em desenvolvimento. Responde apenas
+ * `GET /users`, que o backend não tem, e as ações sobre as contas fictícias
+ * dessa lista; id real segue para a API. Quando `GET /users` existir, apague
+ * este arquivo e o import em `environments/environment.development.ts`.
  */
 
 /** Marca procurável no bundle, para conferir que não vaza para produção. */
@@ -40,11 +35,15 @@ function semente(): UsuarioAdmin[] {
     is_active,
     is_verified,
     is_superuser,
+    // As flags no formato da API, coerentes com o papel da conta fictícia.
+    is_incubado: role === 'incubado',
+    is_admin: role === 'admin',
+    is_consultor: role === 'avaliador',
+    is_colaborador: role === 'colaborador',
     role,
   });
 
-  // O `nome` é invenção do mock: o `User` do backend só tem e-mail (ver
-  // `docs/contrato-usuarios.md`). Sem ele, a lista cai no e-mail.
+  // O `nome` é invenção do mock: o `User` do backend só tem e-mail.
   return [
     conta('1', 'Ana Souza', 'ana.souza@teccampos.com', true, true, false, 'incubado'),
     conta('2', 'Bruno Lima', 'bruno.lima@teccampos.com', true, false, false, 'incubado'),

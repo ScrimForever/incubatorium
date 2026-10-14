@@ -40,10 +40,8 @@ export class MinhaConta implements OnInit {
   protected readonly minPassword = MIN_PASSWORD_LENGTH;
 
   /**
-   * A validação só aparece depois de tentar enviar.
-   *
-   * Antes bastava entrar e sair do campo (`touched`) para o texto vermelho
-   * surgir — cobrança de erro antes de a pessoa terminar de digitar.
+   * A validação só aparece depois de tentar enviar: cobrar no `touched` acusaria
+   * erro antes de a pessoa terminar de digitar.
    */
   protected readonly tentouEmail = signal(false);
   protected readonly tentouSenha = signal(false);

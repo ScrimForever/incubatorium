@@ -34,10 +34,10 @@ describe('errorInterceptor', () => {
   });
 
   /** Dispara uma requisição e devolve o ApiError que chegou à página. */
-  function capturar(status: number, corpo: object): ApiError {
+  function capturar(status: number, corpo: object, url = '/api/teste'): ApiError {
     let capturado: ApiError | undefined;
-    http.get('/api/teste').subscribe({ error: (err: ApiError) => (capturado = err) });
-    backend.expectOne('/api/teste').flush(corpo, { status, statusText: 'erro' });
+    http.get(url).subscribe({ error: (err: ApiError) => (capturado = err) });
+    backend.expectOne(url).flush(corpo, { status, statusText: 'erro' });
     return capturado as ApiError;
   }
 
@@ -67,16 +67,61 @@ describe('errorInterceptor', () => {
     expect(erro.message).toBe('Este recurso não existe na API.');
   });
 
-  it('403 das rotas de ativação vira ATIVACAO_RECUSADA', () => {
+  it('403 da rota de ativação vira ATIVACAO_RECUSADA', () => {
     // Corpo { "mensagem": ... }, sem `detail`: cairia em UNKNOWN sem o mapeamento.
-    const erro = capturar(403, { mensagem: false });
+    const erro = capturar(403, { mensagem: false }, '/api/reenviar_codigo/ana%40teccampos.com');
     expect(erro.code).toBe('ATIVACAO_RECUSADA');
+  });
+
+  it('403 sem detail fora da ativação não vira erro de ativação', () => {
+    const erro = capturar(403, {});
+    expect(erro.code).toBe('FORBIDDEN');
+  });
+
+  it('lê a recusa em JSON mesmo quando a requisição pedia arquivo (blob)', async () => {
+    // O download de anexo pede `blob`, e o corpo do erro chega como Blob também.
+    const resultado = new Promise<ApiError>((resolve) =>
+      http.get('/api/arquivo', { responseType: 'blob' }).subscribe({ error: resolve }),
+    );
+    const corpo = new Blob([JSON.stringify({ detail: 'Sem permissão.' })], {
+      type: 'application/json',
+    });
+    backend.expectOne('/api/arquivo').flush(corpo, { status: 403, statusText: 'Forbidden' });
+
+    const erro = await resultado;
+    expect(erro.code).toBe('FORBIDDEN');
+    expect(erro.message).toBe('Sem permissão.');
   });
 
   it('403 com código no detail mantém o código, em vez de virar ativação', () => {
     const erro = capturar(403, { detail: 'DECISAO_RESTRITA_COORDENACAO' });
     expect(erro.code).toBe('DECISAO_RESTRITA_COORDENACAO');
     expect(erro.message).toBe('Só a coordenação pode aprovar ou devolver um plano.');
+  });
+
+  it('detail em frase (rotas do projeto) vira a mensagem, não um código', () => {
+    const erro = capturar(403, { detail: 'Sem permissão para esta operação.' });
+    expect(erro.code).toBe('FORBIDDEN');
+    expect(erro.message).toBe('Sem permissão para esta operação.');
+  });
+
+  it('422 do anexo recusado mostra o motivo que a API deu', () => {
+    const motivo = "Arquivo 'teste.exe' recusado: tipo não permitido (aceitos: .pdf, .png)";
+    const erro = capturar(422, { detail: motivo });
+    expect(erro.code).toBe('UNPROCESSABLE');
+    expect(erro.message).toBe(motivo);
+  });
+
+  it('lê o { mensagem } das recusas de negócio do backend', () => {
+    const erro = capturar(409, { mensagem: 'Não é possível alterar anexos no estado atual.' });
+    expect(erro.code).toBe('CONFLICT');
+    expect(erro.message).toBe('Não é possível alterar anexos no estado atual.');
+  });
+
+  it('404 de negócio traz a frase da API; rota inexistente segue genérica', () => {
+    const erro = capturar(404, { detail: 'Incubado não encontrado.' });
+    expect(erro.code).toBe('NOT_FOUND');
+    expect(erro.message).toBe('Incubado não encontrado.');
   });
 
   it('marca API fora do ar como OFFLINE', () => {

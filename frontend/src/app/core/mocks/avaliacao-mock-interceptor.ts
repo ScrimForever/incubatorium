@@ -1,221 +1,61 @@
 import {
   HttpErrorResponse,
   HttpEvent,
+  HttpHandlerFn,
   HttpInterceptorFn,
+  HttpRequest,
   HttpResponse,
 } from '@angular/common/http';
-import { Observable, delay, map, of, throwError } from 'rxjs';
+import { Observable, catchError, delay, map, of, switchMap, tap, throwError } from 'rxjs';
+import { API_BASE, API_ROUTES } from '../constants/api-routes';
 import { UserRead } from '../models/auth';
-import { DecisaoEntrada, NotaEntrada, PlanoResumo } from '../models/plano';
+import { DecisaoEntrada, NotaEntrada } from '../models/plano';
 import {
+  Avaliacao,
   ChaveEtapa,
   DecisaoPlano,
   JsonQuestionario,
   NUMEROS_ETAPA,
-  NotaEtapa,
-  NumeroEtapa,
   Questionario,
-  StatusQuestionario,
-  documentoVazio,
 } from '../models/questionario';
+import { papelDaConta } from '../services/auth';
+import { normalizar } from '../services/questionario';
 
 /**
- * Backend falso da avaliação de planos, só em desenvolvimento.
+ * Backend falso da avaliação de planos, só em desenvolvimento. Leituras e papel
+ * são reais; aqui só o que o backend não tem (`docs/contrato-avaliacao.md`):
+ * `PATCH .../nota` (nota do avaliador) e `PATCH .../status` (decisão da
+ * coordenação). O gravado fica no `localStorage`, aplicado por cima das leituras.
  *
- * Responde as três coisas que o backend ainda não publica, no shape combinado em
- * `docs/contrato-avaliacao.md`:
+ * O backend ainda recusa (`403`) o plano alheio à coordenação; nesse caso o mock
+ * lê o mesmo documento no `/questionario/todos` real.
  *
- *  1. `GET /questionarios` — a lista de planos;
- *  2. `GET /questionario/{email}` — o documento de outra pessoa;
- *  3. `PATCH /questionario/{email}/nota` — a nota do avaliador;
- *  4. `PATCH /questionario/{email}/status` — aprovar ou devolver, só a
- *     coordenação.
- *
- * E mais uma, que é enriquecimento e não invenção: o `GET /users/me` **real**
- * passa por aqui e ganha os booleanos de papel que a API ainda não devolve, para
- * as contas de teste listadas em `PAPEIS`. Sem isso não existe avaliador para
- * entrar na tela — a API chama todo mundo de incubado.
- *
- * Avaliar continua não aprovando: a nota e a decisão são rotas separadas, e a
- * de decisão recusa quem não é admin, etapa faltando e devolução sem motivo —
- * as três travas que o backend vai precisar ter.
- *
- * Quando as rotas nascerem, apague este arquivo e a linha que o importa em
+ * Quando as rotas nascerem, apague este arquivo e o import em
  * `environments/environment.development.ts`.
  */
 
 /** Marca procurável no bundle, para conferir que não vaza para produção. */
 const MARCA = 'MOCK-AVALIACAO';
 
-const CHAVE = 'mock-avaliacao-v1';
+const CHAVE = `${MARCA}-v2`;
 const LATENCIA_MS = 300;
 
-/**
- * Quem é avaliador enquanto o `UserRead` não tem papel. São contas que já
- * existem no Postgres local — o mock só acrescenta o que a API não devolve.
- */
-const PAPEIS: Record<string, Partial<UserRead>> = {
-  'avaliador@teccampos.com': {
-    is_consultor: true,
-    especialidade: 'Mercado',
-    nome: 'Paula Ferreira',
-  },
-  'consultor@teccampos.com': {
-    is_consultor: true,
-    especialidade: 'Financeiro',
-    nome: 'Ricardo Alves',
-  },
-  // Sem `especialidade`: a coordenação decide, não avalia, e não assina nota.
-  'admin@teccampos.com': { is_admin: true },
-};
-
-/**
- * Os planos fictícios da lista. E-mail com a marca, para não confundir com real.
- * `nome_proponente`/`nome_negocio` ficam aqui e são reusados por `documentoDe()`,
- * para a lista e o detalhe nunca se contradizerem.
- */
-const PLANOS: PlanoResumo[] = [
-  {
-    usuario_email: `${MARCA}-ana.startup@teccampos.com`,
-    nome_proponente: 'Ana Souza',
-    nome_negocio: 'NutriData',
-    status_questionario: 'aguardando_aprovacao',
-    criado_em: '2026-09-10T12:00:00.000Z',
-    atualizado_em: '2026-09-18T09:30:00.000Z',
-  },
-  {
-    usuario_email: `${MARCA}-bruno.agrotech@teccampos.com`,
-    nome_proponente: 'Bruno Lima',
-    nome_negocio: 'AgroSense',
-    status_questionario: 'aguardando_aprovacao',
-    criado_em: '2026-09-12T15:20:00.000Z',
-    atualizado_em: null,
-  },
-  {
-    usuario_email: `${MARCA}-clara.saude@teccampos.com`,
-    nome_proponente: 'Clara Nunes',
-    nome_negocio: 'VidaPlus',
-    status_questionario: 'rejeitado',
-    criado_em: '2026-08-28T11:05:00.000Z',
-    atualizado_em: '2026-09-05T17:45:00.000Z',
-  },
-  // Um plano em cada situação: sem isto, três das cinco pílulas abririam
-  // sempre vazias e não dava para conferir o filtro.
-  {
-    usuario_email: `${MARCA}-diego.edu@teccampos.com`,
-    nome_proponente: 'Diego Rocha',
-    nome_negocio: 'EduLab',
-    status_questionario: 'aprovado',
-    criado_em: '2026-08-14T09:10:00.000Z',
-    atualizado_em: '2026-09-01T10:00:00.000Z',
-  },
-  {
-    usuario_email: `${MARCA}-elisa.log@teccampos.com`,
-    nome_proponente: 'Elisa Prado',
-    nome_negocio: 'RotaCerta',
-    status_questionario: 'pendente',
-    criado_em: '2026-09-20T08:00:00.000Z',
-    atualizado_em: '2026-09-24T19:30:00.000Z',
-  },
-  {
-    usuario_email: `${MARCA}-felipe.fin@teccampos.com`,
-    nome_proponente: 'Felipe Castro',
-    nome_negocio: 'CaixaCerta',
-    status_questionario: 'iniciado',
-    criado_em: '2026-09-25T13:40:00.000Z',
-    atualizado_em: null,
-  },
-];
-
-const nota = (
-  avaliador: string,
-  especialidade: string,
-  valor: NotaEtapa['valor'],
-  texto: string,
-  em: string,
-  // O nome sai do cadastro, junto do e-mail — aqui, do mapa de papéis.
-): NotaEtapa => ({ avaliador, nome: PAPEIS[avaliador]?.nome, especialidade, valor, texto, em });
-
-/** Um documento preenchido, para a tela do avaliador ter o que ler. */
-function documentoDe(email: string): JsonQuestionario {
-  const json = documentoVazio();
-  const resumo = PLANOS.find((plano) => plano.usuario_email === email);
-  json['1'] = {
-    ...json['1'],
-    nome_proponente: resumo?.nome_proponente ?? '',
-    nome_negocio: resumo?.nome_negocio ?? '',
-    setor_atuacao: 'Tecnologia',
-    cnpj: '12.345.678/0001-90',
-  };
-  json['2'].business_canvas = '<p>Proposta de valor, canais e parcerias descritos.</p>';
-  json['3'].sumario_executivo = '<p>Resumo do negócio, do problema e da solução.</p>';
-  json['5'].planejamento_produto = '<p>Roadmap de doze meses.</p>';
-  json['6'] = {
-    ...json['6'],
-    fornecedores: '<p>Três fornecedores mapeados.</p>',
-    concorrentes: '<p>Dois concorrentes diretos e um indireto.</p>',
-    analise_acao: '<p>Diferencial por atendimento.</p>',
-    // Fichas fictícias: a tela só exibe nome/tipo/tamanho (não há download), então
-    // não há disco a reconciliar — é o anexo que o avaliador enxerga no mock.
-    arquivos: [
-      { nome: 'analise-concorrentes.pdf', tipo: 'application/pdf', tamanho: 184_320 },
-      {
-        nome: 'proposta-fornecedores.docx',
-        tipo: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        tamanho: 52_736,
-      },
-    ],
-  };
-  json['7'].planejamento_marketing =
-    "<h2>Where can I get some?</h2><p>There are many variations of passages of Lorem Ipsum available, but the majority have suffered alteration in some form, by injected humour, or randomised words which don't look even slightly believable. If you are going to use a passage of Lorem Ipsum, you need to be sure there isn't anything embarrassing hidden in the middle of text. All the Lorem Ipsum generators on the Internet tend to repeat predefined chunks as necessary, making this the first true generator on the Internet. It uses a dictionary of over 200 Latin words, combined with a handful of model sentence structures, to generate Lorem Ipsum which looks reasonable. The generated Lorem Ipsum is therefore always free from repetition, injected humour, or non-characteristic words etc.</p>";
-  json['8'].planejamento_estrutura = '<p>Time de quatro pessoas.</p>';
-  json['9'].observacoes = '<p>Planilha financeira anexada.</p>';
-  json['9'].arquivos = [
-    {
-      nome: 'projecao-financeira.xlsx',
-      tipo: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      tamanho: 96_512,
-    },
-  ];
-
-  // Notas já no documento, uma por etapa: na prática a etapa é avaliada por um
-  // consultor só — quem chega depois a encontra fechada (`etapaBloqueada`). O
-  // que varia de etapa para etapa é o especialista, não a quantidade de notas.
-  if (email.includes('ana.startup')) {
-    json['2'].notas = [
-      nota(
-        'consultor@teccampos.com',
-        'Financeiro',
-        3,
-        'Canvas claro, mas a receita não aparece.',
-        '2026-09-18T09:30:00.000Z',
-      ),
-    ];
-    json['6'].notas = [
-      nota(
-        'consultor@teccampos.com',
-        'Financeiro',
-        2,
-        'Preço abaixo do custo apresentado na etapa 9.',
-        '2026-09-18T09:32:00.000Z',
-      ),
-    ];
-  }
-  return json;
-}
+const PLANO_ALHEIO = /\/usuarios\/([^/?]+)\/plano$/;
+const ESCRITA = /\/questionario\/([^/?]+)\/(nota|status)$/;
 
 interface Guardado {
-  /** email do plano → aba → a nota daquela aba (uma só, como em produção) */
-  notas: Record<string, Record<string, NotaEtapa>>;
+  /** email do plano → aba → a avaliação daquela aba (uma só, como em produção) */
+  notas: Record<string, Record<string, Avaliacao>>;
   /** email do plano → a decisão da coordenação, quando já houve uma */
-  decisoes?: Record<string, DecisaoPlano>;
+  decisoes: Record<string, DecisaoPlano>;
 }
 
 function ler(): Guardado {
   try {
-    return (JSON.parse(localStorage.getItem(CHAVE) ?? '') as Guardado) ?? { notas: {} };
+    const dados = JSON.parse(localStorage.getItem(CHAVE) ?? '') as Partial<Guardado>;
+    return { notas: dados.notas ?? {}, decisoes: dados.decisoes ?? {} };
   } catch {
-    return { notas: {} };
+    return { notas: {}, decisoes: {} };
   }
 }
 
@@ -227,33 +67,24 @@ function gravar(dados: Guardado): void {
   }
 }
 
-/** O documento com as notas que este mock já recebeu, aplicadas por cima. */
-function planoDe(email: string): Questionario {
-  const json = documentoDe(email);
-  // Nota assinada por quem é coordenação não entra: ela não avalia, e dado
-  // antigo de teste não pode contradizer a regra na tela.
-  const guardadas = Object.fromEntries(
-    Object.entries(ler().notas[email] ?? {}).filter(
-      ([, nota]) => !PAPEIS[nota.avaliador]?.is_admin,
-    ),
-  );
-  // A nota gravada substitui a da etapa, não se soma a ela: a etapa tem uma nota
-  // só, e quem a deu é quem pode regravar (a tela fecha a etapa para os outros).
-  for (const [aba, nota] of Object.entries(guardadas)) {
-    json[aba as ChaveEtapa].notas = [nota];
+/** O plano real, com as notas e a decisão que este mock já recebeu por cima. */
+function aplicar(plano: Questionario, email: string): Questionario {
+  const normalizado = normalizar(plano);
+  const json = normalizado.json_questionario;
+  const { notas, decisoes } = ler();
+  // A nota gravada substitui a da etapa: é uma por etapa, e só o autor regrava.
+  for (const [aba, avaliacao] of Object.entries(notas[email] ?? {})) {
+    json[aba as ChaveEtapa].avaliacao = avaliacao;
   }
-  const resumo = PLANOS.find((plano) => plano.usuario_email === email);
-  const decisao = ler().decisoes?.[email];
+  const decisao = decisoes[email];
   if (decisao) {
     json.decisao = decisao;
   }
   return {
-    usuario_email: email,
+    ...normalizado,
     // Decidido manda: é a decisão que move o plano de `aguardando_aprovacao`.
-    status_questionario: decisao?.status ?? resumo?.status_questionario ?? 'aguardando_aprovacao',
+    status_questionario: decisao?.status ?? normalizado.status_questionario,
     json_questionario: json,
-    criado_em: resumo?.criado_em ?? null,
-    atualizado_em: resumo?.atualizado_em ?? null,
   };
 }
 
@@ -266,136 +97,170 @@ function recusar(status: number, detalhe: string, url: string): Observable<HttpE
 
 /** Quantas das nove etapas já têm nota — a conta que libera a decisão. */
 function etapasAvaliadas(json: JsonQuestionario): number {
-  return NUMEROS_ETAPA.filter((numero) => json[String(numero) as ChaveEtapa].notas.length > 0)
+  return NUMEROS_ETAPA.filter((numero) => json[String(numero) as ChaveEtapa].avaliacao !== null)
     .length;
 }
 
 const responder = <T>(corpo: T): Observable<HttpEvent<unknown>> =>
   of(new HttpResponse({ status: 200, body: corpo }) as HttpEvent<unknown>).pipe(delay(LATENCIA_MS));
 
-export const avaliacaoMockInterceptor: HttpInterceptorFn = (req, next) => {
-  const url = decodeURIComponent(req.url);
+/** Troca o corpo de uma resposta real, deixando passar os outros eventos. */
+const trocarCorpo =
+  <T>(trocar: (corpo: T) => unknown) =>
+  (evento: HttpEvent<unknown>): HttpEvent<unknown> =>
+    evento instanceof HttpResponse ? evento.clone({ body: trocar(evento.body as T) }) : evento;
 
-  // Enriquecimento do /users/me real: a resposta é da API, só ganha o papel.
+/**
+ * O plano de `email` como o servidor o tem — pela rota de plano alheio, e pelo
+ * `/questionario/todos` quando ela recusa a coordenação.
+ */
+function planoReal(
+  req: HttpRequest<unknown>,
+  next: HttpHandlerFn,
+  email: string,
+): Observable<Questionario> {
+  const leitura = req.clone({
+    method: 'GET',
+    url: `${API_BASE}${API_ROUTES.avaliacao.planoDe(email)}`,
+    body: null,
+  });
+  return next(leitura).pipe(
+    catchError((erro: unknown) =>
+      erro instanceof HttpErrorResponse && erro.status === 403 && ehCoordenacao()
+        ? doTodos(req, next, email)
+        : throwError(() => erro),
+    ),
+    map((evento) => (evento instanceof HttpResponse ? (evento.body as Questionario) : null)),
+    // Só a resposta final interessa; os eventos de progresso não trazem corpo.
+    switchMap((plano) => (plano ? of(plano) : [])),
+  );
+}
+
+function doTodos(
+  req: HttpRequest<unknown>,
+  next: HttpHandlerFn,
+  email: string,
+): Observable<HttpEvent<unknown>> {
+  const todos = req.clone({
+    method: 'GET',
+    url: `${API_BASE}${API_ROUTES.avaliacao.planos}`,
+    body: null,
+  });
+  return next(todos).pipe(
+    switchMap((evento) => {
+      if (!(evento instanceof HttpResponse)) {
+        return of(evento);
+      }
+      const plano = ((evento.body as Questionario[] | false) || []).find(
+        (item) => item.usuario_email === email,
+      );
+      return plano ? of(evento.clone({ body: plano })) : recusar(404, 'Not Found', req.url);
+    }),
+  );
+}
+
+export const avaliacaoMockInterceptor: HttpInterceptorFn = (req, next) => {
+  const url = req.url;
+
+  // O /users/me passa intacto: o mock só anota quem está logado, que é quem
+  // assina a nota e quem decide.
   if (req.method === 'GET' && url.endsWith('/users/me')) {
     return next(req).pipe(
-      map((evento) => {
-        if (!(evento instanceof HttpResponse)) {
-          return evento;
+      tap((evento) => {
+        if (evento instanceof HttpResponse) {
+          usuarioLogado = evento.body as UserRead | null;
         }
-        const user = evento.body as UserRead | null;
-        if (!user) {
-          return evento;
-        }
-        emailLogado = user.email;
-        const extra = PAPEIS[user.email];
-        return extra ? evento.clone({ body: { ...user, ...extra } }) : evento;
       }),
     );
   }
 
-  if (req.method === 'GET' && url.includes('/questionarios')) {
-    const status = new URL(url, 'http://local').searchParams.get('status');
-    // A lista lê a decisão gravada: aprovado some de "Aguardando análise" na
-    // hora, como aconteceria com o status vindo do banco.
-    const decisoes = ler().decisoes ?? {};
-    const planos = PLANOS.map((plano) => ({
-      ...plano,
-      status_questionario: (decisoes[plano.usuario_email]?.status ??
-        plano.status_questionario) as StatusQuestionario,
-    }));
-    return responder(status ? planos.filter((p) => p.status_questionario === status) : planos);
+  // Lista real; só a situação dos planos que a coordenação já decidiu muda.
+  if (req.method === 'GET' && url.endsWith(API_ROUTES.avaliacao.planos)) {
+    return next(req).pipe(
+      map(
+        trocarCorpo<Questionario[] | false>((planos) =>
+          planos
+            ? planos.map((plano) =>
+                plano.usuario_email ? aplicar(plano, plano.usuario_email) : plano,
+              )
+            : planos,
+        ),
+      ),
+    );
   }
 
-  // Só os planos que este mock inventou; e-mail real segue para a API — que vai
-  // recusar, porque a rota não existe, e é assim que se percebe que falta backend.
-  const planoDaUrl = PLANOS.find((plano) => url.includes(plano.usuario_email));
-  if (!planoDaUrl) {
+  const alheio = req.method === 'GET' ? PLANO_ALHEIO.exec(url) : null;
+  if (alheio) {
+    const email = decodeURIComponent(alheio[1]);
+    return planoReal(req, next, email).pipe(switchMap((plano) => responder(aplicar(plano, email))));
+  }
+
+  const escrita = req.method === 'PATCH' ? ESCRITA.exec(url) : null;
+  if (!escrita) {
     return next(req);
   }
-  const email = planoDaUrl.usuario_email;
+  const email = decodeURIComponent(escrita[1]);
+  const quem = usuarioLogado?.email ?? '';
 
-  if (req.method === 'GET') {
-    return responder(planoDe(email));
-  }
-
-  if (req.method === 'PATCH' && url.endsWith('/nota')) {
+  if (escrita[2] === 'nota') {
     const entrada = req.body as NotaEntrada;
-    const dados = ler();
-    // O avaliador sai do token, não do corpo — aqui, do que o mock sabe do
-    // usuário logado. No backend será o `current_active_user`.
-    const avaliador = avaliadorLogado();
-    // Quem decide não avalia: a separação entre os dois papéis vale nas duas
-    // direções, e não só na tela (que já não oferece o formulário ao admin).
-    if (PAPEIS[avaliador]?.is_admin) {
+    // Quem decide não avalia: a separação dos papéis vale também no servidor.
+    if (ehCoordenacao()) {
       return recusar(403, 'AVALIACAO_RESTRITA_CONSULTOR', req.url);
     }
-    // Uma nota por etapa: o primeiro avaliador fecha a etapa, e só ele regrava.
-    // A tela já não oferece o formulário nesse caso (`etapaBloqueada`) — aqui é
-    // a mesma regra do lado do servidor, que é onde ela precisa valer.
-    const jaNoDocumento =
-      planoDe(email).json_questionario[String(entrada.aba) as ChaveEtapa].notas[0];
-    if (jaNoDocumento && jaNoDocumento.avaliador !== avaliador) {
-      return recusar(409, 'ETAPA_JA_AVALIADA', req.url);
-    }
-    dados.notas[email] = {
-      ...(dados.notas[email] ?? {}),
-      [String(entrada.aba as NumeroEtapa)]: {
-        avaliador,
-        nome: PAPEIS[avaliador]?.nome,
-        especialidade: entrada.especialidade,
-        valor: entrada.valor,
-        texto: entrada.texto,
-        em: new Date().toISOString(),
-      },
-    };
-    gravar(dados);
-    return responder(planoDe(email));
+    return planoReal(req, next, email).pipe(
+      switchMap((plano) => {
+        // Uma nota por etapa: o primeiro avaliador fecha a etapa, e só ele regrava.
+        const aba = String(entrada.aba) as ChaveEtapa;
+        const jaNoDocumento = aplicar(plano, email).json_questionario[aba].avaliacao;
+        if (jaNoDocumento && jaNoDocumento.avaliador !== quem) {
+          return recusar(409, 'ETAPA_JA_AVALIADA', req.url);
+        }
+        const dados = ler();
+        dados.notas[email] = {
+          ...(dados.notas[email] ?? {}),
+          [aba]: { avaliador: quem, nota: entrada.nota, comentario: entrada.comentario },
+        };
+        gravar(dados);
+        return responder(aplicar(plano, email));
+      }),
+    );
   }
 
-  // Aprovar ou devolver. As três recusas aqui são as que o backend precisa ter:
-  // sem elas, a regra de quem decide viveria só na interface.
-  if (req.method === 'PATCH' && url.endsWith('/status')) {
-    const entrada = req.body as DecisaoEntrada;
-    const quem = avaliadorLogado();
-    if (!PAPEIS[quem]?.is_admin) {
-      return recusar(403, 'DECISAO_RESTRITA_COORDENACAO', req.url);
-    }
-    const plano = planoDe(email);
-    if (etapasAvaliadas(plano.json_questionario) < NUMEROS_ETAPA.length) {
-      return recusar(409, 'ETAPAS_PENDENTES', req.url);
-    }
-    const justificativa = entrada.justificativa.trim();
-    if (entrada.status === 'rejeitado' && !justificativa) {
-      return recusar(400, 'JUSTIFICATIVA_OBRIGATORIA', req.url);
-    }
-    const dados = ler();
-    dados.decisoes = {
-      ...(dados.decisoes ?? {}),
-      [email]: {
+  // Aprovar ou devolver. As três recusas são as que o backend precisa ter.
+  const entrada = req.body as DecisaoEntrada;
+  if (!ehCoordenacao()) {
+    return recusar(403, 'DECISAO_RESTRITA_COORDENACAO', req.url);
+  }
+  return planoReal(req, next, email).pipe(
+    switchMap((plano) => {
+      if (etapasAvaliadas(aplicar(plano, email).json_questionario) < NUMEROS_ETAPA.length) {
+        return recusar(409, 'ETAPAS_PENDENTES', req.url);
+      }
+      const justificativa = entrada.justificativa.trim();
+      if (entrada.status === 'rejeitado' && !justificativa) {
+        return recusar(400, 'JUSTIFICATIVA_OBRIGATORIA', req.url);
+      }
+      const dados = ler();
+      dados.decisoes[email] = {
         status: entrada.status,
         por: quem,
         em: new Date().toISOString(),
         justificativa: entrada.status === 'rejeitado' ? justificativa : '',
-      },
-    };
-    gravar(dados);
-    return responder(planoDe(email));
-  }
-
-  return next(req);
+      };
+      gravar(dados);
+      return responder(aplicar(plano, email));
+    }),
+  );
 };
 
 /**
- * Quem está avaliando, na falta de servidor: o e-mail que o `/users/me` real
- * trouxe na passagem por aqui.
- *
- * Não serve ler o `sub` do JWT — no fastapi-users ele é o id, não o e-mail. E
- * não serve injetar o `Auth`, que depende do `Api`, que passa por este
- * interceptor. No backend isto será o `current_active_user`.
+ * Quem está logado, anotado do `/users/me` real. O `sub` do JWT é o id, não o
+ * e-mail, e injetar o `Auth` criaria ciclo (ele passa por este interceptor).
  */
-let emailLogado = '';
+let usuarioLogado: UserRead | null = null;
 
-function avaliadorLogado(): string {
-  return emailLogado || 'avaliador@teccampos.com';
+/** A coordenação, pela mesma regra da sessão (`papelDaConta`). */
+function ehCoordenacao(): boolean {
+  return !!usuarioLogado && papelDaConta(usuarioLogado) === 'admin';
 }

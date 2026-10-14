@@ -8,11 +8,9 @@ import { Icone } from '../icone/icone';
 import { EtapaLida } from '../plano-leitura/etapa-lida';
 
 /**
- * Uma etapa do plano em leitura, com a avaliação dela.
- *
- * É o cartão que o `plano-leitura` repete nas telas do incubado e que o wizard
- * do avaliador mostra uma por vez. O rodapé opcional recebe o número da etapa —
- * é por onde a tela de avaliação encaixa o formulário da nota.
+ * Uma etapa do plano em leitura, com a avaliação dela. O rodapé opcional
+ * recebe o número da etapa — é por onde a tela de avaliação encaixa o
+ * formulário da nota.
  */
 @Component({
   selector: 'app-plano-etapa-leitura',

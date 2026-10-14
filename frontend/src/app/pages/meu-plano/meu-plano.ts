@@ -20,12 +20,9 @@ import { Painel } from '../../shared/components/painel/painel';
 import { PlanoLeitura } from '../../shared/components/plano-leitura/plano-leitura';
 
 /**
- * Meu plano — item do painel, e portanto só do incubado com o plano aprovado.
- * Os estados anteriores têm telas próprias: `/aguardando-aprovacao` e
- * `/plano-rejeitado`.
- *
- * Aqui o plano aparece no mesmo formato do formulário, reduzido e somente
- * leitura, com a avaliação do consultor em cada etapa.
+ * Meu plano — item do painel, só para o incubado com o plano aprovado; os estados
+ * anteriores têm telas próprias (`/aguardando-aprovacao` e `/plano-rejeitado`).
+ * Mostra o plano em leitura, com a avaliação do consultor em cada etapa.
  */
 @Component({
   selector: 'app-meu-plano',

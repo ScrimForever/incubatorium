@@ -20,11 +20,8 @@ import { Icone } from '../../shared/components/icone/icone';
 import { Painel } from '../../shared/components/painel/painel';
 
 /**
- * Uma linha da lista, com o que já dá para mostrar sem abrir o documento.
- *
- * **Sem e-mail**: quem avalia reconhece o plano pelo negócio e por quem o
- * propôs; o e-mail é chave de rota, não identidade de tela — ele continua na
- * URL, que é onde serve para alguma coisa.
+ * Uma linha da lista. Sem e-mail à vista: quem avalia reconhece o plano pelo
+ * negócio e pelo proponente; o e-mail é chave de rota e fica só na URL.
  */
 interface Linha extends PlanoResumo {
   readonly rotuloStatus: string;
@@ -36,13 +33,9 @@ interface Linha extends PlanoResumo {
 }
 
 /**
- * Um filtro por situação real do plano, na ordem do fluxo, com os rótulos
- * oficiais (`ROTULO_STATUS`) — nada de nome inventado aqui, senão a pílula diz
- * uma coisa e o selo do cartão diz outra. "Todos" fecha a lista, como na tela
- * de usuários.
- *
- * Os cinco aparecem, inclusive `iniciado` e `pendente`: eles ainda estão com o
- * incubado, mas existem, e quem coordena precisa enxergar quem nem começou.
+ * Filtros por situação real do plano, na ordem do fluxo e com os rótulos oficiais
+ * (`ROTULO_STATUS`), para a pílula e o selo dizerem a mesma coisa. `iniciado` e
+ * `pendente` entram porque quem coordena precisa ver quem nem começou.
  */
 const FILTROS: readonly { valor: StatusQuestionario | 'todos'; rotulo: string }[] = [
   ...(['aguardando_aprovacao', 'rejeitado', 'aprovado', 'pendente', 'iniciado'] as const).map(

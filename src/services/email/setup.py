@@ -34,7 +34,7 @@ class EmailSetup:
         )
         params: resend.Emails.SendParams = {
             "from": "Acme <onboarding@resend.dev>",
-            "to": "thiago.salgado.monteiro@gmail.com",
+            "to": "maicon.kistemmacher@gmail.com",
             "subject": "Tec Campos - Reativação de senha.",
             "html": html_renderizado,
         }
@@ -69,7 +69,7 @@ class EmailSetup:
         )
         params: resend.Emails.SendParams = {
             "from": "Acme <onboarding@resend.dev>",
-            "to": "thiago.salgado.monteiro@gmail.com",
+            "to": "maicon.kistemmacher@gmail.com",
             "subject": "Tec Campos - Email de Ativação.",
             "html": html_renderizado,
         }

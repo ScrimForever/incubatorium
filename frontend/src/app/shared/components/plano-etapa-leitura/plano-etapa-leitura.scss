@@ -32,8 +32,8 @@
   font-style: italic;
 }
 
-/* `minmax(0, 1fr)`: a coluna automática crescia até o nome de arquivo mais
-   comprido e empurrava a lista para fora da tela do celular. */
+/* `minmax(0, 1fr)`: a coluna automática cresce até o nome de arquivo mais
+   comprido e empurra a lista para fora da tela do celular. */
 .plano-arquivos {
   margin-top: 14px;
   list-style: none;
@@ -69,8 +69,8 @@
   gap: 8px;
 }
 
-/* Uma por consultor, empilhadas — o plano pode ter vários avaliadores. Cartão
-   neutro, como o resto do sistema: a cor da nota fica no selo, não na borda. */
+/* Cartão neutro, como o resto do sistema: a cor da nota fica no selo, não na
+   borda. */
 .plano-nota {
   padding: 14px 16px;
   border: 1px solid var(--borda-input);

@@ -118,9 +118,9 @@ export const routes: Routes = [
   },
   {
     /**
-     * O e-mail de redefinição manda o token na raiz — `localhost:3000/<token>`,
-     * sem nome de rota. Última antes do `**`, então só pega segmento que não
-     * seja nenhuma rota nomeada; sem cara de JWT, segue para a não encontrada.
+     * O e-mail de redefinição manda o token na raiz (`/<token>`), sem nome de
+     * rota. Última antes do `**`: segmento com cara de JWT vai para a
+     * redefinição; o resto, para a página não encontrada.
      */
     path: ':token',
     redirectTo: (rota) => {

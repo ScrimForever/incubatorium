@@ -4,11 +4,8 @@ import { Icone } from '../../shared/components/icone/icone';
 import { TopoSessao } from '../../shared/components/topo-sessao/topo-sessao';
 
 /**
- * Plano enviado, à espera do avaliador.
- *
- * Não há o que preencher nem para onde navegar: o documento saiu das mãos do
- * incubado e o painel só abre com o plano aprovado. Por isso é tela cheia sem
- * menu, e sem as notas — nesta altura ainda não existe nenhuma.
+ * Plano enviado, à espera do avaliador. Não há o que preencher nem para onde
+ * navegar (o painel só abre com o plano aprovado): tela cheia, sem menu e sem notas.
  */
 @Component({
   selector: 'app-aguardando-aprovacao',

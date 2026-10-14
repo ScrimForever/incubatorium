@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 
+import { ApiError } from '../models/auth';
 import { Anexo, JsonQuestionario, Questionario, documentoVazio } from '../models/questionario';
 import {
   QuestionarioService,
@@ -30,7 +31,7 @@ const resposta = (json: JsonQuestionario): Questionario => ({
 describe('etapaCompleta', () => {
   it('etapa 1 exige proponente, negócio e setor — mas não o CNPJ', () => {
     const json = documentoVazio();
-    json['1'].nome_proponente = 'Maicon';
+    json['1'].nome_proponente = 'Ana';
     json['1'].nome_negocio = 'TecCampos Labs';
     expect(etapaCompleta(json, 1)).toBeFalse();
 
@@ -59,7 +60,7 @@ describe('etapaCompleta', () => {
     json['4'].equipe = [
       {
         id: 'm1',
-        nome: 'Maicon',
+        nome: 'Ana',
         formacao_academica: 'Computação',
         experiencia: '',
         email: 'maicon@teccampos.com',
@@ -97,7 +98,7 @@ describe('etapaAcessivel', () => {
 
   it('esvaziar uma etapa fecha todas as seguintes, mesmo preenchidas', () => {
     const json = documentoVazio();
-    json['1'].nome_proponente = 'Maicon';
+    json['1'].nome_proponente = 'Ana';
     json['1'].nome_negocio = 'TecCampos';
     json['1'].setor_atuacao = 'TI';
     json['2'].business_canvas = 'canvas';
@@ -140,7 +141,7 @@ describe('etapaAcessivel', () => {
     const json = documentoVazio();
     expect(etapaAcessivel(json, 2)).toBeFalse();
 
-    json['1'].nome_proponente = 'Maicon';
+    json['1'].nome_proponente = 'Ana';
     json['1'].nome_negocio = 'TecCampos Labs';
     json['1'].setor_atuacao = 'TI';
     expect(etapaAcessivel(json, 2)).toBeTrue();
@@ -167,7 +168,7 @@ describe('etapaParaRetomar', () => {
   const completarAte = (json: ReturnType<typeof documentoVazio>, ate: number): void => {
     const textos: Record<number, () => void> = {
       1: () => {
-        json['1'].nome_proponente = 'Maicon';
+        json['1'].nome_proponente = 'Ana';
         json['1'].nome_negocio = 'TecCampos';
         json['1'].setor_atuacao = 'TI';
       },
@@ -253,15 +254,11 @@ describe('temConteudo', () => {
 
   it('a nota do avaliador nao conta como conteudo do incubado', () => {
     const json = documentoVazio();
-    json['1'].notas = [
-      {
-        avaliador: 'consultor@teccampos.com',
-        especialidade: 'Mercado',
-        valor: 5,
-        texto: 'otimo',
-        em: '2026-09-23T18:00:00.000Z',
-      },
-    ];
+    json['1'].avaliacao = {
+      avaliador: 'consultor@teccampos.com',
+      nota: 5,
+      comentario: 'otimo',
+    };
     expect(temConteudo(json)).toBeFalse();
   });
 });
@@ -275,11 +272,11 @@ describe('normalizar', () => {
 
     const json = normalizar(parcial).json_questionario;
     expect(json['2'].business_canvas).toBe('texto');
-    expect(json['2'].notas).toEqual([]);
+    expect(json['2'].avaliacao).toBeNull();
     expect(json['9'].arquivos).toEqual([]);
   });
 
-  it('migra a nota singular do formato antigo para a lista', () => {
+  it('migra a nota singular do formato mais antigo para `avaliacao`', () => {
     const antigo = {
       status_questionario: 'rejeitado',
       json_questionario: {
@@ -291,15 +288,11 @@ describe('normalizar', () => {
     } as unknown as Questionario;
 
     const json = normalizar(antigo).json_questionario;
-    expect(json['3'].notas).toEqual([
-      {
-        avaliador: 'consultor@teccampos.com',
-        especialidade: '',
-        valor: 4,
-        texto: 'bom',
-        em: '',
-      },
-    ]);
+    expect(json['3'].avaliacao).toEqual({
+      avaliador: 'consultor@teccampos.com',
+      nota: 4,
+      comentario: 'bom',
+    });
     // O campo velho não pode sobrar: ele voltaria no próximo PUT.
     expect((json['3'] as unknown as Record<string, unknown>)['nota']).toBeUndefined();
   });
@@ -312,23 +305,42 @@ describe('normalizar', () => {
       },
     } as unknown as Questionario;
 
-    expect(normalizar(antigo).json_questionario['5'].notas).toEqual([]);
+    expect(normalizar(antigo).json_questionario['5'].avaliacao).toBeNull();
   });
 
-  it('documento no formato novo passa sem mexer nas notas', () => {
-    const nota = {
-      avaliador: 'ana@teccampos.com',
-      especialidade: 'Mercado',
-      valor: 3 as const,
-      texto: 'ok',
-      em: '2026-09-23T18:00:00.000Z',
-    };
-    const novo = {
+  it('migra a lista `notas[]` do formato intermediario, ficando com a primeira', () => {
+    const antigo = {
       status_questionario: 'aguardando_aprovacao',
-      json_questionario: { '6': { fornecedores: 'x', notas: [nota] } },
+      json_questionario: {
+        '6': {
+          fornecedores: 'x',
+          notas: [
+            {
+              avaliador: 'ana@teccampos.com',
+              especialidade: 'Mercado',
+              valor: 3,
+              texto: 'ok',
+              em: '2026-09-23T18:00:00.000Z',
+            },
+          ],
+        },
+      },
     } as unknown as Questionario;
 
-    expect(normalizar(novo).json_questionario['6'].notas).toEqual([nota]);
+    const aba = normalizar(antigo).json_questionario['6'];
+    expect(aba.avaliacao).toEqual({ avaliador: 'ana@teccampos.com', nota: 3, comentario: 'ok' });
+    // A lista velha nao pode sobrar: ela voltaria no proximo PUT.
+    expect((aba as unknown as Record<string, unknown>)['notas']).toBeUndefined();
+  });
+
+  it('documento ja no formato atual passa sem ser mexido', () => {
+    const avaliacao = { avaliador: 'ana@teccampos.com', nota: 5 as const, comentario: 'otimo' };
+    const novo = {
+      status_questionario: 'aguardando_aprovacao',
+      json_questionario: { '6': { fornecedores: 'x', avaliacao } },
+    } as unknown as Questionario;
+
+    expect(normalizar(novo).json_questionario['6'].avaliacao).toEqual(avaliacao);
   });
 
   it('aguenta json_questionario nulo', () => {
@@ -407,7 +419,17 @@ describe('QuestionarioService', () => {
     const req = backend.expectOne('/api/questionario');
     expect(req.request.method).toBe('PUT');
     expect(req.request.body.status_questionario).toBe('aguardando_aprovacao');
-    req.flush(resposta(documentoVazio()));
+    req.flush({ status_questionario: 'aguardando_aprovacao', json_questionario: documentoVazio() });
+  });
+
+  it('envio que o servidor nao registrou vira erro, em vez de sucesso calado', () => {
+    // O PUT ignora o status: responde 200 com o plano ainda pendente.
+    let erro: ApiError | undefined;
+    service.enviar(documentoVazio()).subscribe({ error: (e: ApiError) => (erro = e) });
+
+    backend.expectOne('/api/questionario').flush(resposta(documentoVazio()));
+
+    expect(erro?.code).toBe('ENVIO_NAO_REGISTRADO');
   });
 
   describe('cache do plano', () => {

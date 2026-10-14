@@ -28,11 +28,12 @@ import {
   CLASSE_NOTA,
   ChaveEtapa,
   DecisaoPlano,
+  EXTENSOES_ANEXO,
   JsonQuestionario,
   MAXIMO_ANEXOS_POR_ETAPA,
   MembroEquipe,
   NUMEROS_ETAPA,
-  NotaEtapa,
+  Avaliacao,
   NumeroEtapa,
   ROTULO_NOTA,
   ROTULO_STATUS,
@@ -54,6 +55,7 @@ import {
 import { Icone } from '../../shared/components/icone/icone';
 import { TopoSessao } from '../../shared/components/topo-sessao/topo-sessao';
 import { VisualizadorArquivo } from '../../shared/components/visualizador-arquivo/visualizador-arquivo';
+import { salvarComo } from '../../shared/salvar-como';
 import {
   acessibilizarEditor,
   manterMenusNaTela,
@@ -85,14 +87,9 @@ interface Passo {
 }
 
 /**
- * Questionário Plano de Negócios — a primeira tela do incubado.
- *
- * Ocupa a tela inteira, sem o menu lateral: enquanto o plano não é enviado não
- * há mais nada a fazer no sistema.
- *
- * O estado é um documento só (`json_questionario`), com uma entrada por
- * aba, de "1" a "9". Toda gravação manda o documento inteiro, porque o `PUT`
- * do backend substitui o JSON em vez de fazer merge.
+ * Questionário Plano de Negócios, em tela cheia e sem menu. O estado é um
+ * documento só (`json_questionario`), com uma entrada por aba de "1" a "9";
+ * toda gravação manda o documento inteiro, porque o `PUT` substitui o JSON.
  */
 @Component({
   selector: 'app-questionario',
@@ -123,13 +120,14 @@ export class Questionario implements OnInit {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   /**
-   * `'edicao'` (padrão): o incubado preenchendo o próprio plano. `'avaliacao'`:
-   * um consultor lendo o plano de outra pessoa — a mesma tela, bloqueada para
-   * edição, com o card de nota por etapa. Vem do `data.modo` da rota.
+   * `'edicao'` (padrão): o incubado preenche o próprio plano. `'avaliacao'`: a mesma
+   * tela bloqueada para edição, com o card de nota por etapa. Vem do `data.modo` da rota.
    */
   readonly modo = input<'edicao' | 'avaliacao'>('edicao');
   /** No modo avaliação, o e-mail do dono do plano (`:email` da rota). */
   readonly email = input('');
+  /** O `accept` dos seletores de anexo: a lista do backend, para o navegador já filtrar. */
+  protected readonly tiposAceitos = EXTENSOES_ANEXO.join(',');
   protected readonly ehAvaliacao = computed(() => this.modo() === 'avaliacao');
   protected readonly voltarLista = APP_ROUTES.planosDeNegocio;
 
@@ -150,10 +148,18 @@ export class Questionario implements OnInit {
   protected readonly confirmandoEnvio = signal(false);
   /** Anexo aberto no modal de pré-visualização; `null` quando fechado. */
   protected readonly arquivoPreview = signal<Anexo | null>(null);
+  /** A etapa de onde o anexo aberto veio — a rota de download precisa da aba. */
+  private readonly abaPreview = signal<NumeroEtapa>(6);
   /**
-   * Só depois de tentar avançar os campos vazios ficam vermelhos. Antes disso
-   * a etapa recém-aberta apareceria toda em erro, o que assusta sem ajudar.
-   * A borda por `:focus`/`blur` é do CSS e não depende deste sinal.
+   * Conteúdo do anexo aberto, para a modal desenhar o arquivo de verdade. Fica
+   * `null` enquanto baixa, quando falha e sempre no modo avaliação.
+   */
+  protected readonly conteudoPreview = signal<Blob | null>(null);
+  protected readonly baixandoPreview = signal(false);
+  protected readonly erroPreview = signal('');
+  /**
+   * Os campos vazios só ficam vermelhos depois de tentar avançar; antes, a etapa
+   * recém-aberta apareceria toda em erro. A borda por `:focus`/`blur` é do CSS.
    */
   protected readonly tentouAvancar = signal(false);
 
@@ -164,8 +170,6 @@ export class Questionario implements OnInit {
   protected readonly valores: readonly (1 | 2 | 3 | 4 | 5)[] = [1, 2, 3, 4, 5];
   protected readonly rotuloNota = ROTULO_NOTA;
   protected readonly classeNota = CLASSE_NOTA;
-  /** A especialidade que assina as notas; vem do `UserRead` e é editável aqui. */
-  protected readonly especialidade = signal('');
   /** Rascunho local da nota por etapa, antes de gravar. */
   protected readonly escolhido = signal<Record<string, 1 | 2 | 3 | 4 | 5 | null>>({});
   protected readonly comentario = signal<Record<string, string>>({});
@@ -174,39 +178,29 @@ export class Questionario implements OnInit {
   /** Etapa cuja nota já gravada foi reaberta para edição. */
   protected readonly editandoNota = signal<NumeroEtapa | null>(null);
 
-  /** A minha nota em cada etapa, para o card abrir preenchido. */
-  protected readonly minhas = computed<Map<string, NotaEtapa>>(() => {
+  /** A minha avaliação em cada etapa, para o card abrir preenchido. */
+  protected readonly minhas = computed<Map<string, Avaliacao>>(() => {
     const email = this.user()?.email;
     const json = this.json();
-    const minhas = new Map<string, NotaEtapa>();
+    const minhas = new Map<string, Avaliacao>();
     for (const numero of NUMEROS_ETAPA) {
       const chave = String(numero);
-      const minha = json[chave as ChaveEtapa].notas.find((nota) => nota.avaliador === email);
-      if (minha) {
-        minhas.set(chave, minha);
+      const avaliacao = json[chave as ChaveEtapa].avaliacao;
+      if (avaliacao && avaliacao.avaliador === email) {
+        minhas.set(chave, avaliacao);
       }
     }
     return minhas;
   });
 
-  /**
-   * Todas as avaliações da etapa aberta — inclusive a minha, que passa a aparecer
-   * na lista assim que é salva (o formulário abaixo segue editável para trocá-la).
-   */
-  protected readonly avaliacoesDaEtapa = computed<readonly NotaEtapa[]>(() => {
-    const chave = String(this.numero()) as ChaveEtapa;
-    return this.json()[chave].notas;
-  });
-
-  /** A minha nota da etapa aberta, quando já gravada. */
-  protected readonly minhaDaEtapa = computed<NotaEtapa | null>(
+  /** A minha avaliação da etapa aberta, quando já gravada. */
+  protected readonly minhaDaEtapa = computed<Avaliacao | null>(
     () => this.minhas().get(String(this.numero())) ?? null,
   );
 
   /**
    * O formulário aparece quando ainda não avaliei esta etapa ou quando pedi para
-   * editar. Com a nota gravada e fora da edição, o card mostra só a leitura — os
-   * dois juntos faziam a mesma nota parecer duas.
+   * editar; com nota gravada e fora da edição, o card mostra só a leitura.
    */
   protected readonly formularioAberto = computed(
     () =>
@@ -230,8 +224,8 @@ export class Questionario implements OnInit {
   }
 
   /** A nota desta etapa: a minha, ou a de quem avaliou antes — a etapa tem uma só. */
-  protected readonly notaDaEtapa = computed<NotaEtapa | null>(
-    () => this.avaliacoesDaEtapa()[0] ?? null,
+  protected readonly notaDaEtapa = computed<Avaliacao | null>(
+    () => this.json()[String(this.numero()) as ChaveEtapa].avaliacao,
   );
 
   /**
@@ -240,11 +234,11 @@ export class Questionario implements OnInit {
    * pelo rascunho.
    */
   protected readonly valorEmTela = computed<1 | 2 | 3 | 4 | 5 | null>(() =>
-    this.formularioAberto() ? this.valorDe(this.numero()) : (this.notaDaEtapa()?.valor ?? null),
+    this.formularioAberto() ? this.valorDe(this.numero()) : (this.notaDaEtapa()?.nota ?? null),
   );
 
   protected readonly textoEmTela = computed(() =>
-    this.formularioAberto() ? this.textoDe(this.numero()) : (this.notaDaEtapa()?.texto ?? ''),
+    this.formularioAberto() ? this.textoDe(this.numero()) : (this.notaDaEtapa()?.comentario ?? ''),
   );
 
   /** Os dois rótulos do card: é por eles que se sabe em que estado ele está. */
@@ -277,17 +271,12 @@ export class Questionario implements OnInit {
   });
 
   /**
-   * Cada etapa só pode ser avaliada uma vez: se já existe nota de **outro**
-   * consultor e eu não tenho a minha, a etapa vira só leitura (sem formulário).
-   * O autor da nota continua podendo editar a dele.
+   * Cada etapa só pode ser avaliada uma vez: nota de outro consultor trava o
+   * formulário; o autor continua podendo editar a dele.
    */
   protected readonly etapaBloqueada = computed(() => {
-    const notas = this.avaliacoesDaEtapa();
-    if (notas.length === 0) {
-      return false;
-    }
-    const eu = this.user()?.email;
-    return !notas.some((nota) => nota.avaliador === eu);
+    const avaliacao = this.notaDaEtapa();
+    return avaliacao !== null && avaliacao.avaliador !== this.user()?.email;
   });
 
   // ----- decisão da coordenação (aprovar / devolver) -----
@@ -307,7 +296,7 @@ export class Questionario implements OnInit {
   /** Quantas das nove etapas já receberam nota, de qualquer avaliador. */
   protected readonly etapasAvaliadas = computed(
     () =>
-      NUMEROS_ETAPA.filter((numero) => this.json()[String(numero) as ChaveEtapa].notas.length > 0)
+      NUMEROS_ETAPA.filter((numero) => this.json()[String(numero) as ChaveEtapa].avaliacao !== null)
         .length,
   );
 
@@ -321,11 +310,9 @@ export class Questionario implements OnInit {
   /** Média das notas pontuadas do plano, para a barra resumir a leitura. */
   protected readonly mediaDoPlano = computed(() => {
     const json = this.json();
-    const valores = NUMEROS_ETAPA.flatMap((numero) =>
-      json[String(numero) as ChaveEtapa].notas
-        .map((nota) => nota.valor)
-        .filter((valor): valor is 1 | 2 | 3 | 4 | 5 => valor !== null),
-    );
+    const valores = NUMEROS_ETAPA.map(
+      (numero) => json[String(numero) as ChaveEtapa].avaliacao?.nota,
+    ).filter((nota): nota is 1 | 2 | 3 | 4 | 5 => nota != null);
     if (!valores.length) {
       return null;
     }
@@ -391,10 +378,7 @@ export class Questionario implements OnInit {
       });
   }
 
-  /**
-   * Quando a nota foi dada, em dd/mm/aaaa hh:mm — a hora importa porque a mesma
-   * etapa pode ser regravada no mesmo dia.
-   */
+  /** Data e hora da nota: a hora importa porque a etapa pode ser regravada no mesmo dia. */
   protected readonly dataNota = formatarQuando;
 
   /** Etapa cuja saída está pendente de confirmação (rascunho não salvo). */
@@ -402,10 +386,8 @@ export class Questionario implements OnInit {
 
   private readonly trilha = viewChild<ElementRef<HTMLElement>>('trilha');
 
-  /* A trilha é uma linha só e, se as nove abas não couberem, rola na
-     horizontal — sem isto o passo atual ficaria fora da vista. A medida sai
-     depois da renderização, quando a aba aberta já tem o rótulo dela; e rola só
-     a trilha, porque `scrollIntoView` arrastava a página junto. */
+  /* A trilha rola na horizontal quando as nove abas não cabem; a medida sai depois
+     da renderização, e rola só a trilha porque `scrollIntoView` arrastava a página. */
   private readonly seguirPassoAtual = effect(() => {
     const numero = this.numero();
     const nav = this.trilha()?.nativeElement;
@@ -454,7 +436,7 @@ export class Questionario implements OnInit {
       nome: `${numero}. ${ROTULO_CURTO[numero]}`,
       completa: avaliacao
         ? coordenacao
-          ? json[String(numero) as ChaveEtapa].notas.length > 0
+          ? json[String(numero) as ChaveEtapa].avaliacao !== null
           : minhas.has(String(numero))
         : etapaCompleta(json, numero),
       acessivel: avaliacao ? true : etapaAcessivel(json, numero),
@@ -463,9 +445,8 @@ export class Questionario implements OnInit {
   });
 
   /**
-   * Na avaliação a barra mede o avanço de quem está na tela: as notas do
-   * consultor, ou — para a coordenação, que não dá nota — as etapas já
-   * avaliadas por qualquer um, o mesmo que a barra de decisão conta.
+   * Na avaliação a barra mede o avanço de quem está na tela: as notas do consultor
+   * ou, para a coordenação (que não dá nota), as etapas avaliadas por qualquer um.
    */
   protected readonly progresso = computed(() => {
     if (!this.ehAvaliacao()) {
@@ -549,7 +530,6 @@ export class Questionario implements OnInit {
       .subscribe({
         next: (user) => {
           this.user.set(user);
-          this.especialidade.set(user.especialidade ?? '');
         },
         error: () => {
           this.auth.clearSession();
@@ -587,9 +567,8 @@ export class Questionario implements OnInit {
   }
 
   /**
-   * Modo avaliação: lê o plano de outra pessoa (mesma tela, bloqueada). Sem
-   * redirecionar por status, sem conferir anexo no disco (o disco é do avaliado,
-   * não do avaliador) e sem gravar nada do documento — só as notas.
+   * Modo avaliação: lê o plano de outra pessoa sem redirecionar por status, sem
+   * conferir anexo no disco (o disco é do avaliado) e sem gravar o documento.
    */
   private carregarParaAvaliacao(): void {
     this.planos
@@ -608,12 +587,9 @@ export class Questionario implements OnInit {
   }
 
   /**
-   * O documento e o disco do backend podem discordar: o `POST` grava o arquivo,
-   * mas nada garante que ele siga lá depois. Quem manda é o disco — ficha sem
-   * arquivo correspondente sai da lista e da próxima gravação.
-   *
-   * Roda depois de a tela abrir, não antes: conferir dois `GET` na frente do
-   * formulário atrasaria a primeira pintura por nada.
+   * O documento e o disco do backend podem discordar; quem manda é o disco: ficha
+   * sem arquivo sai da lista e da próxima gravação. Roda depois de a tela abrir
+   * para não atrasar a primeira pintura com dois `GET`.
    */
   private conferirAnexosNoDisco(): void {
     forkJoin({ '6': this.arquivos.listar(6), '9': this.arquivos.listar(9) })
@@ -709,18 +685,17 @@ export class Questionario implements OnInit {
   }
 
   /**
-   * A etapa nova começa do topo. Sem isto, quem clicava "Próximo" no fim de
-   * uma etapa longa caía no meio — ou no fim — da seguinte.
+   * A etapa nova começa do topo: sem isto, "Próximo" no fim de uma etapa longa
+   * caía no meio da seguinte.
    */
   private voltarAoTopo(): void {
     window.scrollTo({ top: 0 });
   }
 
   /**
-   * Leva a tela até o que falta preencher, logo abaixo do topo grudado. No
-   * celular o "Próximo" fica no fim de uma etapa longa: o campo vazio, ou o
-   * aviso lá em cima, ficava fora da vista, e o toque parecia não fazer nada.
-   * Sem pendência no cartão (etapa anterior vazia), sobe até o aviso.
+   * Leva a tela até o que falta preencher, logo abaixo do topo grudado; no celular
+   * o campo vazio ficava fora da vista e o toque parecia não fazer nada. Sem
+   * pendência no cartão, sobe até o aviso.
    */
   private mostrarPendencia(): void {
     afterNextRender(
@@ -765,9 +740,9 @@ export class Questionario implements OnInit {
       return false;
     }
     const salva = this.minhas().get(chave);
-    const valor = rascunhoValor === undefined ? (salva?.valor ?? null) : rascunhoValor;
-    const texto = rascunhoTexto === undefined ? (salva?.texto ?? '') : rascunhoTexto;
-    return valor !== (salva?.valor ?? null) || texto.trim() !== (salva?.texto ?? '').trim();
+    const valor = rascunhoValor === undefined ? (salva?.nota ?? null) : rascunhoValor;
+    const texto = rascunhoTexto === undefined ? (salva?.comentario ?? '') : rascunhoTexto;
+    return valor !== (salva?.nota ?? null) || texto.trim() !== (salva?.comentario ?? '').trim();
   }
 
   /** "Sair sem salvar": descarta o rascunho e vai para a etapa pendente. */
@@ -873,17 +848,85 @@ export class Questionario implements OnInit {
 
   // ----- pré-visualização de anexo -----
 
-  protected abrirPreview(arquivo: Anexo): void {
+  /**
+   * De quem é a pasta de anexos que esta tela lê: no modo avaliação, a do dono
+   * do plano (`?email=`); no do incubado, a de quem está logado.
+   */
+  private readonly donoDosAnexos = computed(() => (this.ehAvaliacao() ? this.email() : undefined));
+
+  /**
+   * Abre a modal e já busca o conteúdo, para a prévia ser o arquivo real. No modo
+   * avaliação lê o disco do dono do plano; a coordenação ainda recebe `403` do backend.
+   */
+  protected abrirPreview(arquivo: Anexo, numero: NumeroEtapa): void {
+    this.abaPreview.set(numero);
     this.arquivoPreview.set(arquivo);
+    this.conteudoPreview.set(null);
+    this.erroPreview.set('');
+
+    this.baixandoPreview.set(true);
+    this.arquivos
+      .baixar(numero, arquivo.nome, this.donoDosAnexos())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (conteudo) => {
+          this.baixandoPreview.set(false);
+          // O modal pode ter sido fechado enquanto baixava; aí não há o que mostrar.
+          if (this.arquivoPreview()?.nome === arquivo.nome) {
+            this.conteudoPreview.set(conteudo);
+          }
+        },
+        error: (err: ApiError) => {
+          this.baixandoPreview.set(false);
+          this.erroPreview.set(err.message);
+        },
+      });
   }
 
   protected fecharPreview(): void {
     if (this.arquivoPreview()) {
       this.arquivoPreview.set(null);
+      this.conteudoPreview.set(null);
+      this.erroPreview.set('');
+      this.baixandoPreview.set(false);
     }
   }
 
-  /** Prende o Tab dentro da modal. O `shift` vem do template, como no padrão. */
+  /**
+   * Salva o anexo aberto no disco do usuário. Reaproveita o que a prévia já
+   * baixou; se não há nada (falhou, ou é tipo sem prévia), busca de novo.
+   */
+  protected baixarAnexo(): void {
+    const arquivo = this.arquivoPreview();
+    if (!arquivo) {
+      return;
+    }
+
+    const pronto = this.conteudoPreview();
+    if (pronto) {
+      salvarComo(pronto, arquivo.nome);
+      return;
+    }
+
+    this.baixandoPreview.set(true);
+    this.erroPreview.set('');
+    this.arquivos
+      .baixar(this.abaPreview(), arquivo.nome, this.donoDosAnexos())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (conteudo) => {
+          this.baixandoPreview.set(false);
+          this.conteudoPreview.set(conteudo);
+          salvarComo(conteudo, arquivo.nome);
+        },
+        error: (err: ApiError) => {
+          this.baixandoPreview.set(false);
+          this.erroPreview.set(err.message);
+        },
+      });
+  }
+
+  /** Prende o Tab dentro da modal. O `shift` vem do template. */
   protected prenderTab(evento: Event, shift: boolean, dialogo: HTMLElement): void {
     const focaveis = Array.from(
       dialogo.querySelectorAll<HTMLElement>(
@@ -1010,12 +1053,26 @@ export class Questionario implements OnInit {
       antes: 'Tem certeza que deseja remover o arquivo',
       nome,
       depois: '?',
-      // Tira a ficha; o arquivo fica no disco do backend, que não tem rota
-      // para apagar.
+      // Apaga do disco primeiro; a ficha só sai se o backend confirmou, para o
+      // documento nunca ficar mais limpo que o disco.
       remover: () => {
-        const chave = numero === 6 ? '6' : '9';
-        const arquivos = this.json()[chave].arquivos.filter((anexo) => anexo.nome !== nome);
-        this.gravar(this.documentoCom(numero, { arquivos }));
+        this.salvando.set(true);
+        this.mensagemErro.set('');
+        this.arquivos
+          .apagar(numero, [nome])
+          .pipe(takeUntilDestroyed(this.destroyRef))
+          .subscribe({
+            next: () => {
+              this.salvando.set(false);
+              const chave = numero === 6 ? '6' : '9';
+              const arquivos = this.json()[chave].arquivos.filter((anexo) => anexo.nome !== nome);
+              this.gravar(this.documentoCom(numero, { arquivos }));
+            },
+            error: (err: ApiError) => {
+              this.salvando.set(false);
+              this.mensagemErro.set(err.message);
+            },
+          });
       },
     });
   }
@@ -1054,10 +1111,8 @@ export class Questionario implements OnInit {
       const incompletas = this.passos().filter((passo) => !passo.completa);
       const outras = incompletas.filter((passo) => passo.numero !== this.numero());
       if (incompletas.length) {
-        // A trilha é travada: só se chega à última etapa com as anteriores
-        // prontas, então quem falta é ela mesma — e o aviso é o de sempre.
-        // A lista de números fica para o caso raro de o documento voltar do
-        // servidor com uma etapa anterior vazia.
+        // A trilha travada garante que só a última etapa pode faltar; a lista de
+        // números cobre o caso raro de o servidor devolver uma etapa anterior vazia.
         this.mensagemErro.set(
           outras.length
             ? `Faltam etapas para enviar: ${outras.map((passo) => passo.numero).join(', ')}.`
@@ -1103,12 +1158,14 @@ export class Questionario implements OnInit {
   /** Valor escolhido na etapa, ou `null` para quem só quer comentar. */
   protected valorDe(numero: NumeroEtapa): 1 | 2 | 3 | 4 | 5 | null {
     const escolhido = this.escolhido()[String(numero)];
-    return escolhido === undefined ? (this.minhas().get(String(numero))?.valor ?? null) : escolhido;
+    return escolhido === undefined ? (this.minhas().get(String(numero))?.nota ?? null) : escolhido;
   }
 
   protected textoDe(numero: NumeroEtapa): string {
     const digitado = this.comentario()[String(numero)];
-    return digitado === undefined ? (this.minhas().get(String(numero))?.texto ?? '') : digitado;
+    return digitado === undefined
+      ? (this.minhas().get(String(numero))?.comentario ?? '')
+      : digitado;
   }
 
   protected escolher(numero: NumeroEtapa, valor: 1 | 2 | 3 | 4 | 5): void {
@@ -1129,7 +1186,7 @@ export class Questionario implements OnInit {
     );
   }
 
-  /** Grava a nota desta etapa. Uma requisição por etapa, como o contrato prevê. */
+  /** Grava a nota desta etapa, uma requisição por etapa. */
   protected avaliar(numero: NumeroEtapa): void {
     if (!this.podeAvaliar(numero)) {
       return;
@@ -1141,9 +1198,8 @@ export class Questionario implements OnInit {
     this.planos
       .avaliar(this.email(), {
         aba: numero,
-        valor: this.valorDe(numero),
-        texto: this.textoDe(numero).trim(),
-        especialidade: this.especialidade().trim(),
+        nota: this.valorDe(numero),
+        comentario: this.textoDe(numero).trim(),
       })
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({

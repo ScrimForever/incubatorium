@@ -3,16 +3,15 @@ import { Observable } from 'rxjs';
 import { API_ROUTES } from '../constants/api-routes';
 import { Api } from '../http/api';
 import { Role, UserRead } from '../models/auth';
+import { papelDaConta } from './auth';
 
 /**
- * Uma conta na visão do administrador.
- *
- * `role` ainda não vem da API: `UserRead` só expõe `is_superuser`. O campo
- * existe aqui porque o mock de desenvolvimento já o guarda, e porque é o que o
- * backend precisa passar a devolver — ver `docs/contrato-usuarios.md`.
+ * Uma conta na visão do administrador: o `UserRead` da API mais dois campos que
+ * só o mock da listagem preenche (`role` e `nome`). Conta real não traz nenhum.
  */
 export interface UsuarioAdmin extends UserRead {
   role?: Role;
+  nome?: string;
 }
 
 /** O que um administrador pode mudar em outra conta. */
@@ -24,15 +23,15 @@ export interface AlteracaoUsuario {
 }
 
 /**
- * Administração de contas. Tudo aqui é API real e exige superusuário — a única
- * exceção é `listar()`: o backend não publica `GET /users`, e em
- * desenvolvimento essa chamada é respondida pelo mock.
+ * Administração de contas. Tudo é API real e exige superusuário, exceto
+ * `listar()`: o backend não publica `GET /users`, e o mock responde em
+ * desenvolvimento.
  */
 @Injectable({ providedIn: 'root' })
 export class UsuariosService {
   private readonly api = inject(Api);
 
-  /** GET /users — **ainda não existe no backend**. Ver docs/contrato-usuarios.md. */
+  /** GET /users — ainda não existe no backend (`docs/contrato-usuarios.md`). */
   listar(): Observable<UsuarioAdmin[]> {
     return this.api.get<UsuarioAdmin[]>(API_ROUTES.users.lista);
   }
@@ -42,9 +41,8 @@ export class UsuariosService {
   }
 
   /**
-   * PATCH /users/{id} — real. Como superusuário, os campos privilegiados valem.
-   * `role` viaja junto: a API atual ignora o campo desconhecido, e o mock o
-   * guarda. Quando o backend passar a aceitar, nada muda aqui.
+   * PATCH /users/{id}. Como superusuário, os campos privilegiados valem. `role`
+   * viaja junto: a API ignora o campo desconhecido, e o mock o guarda.
    */
   alterar(id: string, alteracao: AlteracaoUsuario): Observable<UsuarioAdmin> {
     return this.api.patch<UsuarioAdmin>(API_ROUTES.users.porId(id), alteracao);
@@ -57,14 +55,11 @@ export class UsuariosService {
 }
 
 /**
- * O papel da conta. Prefere o campo `role` quando ele existir; sem ele, o único
- * papel que dá para afirmar é o do superusuário, e o resto cai em incubado.
+ * O papel da conta: o `role` que o mock guardou, ou — conta real — as flags da
+ * API, pela mesma regra da sessão (`papelDaConta`).
  */
 export function papelDe(usuario: UsuarioAdmin): Role {
-  if (usuario.role) {
-    return usuario.role;
-  }
-  return usuario.is_superuser ? 'admin' : 'incubado';
+  return usuario.role ?? papelDaConta(usuario);
 }
 
 /** O corpo do PATCH para trocar de papel: `admin` é o único que a API grava. */

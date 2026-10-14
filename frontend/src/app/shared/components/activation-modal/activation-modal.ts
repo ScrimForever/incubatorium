@@ -11,12 +11,9 @@ import {
 import { Icone } from '../icone/icone';
 
 /**
- * Modal da ativação, em dois momentos:
- *  - modo 'enviado'     (após o registro): "e-mail de ativação enviado"
- *  - modo 'nao-ativado' (login recusado): a conta pode estar inativa
- *
- * Quem ativa é o link do e-mail, que bate direto no backend. Aqui não se pede
- * código nenhum: a modal informa e oferece o reenvio.
+ * 'enviado' logo após o registro; 'nao-ativado' quando o login é recusado e a
+ * conta pode estar inativa. Quem ativa é o link do e-mail, direto no backend:
+ * a modal só informa e oferece o reenvio.
  */
 export type ActivationModalMode = 'enviado' | 'nao-ativado';
 
