@@ -48,8 +48,10 @@ class QuestionarioService:
                     questionario_id=questionario.id,
                     usuario_email=questionario.usuario_email,
                     json_questionario=entrada.json_questionario,
+                    status_questionario=entrada.status_questionario
                 )
             )
+        questionario.status_questionario = entrada.status_questionario
         questionario.atualizado_por = self.user.email
         questionario.atualizado_em = datetime.now(UTC)
         await self.repository.salvar()
