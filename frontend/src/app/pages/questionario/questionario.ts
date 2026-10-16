@@ -146,7 +146,7 @@ export class Questionario implements OnInit {
   protected readonly membroEditando = signal<MembroEquipe | null>(null);
   /** Membro ou anexo à espera da confirmação de remoção. */
   protected readonly remocao = signal<Remocao | null>(null);
-  /** Etapa 9 completa e salva, esperando o "sim" antes de ir para análise. */
+  /** Etapa 9 completa na tela, esperando o "sim" antes de ir para análise. */
   protected readonly confirmandoEnvio = signal(false);
   /** Anexo aberto no modal de pré-visualização; `null` quando fechado. */
   protected readonly arquivoPreview = signal<Anexo | null>(null);
@@ -1143,24 +1143,37 @@ export class Questionario implements OnInit {
 
   // ----- envio final -----
 
-  /** Salva e confere as nove; só então pergunta, porque depois de enviado não se edita mais. */
+  /**
+   * Confere as nove com o que está na tela e só então pergunta — nada vai ao
+   * servidor antes do "sim", porque depois de enviado não se edita mais. Gravar
+   * aqui gerava um `PUT` de rascunho e outro no envio: duas requisições por clique.
+   */
   private pedirEnvio(): void {
-    this.salvarEntao(() => {
-      const incompletas = this.passos().filter((passo) => !passo.completa);
-      const outras = incompletas.filter((passo) => passo.numero !== this.numero());
-      if (incompletas.length) {
-        // A trilha travada garante que só a última etapa pode faltar; a lista de
-        // números cobre o caso raro de o servidor devolver uma etapa anterior vazia.
-        this.mensagemErro.set(
-          outras.length
-            ? `Faltam etapas para enviar: ${outras.map((passo) => passo.numero).join(', ')}.`
-            : 'Preencha esta etapa antes de avançar.',
-        );
-        this.mostrarPendencia();
-        return;
-      }
-      this.confirmandoEnvio.set(true);
-    });
+    if (this.salvando() || this.enviando()) {
+      return;
+    }
+    const json = this.documentoAtual();
+    const incompletas = NUMEROS_ETAPA.filter((numero) => !etapaCompleta(json, numero));
+    const outras = incompletas.filter((numero) => numero !== this.numero());
+    if (incompletas.length) {
+      // A trilha travada garante que só a última etapa pode faltar; a lista de
+      // números cobre o caso raro de o servidor devolver uma etapa anterior vazia.
+      this.limparAvisos();
+      this.mensagemErro.set(
+        outras.length
+          ? `Faltam etapas para enviar: ${outras.join(', ')}.`
+          : 'Preencha esta etapa antes de avançar.',
+      );
+      this.mostrarPendencia();
+      return;
+    }
+    this.confirmandoEnvio.set(true);
+  }
+
+  /** O documento com a etapa aberta como está na tela, ainda não gravada. */
+  private documentoAtual(): JsonQuestionario {
+    const valores = this.form().getRawValue() as Record<string, unknown>;
+    return this.documentoCom(this.numero(), valores);
   }
 
   protected cancelarEnvio(): void {
@@ -1175,11 +1188,14 @@ export class Questionario implements OnInit {
     }
     this.enviando.set(true);
     this.limparAvisos();
+    // Um único `PUT`: a etapa aberta vai junto com o status de envio.
     this.service
-      .enviar(this.json())
+      .enviar(this.documentoAtual())
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: () => {
+        next: (plano) => {
+          this.json.set(plano.json_questionario);
+          this.form().markAsPristine();
           this.enviando.set(false);
           this.confirmandoEnvio.set(false);
           void this.router.navigate([APP_ROUTES.aguardandoAprovacao], { replaceUrl: true });
