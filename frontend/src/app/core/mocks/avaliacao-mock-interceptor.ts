@@ -9,7 +9,7 @@ import {
 import { Observable, catchError, delay, map, of, switchMap, tap, throwError } from 'rxjs';
 import { API_BASE, API_ROUTES } from '../constants/api-routes';
 import { UserRead } from '../models/auth';
-import { DecisaoEntrada, NotaEntrada } from '../models/plano';
+import { DecisaoEntrada, NotaEntrada, PlanoCorrecaoEntrada } from '../models/plano';
 import {
   Avaliacao,
   ChaveEtapa,
@@ -24,8 +24,9 @@ import { normalizar } from '../services/questionario';
 /**
  * Backend falso da avaliação de planos, só em desenvolvimento. Leituras e papel
  * são reais; aqui só o que o backend não tem (`docs/contrato-avaliacao.md`):
- * `PATCH .../nota` (nota do avaliador) e `PATCH .../status` (decisão da
- * coordenação). O gravado fica no `localStorage`, aplicado por cima das leituras.
+ * `PATCH .../nota` (nota do avaliador), `PATCH .../status` (decisão da
+ * coordenação) e `PUT /usuarios/{email}/plano` (a coordenação corrigindo as
+ * respostas). O gravado fica no `localStorage`, aplicado por cima das leituras.
  *
  * O backend ainda recusa (`403`) o plano alheio à coordenação; nesse caso o mock
  * lê o mesmo documento no `/questionario/todos` real.
@@ -48,15 +49,37 @@ interface Guardado {
   notas: Record<string, Record<string, Avaliacao>>;
   /** email do plano → a decisão da coordenação, quando já houve uma */
   decisoes: Record<string, DecisaoPlano>;
+  /** email do plano → aba → os campos que a coordenação corrigiu (sem nota nem anexo) */
+  correcoes: Record<string, Record<string, Record<string, unknown>>>;
 }
 
 function ler(): Guardado {
   try {
     const dados = JSON.parse(localStorage.getItem(CHAVE) ?? '') as Partial<Guardado>;
-    return { notas: dados.notas ?? {}, decisoes: dados.decisoes ?? {} };
+    return {
+      notas: dados.notas ?? {},
+      decisoes: dados.decisoes ?? {},
+      correcoes: dados.correcoes ?? {},
+    };
   } catch {
-    return { notas: {}, decisoes: {} };
+    return { notas: {}, decisoes: {}, correcoes: {} };
   }
+}
+
+/**
+ * As abas como a coordenação as mandou, menos o que a correção não pode tocar:
+ * a nota é do avaliador e o anexo é do incubado (contrato, Parte 4).
+ */
+function camposCorrigiveis(json: JsonQuestionario): Record<string, Record<string, unknown>> {
+  const abas: Record<string, Record<string, unknown>> = {};
+  for (const numero of NUMEROS_ETAPA) {
+    const aba = String(numero) as ChaveEtapa;
+    const campos = { ...(json[aba] as unknown as Record<string, unknown>) };
+    delete campos['avaliacao'];
+    delete campos['arquivos'];
+    abas[aba] = campos;
+  }
+  return abas;
 }
 
 function gravar(dados: Guardado): void {
@@ -67,11 +90,14 @@ function gravar(dados: Guardado): void {
   }
 }
 
-/** O plano real, com as notas e a decisão que este mock já recebeu por cima. */
+/** O plano real, com as correções, as notas e a decisão que este mock já recebeu por cima. */
 function aplicar(plano: Questionario, email: string): Questionario {
   const normalizado = normalizar(plano);
   const json = normalizado.json_questionario;
-  const { notas, decisoes } = ler();
+  const { notas, decisoes, correcoes } = ler();
+  for (const [aba, campos] of Object.entries(correcoes[email] ?? {})) {
+    Object.assign(json[aba as ChaveEtapa], campos);
+  }
   // A nota gravada substitui a da etapa: é uma por etapa, e só o autor regrava.
   for (const [aba, avaliacao] of Object.entries(notas[email] ?? {})) {
     json[aba as ChaveEtapa].avaliacao = avaliacao;
@@ -193,6 +219,29 @@ export const avaliacaoMockInterceptor: HttpInterceptorFn = (req, next) => {
   if (alheio) {
     const email = decodeURIComponent(alheio[1]);
     return planoReal(req, next, email).pipe(switchMap((plano) => responder(aplicar(plano, email))));
+  }
+
+  // A coordenação corrige as respostas. Nota, anexo e decisão ficam como estão.
+  const correcao = req.method === 'PUT' ? PLANO_ALHEIO.exec(url) : null;
+  if (correcao) {
+    const email = decodeURIComponent(correcao[1]);
+    if (!ehCoordenacao()) {
+      return recusar(403, 'EDICAO_RESTRITA_COORDENACAO', req.url);
+    }
+    const entrada = req.body as PlanoCorrecaoEntrada;
+    return planoReal(req, next, email).pipe(
+      switchMap((plano) => {
+        const dados = ler();
+        dados.correcoes[email] = camposCorrigiveis(
+          normalizar({
+            ...plano,
+            json_questionario: entrada.json_questionario,
+          }).json_questionario,
+        );
+        gravar(dados);
+        return responder(aplicar(plano, email));
+      }),
+    );
   }
 
   const escrita = req.method === 'PATCH' ? ESCRITA.exec(url) : null;

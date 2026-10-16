@@ -240,6 +240,7 @@ export const CAMPOS_ETAPA_1 = [
     placeholder: 'Insira o nome do proponente',
     obrigatorio: true,
     erro: 'Informe o nome do proponente.',
+    mascara: null,
   },
   {
     nome: 'nome_negocio',
@@ -247,6 +248,7 @@ export const CAMPOS_ETAPA_1 = [
     placeholder: 'Insira o nome do negócio',
     obrigatorio: true,
     erro: 'Informe o nome do negócio.',
+    mascara: null,
   },
   {
     nome: 'setor_atuacao',
@@ -254,9 +256,17 @@ export const CAMPOS_ETAPA_1 = [
     placeholder: 'Insira o setor de atuação',
     obrigatorio: true,
     erro: 'Informe o setor de atuação.',
+    mascara: null,
   },
   // O CNPJ é opcional: há negócio sem CNPJ ainda.
-  { nome: 'cnpj', rotulo: 'CNPJ', placeholder: 'Insira o CNPJ', obrigatorio: false, erro: '' },
+  {
+    nome: 'cnpj',
+    rotulo: 'CNPJ',
+    placeholder: '00.000.000/0000-00',
+    obrigatorio: false,
+    erro: '',
+    mascara: 'cnpj',
+  },
 ] as const;
 
 /** Rótulo curto para a pílula da trilha; o título completo fica no cabeçalho do cartão. */

@@ -1,14 +1,25 @@
-<div class="quest" [class.quest--avaliacao]="ehAvaliacao()">
+<div
+  class="quest"
+  [class.quest--avaliacao]="ehAvaliacao()"
+  [class.quest--leitura]="somenteLeitura()"
+>
   <app-topo-sessao />
 
   <main id="conteudo" tabindex="-1" class="quest-conteudo">
     @if (ehAvaliacao()) {
       <a [routerLink]="voltarLista" class="aval-voltar">← Todos os planos</a>
       <h1>Plano de negócios</h1>
-      <p class="quest-subtitulo">
-        Leitura do plano de {{ email() }}. Dê a sua nota e o comentário em cada etapa — as respostas
-        não podem ser alteradas aqui.
-      </p>
+      @if (ehCoordenacao()) {
+        <p class="quest-subtitulo">
+          Plano de {{ email() }}. Como coordenação, você pode corrigir as respostas: o que mudar é
+          salvo ao trocar de etapa ou em Salvar alterações. Os anexos são só do incubado.
+        </p>
+      } @else {
+        <p class="quest-subtitulo">
+          Leitura do plano de {{ email() }}. Dê a sua nota e o comentário em cada etapa — as
+          respostas não podem ser alteradas aqui.
+        </p>
+      }
     } @else {
       <h1>Plano de negócios</h1>
       <p class="quest-subtitulo">
@@ -88,8 +99,10 @@
                     [id]="campo.nome"
                     type="text"
                     [formControlName]="campo.nome"
-                    [readonly]="ehAvaliacao()"
-                    [placeholder]="ehAvaliacao() ? '' : campo.placeholder"
+                    [appMascara]="campo.mascara"
+                    [attr.inputmode]="campo.mascara ? 'numeric' : null"
+                    [readonly]="somenteLeitura()"
+                    [placeholder]="somenteLeitura() ? '' : campo.placeholder"
                     [attr.aria-required]="campo.obrigatorio"
                   />
                   @if (form().controls[campo.nome]; as controle) {
@@ -122,8 +135,8 @@
               }
               <quill-editor
                 [formControlName]="campo.nome"
-                [readOnly]="ehAvaliacao()"
-                [placeholder]="ehAvaliacao() ? '' : campo.placeholder"
+                [readOnly]="somenteLeitura()"
+                [placeholder]="somenteLeitura() ? '' : campo.placeholder"
                 [attr.data-linhas]="campo.linhas"
                 [valueGetter]="valorDoEditor"
                 (onEditorCreated)="aoCriarEditor($event, campo)"
@@ -144,7 +157,7 @@
               Cadastre os integrantes responsáveis pelo negócio. Formação e experiência ajudam o
               consultor a avaliar a capacidade de execução do plano.
             </p>
-            @if (!ehAvaliacao()) {
+            @if (!somenteLeitura()) {
               <button type="button" class="btn btn--verde" (click)="abrirMembro()">
                 Adicionar membro
               </button>
@@ -157,7 +170,7 @@
                 <li class="membro">
                   <div class="membro-topo">
                     <strong>{{ membro.nome }}</strong>
-                    @if (!ehAvaliacao()) {
+                    @if (!somenteLeitura()) {
                       <div class="quest-membro-acoes">
                         <button
                           type="button"
@@ -387,7 +400,9 @@
                 }
               </button>
               @if (minhaDaEtapa()) {
-                <button type="button" class="btn-texto" (click)="cancelarEdicao()">Cancelar</button>
+                <button type="button" class="btn btn--secundario" (click)="cancelarEdicao()">
+                  Cancelar
+                </button>
               }
               <span class="aval-dica">Dê a nota, o comentário, ou os dois.</span>
             } @else if (notaDaEtapa(); as nota) {
@@ -425,11 +440,30 @@
              ele não vira outra coisa depois (não há "enviar"), então é ruído. -->
         <div class="quest-acoes">
           @if (!ehPrimeira()) {
-            <button type="button" class="btn btn--azul" (click)="voltar()">Voltar</button>
+            <button type="button" class="btn btn--azul" [disabled]="salvando()" (click)="voltar()">
+              Voltar
+            </button>
           }
           <div class="quest-acoes-direita">
+            @if (ehCoordenacao()) {
+              <button
+                type="button"
+                class="btn btn--secundario"
+                [disabled]="salvando()"
+                (click)="salvar()"
+              >
+                {{ salvando() ? 'Salvando...' : 'Salvar alterações' }}
+              </button>
+            }
             @if (!ehUltima()) {
-              <button type="button" class="btn btn--verde" (click)="avancar()">Próximo</button>
+              <button
+                type="button"
+                class="btn btn--verde"
+                [disabled]="salvando()"
+                (click)="avancar()"
+              >
+                Próximo
+              </button>
             }
           </div>
         </div>
@@ -457,7 +491,7 @@
             </p>
           } @else if (podeDecidir()) {
             <div class="decisao-acoes">
-              <button type="button" class="btn-texto" (click)="abrirDecisao('rejeitado')">
+              <button type="button" class="btn btn--secundario" (click)="abrirDecisao('rejeitado')">
                 Devolver para ajustes
               </button>
               <button type="button" class="btn btn--verde" (click)="abrirDecisao('aprovado')">
@@ -483,7 +517,12 @@
           }
 
           <div class="quest-acoes-direita">
-            <button type="button" class="btn-texto" [disabled]="salvando()" (click)="salvar()">
+            <button
+              type="button"
+              class="btn btn--secundario"
+              [disabled]="salvando()"
+              (click)="salvar()"
+            >
               {{ salvando() ? 'Salvando...' : 'Salvar rascunho' }}
             </button>
             <button
@@ -597,7 +636,9 @@
         </div>
 
         <footer class="modal-footer">
-          <button type="button" class="btn-texto" (click)="fecharMembro()">Cancelar</button>
+          <button type="button" class="btn btn--secundario" (click)="fecharMembro()">
+            Cancelar
+          </button>
           <button type="submit" class="btn btn--verde">
             {{ membroEditando() ? 'Salvar' : 'Adicionar' }}
           </button>
@@ -645,7 +686,12 @@
       </div>
 
       <footer class="modal-footer">
-        <button type="button" class="btn-texto" [disabled]="enviando()" (click)="cancelarEnvio()">
+        <button
+          type="button"
+          class="btn btn--secundario"
+          [disabled]="enviando()"
+          (click)="cancelarEnvio()"
+        >
           Voltar e conferir
         </button>
         <button
@@ -689,7 +735,9 @@
       </div>
 
       <footer class="modal-footer">
-        <button type="button" class="btn-texto" (click)="cancelarRemocao()">Cancelar</button>
+        <button type="button" class="btn btn--secundario" (click)="cancelarRemocao()">
+          Cancelar
+        </button>
         <button
           type="button"
           class="btn btn--azul"
@@ -731,7 +779,7 @@
       </div>
 
       <footer class="modal-footer">
-        <button type="button" class="btn-texto" (click)="cancelarSaida()">
+        <button type="button" class="btn btn--secundario" (click)="cancelarSaida()">
           Continuar nesta etapa
         </button>
         <button type="button" class="btn btn--azul" (click)="confirmarSaida()">
@@ -806,7 +854,9 @@
       </div>
 
       <footer class="modal-footer">
-        <button type="button" class="btn-texto" (click)="fecharDecisao()">Cancelar</button>
+        <button type="button" class="btn btn--secundario" (click)="fecharDecisao()">
+          Cancelar
+        </button>
         <button
           type="button"
           class="btn"

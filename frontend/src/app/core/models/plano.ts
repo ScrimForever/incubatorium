@@ -1,4 +1,4 @@
-import { NumeroEtapa, StatusQuestionario } from './questionario';
+import { JsonQuestionario, NumeroEtapa, StatusQuestionario } from './questionario';
 
 /**
  * Uma linha da lista de planos de negócio. Derivada no `PlanosService`, não
@@ -35,4 +35,13 @@ export interface NotaEntrada {
   aba: NumeroEtapa;
   nota: 1 | 2 | 3 | 4 | 5 | null;
   comentario: string;
+}
+
+/**
+ * O que a coordenação envia ao corrigir as respostas de um incubado. Só o
+ * documento: sem status, porque corrigir não envia nem aprova. Notas, decisão e
+ * anexos que vierem junto são ignorados pelo servidor.
+ */
+export interface PlanoCorrecaoEntrada {
+  json_questionario: JsonQuestionario;
 }

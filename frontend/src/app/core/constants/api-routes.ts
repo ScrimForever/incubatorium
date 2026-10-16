@@ -37,7 +37,11 @@ export const API_ROUTES = {
   avaliacao: {
     /** Todos os planos, com o documento inteiro — sem `?status=`: o filtro é da tela. */
     planos: '/questionario/todos',
-    /** O plano de outra pessoa: dono, consultor e colaborador. A coordenação ainda recebe `403`. */
+    /**
+     * O plano de outra pessoa. `GET` lê: dono, consultor e colaborador (a coordenação
+     * ainda recebe `403`). `PUT` é a coordenação corrigindo as respostas: ainda não
+     * existe no backend e é respondido pelo mock em desenvolvimento.
+     */
     planoDe: (email: string): string => `/usuarios/${encodeURIComponent(email)}/plano`,
     /** Ainda não existe no backend — respondida pelo mock em desenvolvimento. */
     notaDe: (email: string): string => `/questionario/${encodeURIComponent(email)}/nota`,
