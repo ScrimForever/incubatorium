@@ -44,6 +44,7 @@ class QuestionarioHistorico(Base):
     )
     usuario_email: Mapped[str] = mapped_column(String(255), nullable=False)
     json_questionario: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=True)
+    status_questionario: Mapped[str] = mapped_column(Enum(StatusEnum), nullable=False)
     criado_em: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

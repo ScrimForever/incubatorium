@@ -61,7 +61,6 @@ class QuestionarioRepository:
         resultado = await self.db.execute(
             select(Questionario)
             .where(Questionario.usuario_email == self.user.email)
-            .with_for_update()
         )
         return resultado.scalar_one_or_none()
 
