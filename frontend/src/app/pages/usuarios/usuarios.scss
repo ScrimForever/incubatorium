@@ -152,7 +152,10 @@
   padding-top: 20px;
 }
 
-.usuarios-salvar {
+/* Os botões do painel são menores que os da página, e todos do mesmo tamanho:
+   Descartar e Excluir têm a altura do Salvar ao lado. */
+.usuarios-rodape .btn,
+.usuarios-risco .btn {
   padding: 10px 20px;
   font-size: 14px;
 }
@@ -168,6 +171,15 @@
 
 .usuarios-excluir {
   color: var(--erro-texto);
+}
+
+/* O hover do botão secundário puxa para o azul; aqui a ação destrutiva fica
+   vermelha também no contorno. */
+@media (hover: hover) {
+  .usuarios-excluir:hover:not(:disabled) {
+    color: var(--erro-texto);
+    box-shadow: inset 0 0 0 1px var(--erro-texto);
+  }
 }
 
 @media (max-width: 1000px) {

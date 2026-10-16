@@ -55,6 +55,7 @@ import {
 import { Icone } from '../../shared/components/icone/icone';
 import { TopoSessao } from '../../shared/components/topo-sessao/topo-sessao';
 import { VisualizadorArquivo } from '../../shared/components/visualizador-arquivo/visualizador-arquivo';
+import { Mascara, mascararValorSalvo } from '../../shared/directives/mascara';
 import { salvarComo } from '../../shared/salvar-como';
 import {
   acessibilizarEditor,
@@ -101,6 +102,7 @@ interface Passo {
     TopoSessao,
     RouterLink,
     VisualizadorArquivo,
+    Mascara,
   ],
   templateUrl: './questionario.html',
   styleUrl: './questionario.scss',
@@ -288,10 +290,20 @@ export class Questionario implements OnInit {
   protected readonly justificativa = signal('');
   protected readonly salvandoDecisao = signal(false);
 
-  /** Só a coordenação decide — e a trava que vale é a do servidor. */
+  /**
+   * Só a coordenação decide e corrige as respostas do incubado — e a trava que
+   * vale é a do servidor.
+   */
   protected readonly ehCoordenacao = computed(
     () => this.ehAvaliacao() && this.user()?.role === 'admin',
   );
+
+  /**
+   * Plano aberto por quem só avalia: os campos do incubado ficam travados. Até o
+   * `/users/me` responder vale a trava, para ninguém digitar no plano alheio
+   * antes de se saber quem é.
+   */
+  protected readonly somenteLeitura = computed(() => this.ehAvaliacao() && !this.ehCoordenacao());
 
   /** Quantas das nove etapas já receberam nota, de qualquer avaliador. */
   protected readonly etapasAvaliadas = computed(
@@ -356,7 +368,7 @@ export class Questionario implements OnInit {
       return;
     }
     this.salvandoDecisao.set(true);
-    this.mensagemErro.set('');
+    this.limparAvisos();
     this.planos
       .decidir(this.email(), { status, justificativa: this.justificativa().trim() })
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -625,7 +637,9 @@ export class Questionario implements OnInit {
       obrigatorio ? [Validators.required] : [];
     if (this.numero() === 1) {
       for (const campo of CAMPOS_ETAPA_1) {
-        controles[campo.nome] = [String(aba[campo.nome] ?? ''), validadores(campo.obrigatorio)];
+        const salvo = String(aba[campo.nome] ?? '');
+        const valor = campo.mascara ? mascararValorSalvo(campo.mascara, salvo) : salvo;
+        controles[campo.nome] = [valor, validadores(campo.obrigatorio)];
       }
     }
     for (const campo of this.etapa().campos) {
@@ -659,9 +673,19 @@ export class Questionario implements OnInit {
   }
 
   protected irPara(numero: NumeroEtapa): void {
-    // Avaliação: navegação livre, sem gravar o documento (o avaliador não edita).
+    // Avaliação: navegação livre. O avaliador não edita, então não há o que gravar.
     if (this.ehAvaliacao()) {
       if (numero === this.numero()) {
+        return;
+      }
+      // A coordenação corrige: o que mudou na etapa é salvo antes de sair, como
+      // no fluxo do incubado. Sem mudança, só navega.
+      if (this.ehCoordenacao()) {
+        if (this.form().dirty) {
+          this.salvarEntao(() => this.navegarAvaliacao(numero));
+        } else {
+          this.navegarAvaliacao(numero);
+        }
         return;
       }
       // Rascunho de nota não salvo: pergunta antes de sair, senão ele se perde.
@@ -799,7 +823,10 @@ export class Questionario implements OnInit {
   }
 
   protected salvar(): void {
-    this.salvarEntao(() => this.mensagemSucesso.set('Formulário salvo com sucesso!'));
+    const aviso = this.ehCoordenacao()
+      ? 'Alterações salvas no plano.'
+      : 'Formulário salvo com sucesso!';
+    this.salvarEntao(() => this.mensagemSucesso.set(aviso));
   }
 
   /** Grava a etapa aberta e só então segue. */
@@ -1003,6 +1030,7 @@ export class Questionario implements OnInit {
     if (!arquivos.length) {
       return;
     }
+    this.limparAvisos();
 
     // Mesmo nome substitui o que já estava lá; o resto se soma à lista.
     const nomesNovos = new Set(arquivos.map((arquivo) => arquivo.name));
@@ -1030,7 +1058,6 @@ export class Questionario implements OnInit {
       return;
     }
 
-    this.mensagemErro.set('');
     this.salvando.set(true);
     this.arquivos
       .enviar(numero, arquivos)
@@ -1057,7 +1084,7 @@ export class Questionario implements OnInit {
       // documento nunca ficar mais limpo que o disco.
       remover: () => {
         this.salvando.set(true);
-        this.mensagemErro.set('');
+        this.limparAvisos();
         this.arquivos
           .apagar(numero, [nome])
           .pipe(takeUntilDestroyed(this.destroyRef))
@@ -1084,23 +1111,34 @@ export class Questionario implements OnInit {
       : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
+  /**
+   * Cada ação nova começa sem os avisos da anterior: sem isto, o "salvo com
+   * sucesso" do rascunho continuava no topo junto com o erro do envio.
+   */
+  private limparAvisos(): void {
+    this.mensagemErro.set('');
+    this.mensagemSucesso.set('');
+  }
+
   private gravar(json: JsonQuestionario, depois?: () => void): void {
     this.salvando.set(true);
-    this.mensagemErro.set('');
-    this.service
-      .salvar(json)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (plano) => {
-          this.salvando.set(false);
-          this.json.set(plano.json_questionario);
-          depois?.();
-        },
-        error: (err: ApiError) => {
-          this.salvando.set(false);
-          this.mensagemErro.set(err.message);
-        },
-      });
+    this.limparAvisos();
+    // Na avaliação só a coordenação grava, e no plano de outra pessoa; fora dela,
+    // quem grava é o dono, no próprio plano.
+    const gravacao = this.ehCoordenacao()
+      ? this.planos.corrigir(this.email(), json)
+      : this.service.salvar(json);
+    gravacao.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (plano) => {
+        this.salvando.set(false);
+        this.json.set(plano.json_questionario);
+        depois?.();
+      },
+      error: (err: ApiError) => {
+        this.salvando.set(false);
+        this.mensagemErro.set(err.message);
+      },
+    });
   }
 
   // ----- envio final -----
@@ -1136,6 +1174,7 @@ export class Questionario implements OnInit {
       return;
     }
     this.enviando.set(true);
+    this.limparAvisos();
     this.service
       .enviar(this.json())
       .pipe(takeUntilDestroyed(this.destroyRef))

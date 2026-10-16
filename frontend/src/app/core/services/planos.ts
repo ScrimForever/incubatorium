@@ -2,8 +2,8 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { API_ROUTES } from '../constants/api-routes';
 import { Api } from '../http/api';
-import { DecisaoEntrada, NotaEntrada, PlanoResumo } from '../models/plano';
-import { Questionario, StatusQuestionario } from '../models/questionario';
+import { DecisaoEntrada, NotaEntrada, PlanoCorrecaoEntrada, PlanoResumo } from '../models/plano';
+import { JsonQuestionario, Questionario, StatusQuestionario } from '../models/questionario';
 import { normalizar } from './questionario';
 
 /**
@@ -55,6 +55,18 @@ export class PlanosService {
   decidir(email: string, decisao: DecisaoEntrada): Observable<Questionario> {
     return this.api
       .patch<Questionario>(API_ROUTES.avaliacao.statusDe(email), decisao)
+      .pipe(map(normalizar));
+  }
+
+  /**
+   * A coordenação corrige as respostas do incubado. Vai só o documento, sem
+   * status: corrigir não envia nem aprova. Notas, decisão e anexos o servidor
+   * mantém como estão (`docs/contrato-avaliacao.md`, Parte 4).
+   */
+  corrigir(email: string, json: JsonQuestionario): Observable<Questionario> {
+    const corpo: PlanoCorrecaoEntrada = { json_questionario: json };
+    return this.api
+      .put<Questionario>(API_ROUTES.avaliacao.planoDe(email), corpo)
       .pipe(map(normalizar));
   }
 }

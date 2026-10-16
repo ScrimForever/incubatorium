@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { PlanoResumo } from '../models/plano';
+import { documentoVazio } from '../models/questionario';
 import { PlanosService } from './planos';
 
 describe('PlanosService', () => {
@@ -132,8 +133,22 @@ describe('PlanosService', () => {
     pedido.flush({ status_questionario: 'rejeitado', json_questionario: {} });
   });
 
-  it('avaliar e decidir sao as unicas escritas, e so decidir mexe no status', () => {
+  it('corrigir grava o documento no plano alheio, sem status', () => {
+    const json = documentoVazio();
+    json['1'].nome_negocio = 'NutriData Corrigida';
+    service.corrigir('ana+teste@teccampos.com', json).subscribe();
+
+    const pedido = http.expectOne('/api/usuarios/ana%2Bteste%40teccampos.com/plano');
+    expect(pedido.request.method).toBe('PUT');
+    expect(pedido.request.body).toEqual({ json_questionario: json });
+    // Corrigir não envia nem aprova: o status só muda pelo `decidir`.
+    expect(Object.keys(pedido.request.body as object)).not.toContain('status_questionario');
+
+    pedido.flush({ status_questionario: 'aguardando_aprovacao', json_questionario: json });
+  });
+
+  it('avaliar, decidir e corrigir sao as unicas escritas, e so decidir mexe no status', () => {
     const metodos = Object.getOwnPropertyNames(Object.getPrototypeOf(service));
-    expect(metodos).toEqual(['constructor', 'listar', 'plano', 'avaliar', 'decidir']);
+    expect(metodos).toEqual(['constructor', 'listar', 'plano', 'avaliar', 'decidir', 'corrigir']);
   });
 });

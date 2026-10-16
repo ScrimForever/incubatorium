@@ -69,6 +69,7 @@ const MESSAGES: Record<string, string> = {
   ETAPA_JA_AVALIADA: 'Esta etapa já foi avaliada por outro consultor.',
   AVALIACAO_RESTRITA_CONSULTOR: 'Quem avalia as etapas é o consultor, não a coordenação.',
   DECISAO_RESTRITA_COORDENACAO: 'Só a coordenação pode aprovar ou devolver um plano.',
+  EDICAO_RESTRITA_COORDENACAO: 'Só a coordenação pode corrigir as respostas de um plano.',
   ETAPAS_PENDENTES: 'Avalie as nove etapas antes de decidir o plano.',
   JUSTIFICATIVA_OBRIGATORIA: 'Escreva o motivo para devolver o plano.',
 };

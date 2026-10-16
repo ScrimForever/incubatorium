@@ -57,6 +57,7 @@
       </div>
 
       <footer class="modal-footer">
+        <button type="button" class="btn btn--secundario" (click)="fechar.emit()">Fechar</button>
         <button
           type="button"
           class="btn btn--azul visu-baixar"
@@ -65,7 +66,6 @@
         >
           {{ carregando() ? 'Baixando…' : 'Baixar' }}
         </button>
-        <button type="button" class="btn-texto" (click)="fechar.emit()">Fechar</button>
       </footer>
     </div>
   </div>

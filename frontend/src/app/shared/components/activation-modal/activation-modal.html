@@ -48,7 +48,12 @@
       </div>
 
       <footer class="modal-footer">
-        <button type="button" class="btn-texto" [disabled]="sending()" (click)="resend.emit()">
+        <button
+          type="button"
+          class="btn btn--secundario"
+          [disabled]="sending()"
+          (click)="resend.emit()"
+        >
           {{ sending() ? 'Enviando...' : 'Reenviar e-mail de ativação' }}
         </button>
         <button type="button" class="btn btn--azul" (click)="closed.emit()">Entendi</button>

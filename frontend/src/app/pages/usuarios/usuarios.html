@@ -202,7 +202,7 @@
                 @if (alterado()) {
                   <button
                     type="button"
-                    class="btn-texto"
+                    class="btn btn--secundario"
                     [disabled]="salvando()"
                     (click)="descartar()"
                   >
@@ -211,7 +211,7 @@
                 }
                 <button
                   type="button"
-                  class="btn btn--verde usuarios-salvar"
+                  class="btn btn--verde"
                   [disabled]="!alterado() || salvando()"
                   (click)="salvar()"
                 >
@@ -222,7 +222,7 @@
               <div class="usuarios-risco">
                 <button
                   type="button"
-                  class="btn-texto usuarios-excluir"
+                  class="btn btn--secundario usuarios-excluir"
                   [disabled]="salvando()"
                   (click)="pedirExclusao()"
                 >
@@ -264,7 +264,9 @@
         </div>
 
         <footer class="modal-footer">
-          <button type="button" class="btn-texto" (click)="cancelarExclusao()">Cancelar</button>
+          <button type="button" class="btn btn--secundario" (click)="cancelarExclusao()">
+            Cancelar
+          </button>
           <button
             type="button"
             class="btn btn--azul"

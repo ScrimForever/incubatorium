@@ -32,7 +32,7 @@ describe('BotaoSair', () => {
   it('cancelar fecha a modal sem encerrar a sessão', () => {
     el('.topbar-sair')?.click();
     fixture.detectChanges();
-    el('.modal .btn-texto')?.click();
+    el('.modal .btn--secundario')?.click();
     fixture.detectChanges();
 
     expect(el('[role="alertdialog"]')).toBeNull();
