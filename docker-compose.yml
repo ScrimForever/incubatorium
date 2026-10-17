@@ -21,6 +21,22 @@ services:
     networks:
       - app_network
 
+  frontend:
+    build:
+      context: ./frontend
+      target: dev
+    container_name: app_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    depends_on:
+      - web
+    networks:
+      - app_network
+
   db:
     image: bitnami/postgresql:latest
     container_name: app_db
@@ -78,7 +94,7 @@ services:
     command: |
       sh -c "
         echo '=== Installing test dependencies ===' &&
-        uv pip install -r requirements-test.txt &&
+        uv sync --frozen --no-dev --group test --no-install-project &&
         echo '=== Running tests ===' &&
         uv run pytest tests/ -v --cov=. --cov-report=term-missing &&
         echo '=== Tests completed successfully ===' &&
