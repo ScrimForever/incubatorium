@@ -7,6 +7,7 @@ from src.domain.schemas.questionario_schema import (
 )
 from src.infra.db import get_async_session
 from src.logger import logger
+from src.repository.questionario import QuestionarioRepository
 from src.services.questionario.questionario_service import QuestionarioService
 from src.shared.exceptions import NegocioError
 from src.shared.permissoes import exigir_perfil
@@ -29,9 +30,9 @@ class QuestionarioRouter:
         ):
             logger.info(f"Gravando novo questionário para usuário: {user.email}")
             try:
-                gravacao_questionario = await QuestionarioService(user, db).criar(
-                    questionario
-                )
+                gravacao_questionario = await QuestionarioService(
+                    QuestionarioRepository(db)
+                ).criar(user, questionario)
             except NegocioError as erro:
                 logger.warning(f"Gravação recusada para {user.email}: {erro}")
                 return JSONResponse(
@@ -47,8 +48,8 @@ class QuestionarioRouter:
             user: User = Depends(exigir_perfil("incubado")),
             db: AsyncSession = Depends(get_async_session),
         ):
-            questionario = await QuestionarioService(user, db).buscar()
-            return questionario
+            service = QuestionarioService(QuestionarioRepository(db))
+            return await service.buscar(user) or False
 
         @self.router.put("", response_model=QuestionarioOutputSchema)
         async def atualizar_questionario(
@@ -57,7 +58,9 @@ class QuestionarioRouter:
             db: AsyncSession = Depends(get_async_session),
         ):
             try:
-                return await QuestionarioService(user, db).atualizar(questionario)
+                return await QuestionarioService(
+                    QuestionarioRepository(db)
+                ).atualizar(user, questionario)
             except NegocioError as erro:
                 logger.warning(f"Atualização recusada para {user.email}: {erro}")
                 return JSONResponse(
@@ -69,5 +72,7 @@ class QuestionarioRouter:
                 user: User = Depends(exigir_perfil("colaborador", "consultor")),
                 db: AsyncSession = Depends(get_async_session),
         ):
-            questionario = await QuestionarioService(user, db).buscar_todos()
+            questionario = await QuestionarioService(
+                QuestionarioRepository(db)
+            ).listar_todos()
             return questionario

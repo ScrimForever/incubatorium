@@ -11,6 +11,8 @@ from src.domain.schemas.incubado_schema import (
 )
 from src.domain.schemas.plano_schema import PlanoOutput
 from src.infra.db import get_async_session
+from src.repository.questionario import QuestionarioRepository
+from src.repository.usuarios import UsuariosRepository
 from src.services.usuarios.usuarios_service import UsuariosService
 from src.shared.permissoes import exigir_acesso_incubado, exigir_perfil
 
@@ -18,7 +20,7 @@ router = APIRouter(prefix="/usuarios", tags=["usuarios"])
 
 
 def _service(db: AsyncSession = Depends(get_async_session)) -> UsuariosService:
-    return UsuariosService(db)
+    return UsuariosService(UsuariosRepository(db), QuestionarioRepository(db))
 
 
 @router.get("", response_model=list[IncubadoResumo])

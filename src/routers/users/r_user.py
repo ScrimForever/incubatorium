@@ -11,7 +11,10 @@ from src.domain.models.usuario import User
 from src.domain.schemas.user_schema import UserCreate, UserRead, UserUpdate
 from src.infra.db import get_async_session
 from src.logger import logger
-from src.services.verificacoes.usuario import UserService
+from src.repository.questionario import QuestionarioRepository
+from src.repository.usuarios import UsuariosRepository
+from src.services.email.setup import EmailSetup
+from src.services.usuarios.ativacao_service import AtivacaoService
 from starlette.responses import JSONResponse, RedirectResponse
 
 
@@ -55,9 +58,9 @@ class UserRouter:
         async def ativar_email(
             email: str, code: str, db: AsyncSession = Depends(get_async_session)
         ):
-            ativacao = await UserService(db=db).ativar_usuario_com_codigo_verificacao(
-                email, code
-            )
+            ativacao = await AtivacaoService(
+                UsuariosRepository(db), QuestionarioRepository(db), EmailSetup()
+            ).ativar(email, code)
             if ativacao:
                 logger.success(f"Usuário: {email}. Ativado com sucesso.")
                 return RedirectResponse(url="http://localhost:3000/conta-ativada")
@@ -69,7 +72,9 @@ class UserRouter:
         async def reenviar_codigo(
             email: str, db: AsyncSession = Depends(get_async_session)
         ):
-            codigo = await UserService(db).reenviar_codigo_para_email(email)
+            codigo = await AtivacaoService(
+                UsuariosRepository(db), QuestionarioRepository(db), EmailSetup()
+            ).reenviar_codigo(email)
             if not codigo:
                 return JSONResponse(
                     status_code=403, content={"mensagem": "Email ou Código Inválido."}

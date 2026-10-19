@@ -61,10 +61,10 @@ class TestUserRouter:
             with patch("routers.users.r_user.get_async_session") as mock_session:
                 mock_session.return_value = AsyncMock()
 
-                with patch("routers.users.r_user.UserService") as mock_service_class:
+                with patch("routers.users.r_user.AtivacaoService") as mock_service_class:
                     mock_service = AsyncMock()
                     mock_service_class.return_value = mock_service
-                    mock_service.ativar_usuario_com_codigo_verificacao = AsyncMock(
+                    mock_service.ativar = AsyncMock(
                         return_value=True
                     )
 
@@ -89,10 +89,10 @@ class TestUserRouter:
             with patch("routers.users.r_user.get_async_session") as mock_session:
                 mock_session.return_value = AsyncMock()
 
-                with patch("routers.users.r_user.UserService") as mock_service_class:
+                with patch("routers.users.r_user.AtivacaoService") as mock_service_class:
                     mock_service = AsyncMock()
                     mock_service_class.return_value = mock_service
-                    mock_service.ativar_usuario_com_codigo_verificacao = AsyncMock(
+                    mock_service.ativar = AsyncMock(
                         return_value=False
                     )
 
@@ -117,10 +117,10 @@ class TestUserRouter:
             with patch("routers.users.r_user.get_async_session") as mock_session:
                 mock_session.return_value = AsyncMock()
 
-                with patch("routers.users.r_user.UserService") as mock_service_class:
+                with patch("routers.users.r_user.AtivacaoService") as mock_service_class:
                     mock_service = AsyncMock()
                     mock_service_class.return_value = mock_service
-                    mock_service.reenviar_codigo_para_email = AsyncMock(
+                    mock_service.reenviar_codigo = AsyncMock(
                         return_value=True
                     )
 
@@ -145,10 +145,10 @@ class TestUserRouter:
             with patch("routers.users.r_user.get_async_session") as mock_session:
                 mock_session.return_value = AsyncMock()
 
-                with patch("routers.users.r_user.UserService") as mock_service_class:
+                with patch("routers.users.r_user.AtivacaoService") as mock_service_class:
                     mock_service = AsyncMock()
                     mock_service_class.return_value = mock_service
-                    mock_service.reenviar_codigo_para_email = AsyncMock(
+                    mock_service.reenviar_codigo = AsyncMock(
                         return_value=False
                     )
 

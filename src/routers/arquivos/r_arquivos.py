@@ -10,6 +10,7 @@ from src.domain.models.usuario import User
 from src.infra.config import settings
 from src.infra.db import get_async_session
 from src.logger import logger
+from src.repository.questionario import QuestionarioRepository
 from src.services.arquivos.arquivos_service import ArquivosService
 from src.shared.armazenamento import (
     UPLOAD_DIR,
@@ -84,7 +85,7 @@ class ArquivosRouter:
             user: User = Depends(exigir_perfil("incubado", "consultor")),
             db: AsyncSession = Depends(get_async_session),
         ):
-            servico = ArquivosService(db)
+            servico = ArquivosService(QuestionarioRepository(db))
             await servico.verificar_edicao(user.email)
             try:
                 caminho_usuario = self._caminho_usuario(user.email, aba)
@@ -192,7 +193,7 @@ class ArquivosRouter:
             user: User = Depends(exigir_perfil("incubado", "colaborador", "consultor")),
             db: AsyncSession = Depends(get_async_session),
         ):
-            servico = ArquivosService(db)
+            servico = ArquivosService(QuestionarioRepository(db))
             await servico.verificar_edicao(user.email)
             try:
                 caminho_usuario = self._caminho_usuario(user.email, aba)

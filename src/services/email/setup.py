@@ -1,7 +1,6 @@
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
 
 import resend
 from jinja2 import Environment, FileSystemLoader
@@ -10,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.infra.config import settings
 from src.infra.db import get_async_session
 from src.logger import logger
-from src.repository.user.user_rep import UserRepository
+from src.repository.usuarios import UsuariosRepository
 
 resend.api_key = settings.resend_api_key
 
@@ -50,9 +49,9 @@ class EmailSetup:
             logger.error(error)
             return False
 
-    async def _verificar_codigo_usuario(self, email: str) -> str | Literal[False]:
+    async def _verificar_codigo_usuario(self, email: str) -> str | None:
         session, session_gen = await self._db_session()
-        codigo = await UserRepository(session).verificar_codigo_usuario(email)
+        codigo = await UsuariosRepository(session).buscar_codigo_ativacao(email)
         await session_gen.aclose()
         return codigo
 
@@ -60,7 +59,7 @@ class EmailSetup:
         logger.info("Montando corpo do email.")
         codigo_ativacao = await self._verificar_codigo_usuario(email)
         logger.debug(f"codigo_ativacao = {codigo_ativacao}")
-        if codigo_ativacao is False:
+        if codigo_ativacao is None:
             return False
         template = jinja_env.get_template("codigo_ativacao.html")
         html_renderizado = template.render(

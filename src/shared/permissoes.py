@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.auth.backend import current_active_user
 from src.domain.models.usuario import User
 from src.infra.db import get_async_session
-from src.repository.usuarios.usuarios_rep import UsuariosRepository
+from src.repository.usuarios import UsuariosRepository
 
 
 def _negar(detalhe: str = "Sem permissão para esta operação.") -> HTTPException:

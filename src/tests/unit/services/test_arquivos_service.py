@@ -1,10 +1,15 @@
 import pytest
 
 from domain.models.questionario import Questionario, StatusEnum
+from repository.questionario import QuestionarioRepository
 from services.arquivos.arquivos_service import ArquivosService
 from shared.exceptions import ConflitoError, NaoEncontradoError
 
 EMAIL = "ana@example.com"
+
+
+def _service(async_db) -> ArquivosService:
+    return ArquivosService(QuestionarioRepository(async_db))
 
 
 @pytest.fixture
@@ -29,7 +34,7 @@ def criar(async_db):
 )
 async def test_estados_editaveis(async_db, criar, status):
     await criar(status)
-    assert await ArquivosService(async_db).verificar_edicao(EMAIL)
+    assert await _service(async_db).verificar_edicao(EMAIL)
 
 
 @pytest.mark.asyncio
@@ -39,10 +44,10 @@ async def test_estados_editaveis(async_db, criar, status):
 async def test_estados_nao_editaveis_da_conflito(async_db, criar, status):
     await criar(status)
     with pytest.raises(ConflitoError):
-        await ArquivosService(async_db).verificar_edicao(EMAIL)
+        await _service(async_db).verificar_edicao(EMAIL)
 
 
 @pytest.mark.asyncio
 async def test_sem_questionario_da_nao_encontrado(async_db):
     with pytest.raises(NaoEncontradoError):
-        await ArquivosService(async_db).verificar_edicao(EMAIL)
+        await _service(async_db).verificar_edicao(EMAIL)

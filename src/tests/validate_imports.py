@@ -33,6 +33,12 @@ critical_modules = [
     "services",
     "services.usuarios.usuarios_service",
     "repository",
+    "repository.base",
+    "repository.usuarios",
+    "repository.questionario",
+    "services.usuarios.ativacao_service",
+    "services.questionario.questionario_service",
+    "services.arquivos.arquivos_service",
     "shared.permissoes",
 ]
 

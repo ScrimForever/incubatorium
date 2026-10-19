@@ -1,167 +1,76 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from domain.models.questionario import (
-    Questionario,
-    StatusEnum,
-)
-from domain.models.usuario import User
-from domain.schemas.questionario_schema import QuestionarioInputSchema
-from repository.questionario.questionario_rep import QuestionarioRepository
+from domain.models.questionario import Questionario, StatusEnum
+from repository.questionario import QuestionarioRepository
+
+
+def _questionario(email: str, json=None) -> Questionario:
+    return Questionario(
+        usuario_email=email,
+        status_questionario=StatusEnum.iniciado,
+        json_questionario=json if json is not None else {},
+        criado_por=email,
+    )
 
 
 @pytest.fixture
-async def user_with_email(async_db: AsyncSession, sample_email):
-    """Cria um usuário para os testes"""
-    user = User(
-        email=sample_email,
-        hashed_password="hashed_pwd",
-        is_active=True,
-    )
-    async_db.add(user)
-    await async_db.commit()
-    return user
-
-
-class TestQuestionarioRepository:
-    @pytest.mark.asyncio
-    async def test_buscar_questionario_encontrado(
-        self, async_db: AsyncSession, user_with_email, sample_email
-    ):
-        """Teste para buscar questionário existente"""
-        questionario = Questionario(
-            usuario_email=sample_email,
-            status_questionario=StatusEnum.iniciado,
-            json_questionario={"pergunta": "resposta"},
-            criado_por=sample_email,
-        )
+def gravar(async_db: AsyncSession):
+    async def _gravar(email: str, json=None) -> Questionario:
+        questionario = _questionario(email, json)
         async_db.add(questionario)
         await async_db.commit()
+        return questionario
 
-        repo = QuestionarioRepository(user_with_email, async_db)
-        resultado = await repo.buscar_questionario()
+    return _gravar
 
-        assert resultado.usuario_email == sample_email
+
+class TestBuscar:
+    @pytest.mark.asyncio
+    async def test_buscar_encontrado(self, async_db: AsyncSession, gravar):
+        await gravar("ana@x.com", {"pergunta": "resposta"})
+
+        resultado = await QuestionarioRepository(async_db).buscar("ana@x.com")
+
+        assert resultado.usuario_email == "ana@x.com"
         assert resultado.status_questionario == StatusEnum.iniciado
 
     @pytest.mark.asyncio
-    async def test_buscar_questionario_nao_encontrado(
-        self, async_db: AsyncSession, user_with_email
-    ):
-        """Teste quando questionário não existe"""
-        repo = QuestionarioRepository(user_with_email, async_db)
-        resultado = await repo.buscar_questionario()
-
-        assert resultado is False
+    async def test_buscar_sem_registro_devolve_none(self, async_db: AsyncSession):
+        assert await QuestionarioRepository(async_db).buscar("x@y") is None
 
     @pytest.mark.asyncio
-    async def test_gravar_questionario_novo(
-        self, async_db: AsyncSession, user_with_email, sample_email
-    ):
-        """Teste para criar novo questionário"""
-        input_schema = QuestionarioInputSchema(
-            status_questionario=StatusEnum.iniciado,
-            json_questionario={"pergunta_1": "resposta_1"},
+    async def test_buscar_para_atualizar(self, async_db: AsyncSession, gravar):
+        await gravar("ana@x.com")
+        repo = QuestionarioRepository(async_db)
+
+        assert (await repo.buscar_para_atualizar("ana@x.com")).usuario_email == (
+            "ana@x.com"
         )
-
-        repo = QuestionarioRepository(user_with_email, async_db)
-        resultado = await repo.gravar_questionario(input_schema)
-
-        assert resultado.usuario_email == sample_email
-        assert resultado.status_questionario == StatusEnum.iniciado
-        assert resultado.json_questionario == {"pergunta_1": "resposta_1"}
+        assert await repo.buscar_para_atualizar("x@y") is None
 
     @pytest.mark.asyncio
-    async def test_gravar_questionario_ja_existe(
-        self, async_db: AsyncSession, user_with_email, sample_email
-    ):
-        """Teste quando questionário já existe"""
-        questionario = Questionario(
-            usuario_email=sample_email,
-            status_questionario=StatusEnum.iniciado,
-            json_questionario={},
-            criado_por=sample_email,
-        )
-        async_db.add(questionario)
-        await async_db.commit()
+    async def test_listar_todos(self, async_db: AsyncSession, gravar):
+        await gravar("ana@x.com")
+        await gravar("bia@x.com")
 
-        input_schema = QuestionarioInputSchema(
-            status_questionario=StatusEnum.pendente,
-        )
+        todos = await QuestionarioRepository(async_db).listar_todos()
 
-        repo = QuestionarioRepository(user_with_email, async_db)
-        resultado = await repo.gravar_questionario(input_schema)
-
-        assert resultado is False
+        assert sorted(q.usuario_email for q in todos) == ["ana@x.com", "bia@x.com"]
 
     @pytest.mark.asyncio
-    async def test_atualizar_questionario(
-        self, async_db: AsyncSession, user_with_email, sample_email
-    ):
-        """Teste para atualizar questionário existente"""
-        questionario = Questionario(
-            usuario_email=sample_email,
-            status_questionario=StatusEnum.iniciado,
-            json_questionario={"pergunta_1": "resposta_1"},
-            criado_por=sample_email,
-        )
-        async_db.add(questionario)
-        await async_db.commit()
+    async def test_listar_todos_vazio(self, async_db: AsyncSession):
+        assert await QuestionarioRepository(async_db).listar_todos() == []
 
-        input_schema = QuestionarioInputSchema(
-            status_questionario=StatusEnum.pendente,
-            json_questionario={"pergunta_1": "resposta_2"},
-        )
 
-        repo = QuestionarioRepository(user_with_email, async_db)
-        resultado = await repo.atualizar_questionario(input_schema)
-
-        assert resultado.status_questionario == StatusEnum.pendente
-        assert resultado.json_questionario == {"pergunta_1": "resposta_2"}
-
+class TestCriar:
     @pytest.mark.asyncio
-    async def test_atualizar_questionario_nao_existe(
-        self, async_db: AsyncSession, user_with_email
-    ):
-        """Teste quando questionário não existe"""
-        input_schema = QuestionarioInputSchema(
-            status_questionario=StatusEnum.pendente,
-        )
+    async def test_criar_persiste_e_devolve_com_id(self, async_db: AsyncSession):
+        repo = QuestionarioRepository(async_db)
 
-        repo = QuestionarioRepository(user_with_email, async_db)
-        resultado = await repo.atualizar_questionario(input_schema)
+        criado = await repo.criar(_questionario("ana@x.com", {"1": "a"}))
 
-        assert resultado is False
-
-    @pytest.mark.asyncio
-    async def test_inicializar_questionario(
-        self, async_db: AsyncSession, user_with_email, sample_email
-    ):
-        """Teste para inicializar questionário"""
-        repo = QuestionarioRepository(user_with_email, async_db)
-        resultado = await repo.inicializar_questionario(sample_email)
-
-        assert resultado is True
-
-        questionario = await repo.buscar_questionario()
-        assert questionario.usuario_email == sample_email
-        assert questionario.status_questionario == StatusEnum.iniciado
-
-    @pytest.mark.asyncio
-    async def test_inicializar_questionario_ja_existe(
-        self, async_db: AsyncSession, user_with_email, sample_email
-    ):
-        """Teste quando questionário já existe"""
-        questionario = Questionario(
-            usuario_email=sample_email,
-            status_questionario=StatusEnum.iniciado,
-            json_questionario={},
-            criado_por=sample_email,
-        )
-        async_db.add(questionario)
-        await async_db.commit()
-
-        repo = QuestionarioRepository(user_with_email, async_db)
-        resultado = await repo.inicializar_questionario(sample_email)
-
-        assert resultado is False
+        assert criado.id is not None
+        encontrado = await repo.buscar("ana@x.com")
+        assert encontrado.id == criado.id
+        assert encontrado.json_questionario == {"1": "a"}

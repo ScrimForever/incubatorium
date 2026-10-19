@@ -149,3 +149,44 @@ async def test_atualizar_questionario(
     assert historico[0].usuario_email == sample_email
     assert historico[0].status_questionario == StatusEnum.pendente
     assert historico[0].json_questionario == {"2": {"business_canvas": "Canvas"}}
+
+
+@pytest.mark.asyncio
+async def test_buscar_sem_questionario_devolve_false(setup_questionario_router):
+    """Contrato com o frontend: sem documento, GET devolve `false` (200)"""
+    router, app = setup_questionario_router
+    await router.iniciar()
+
+    response = TestClient(app).get("/questionario")
+
+    assert response.status_code == 200
+    assert response.json() is False
+
+
+@pytest.mark.asyncio
+async def test_criar_duas_vezes_da_409(setup_questionario_router):
+    router, app = setup_questionario_router
+    await router.iniciar()
+    client = TestClient(app)
+    payload = {"status_questionario": "pendente", "json_questionario": {}}
+
+    assert client.post("/questionario", json=payload).status_code == 200
+    response = client.post("/questionario", json=payload)
+
+    assert response.status_code == 409
+    assert response.json() == {
+        "mensagem": "Questionario já existe. Não é possível criar um novo questionario."
+    }
+
+
+@pytest.mark.asyncio
+async def test_atualizar_sem_questionario_da_404(setup_questionario_router):
+    router, app = setup_questionario_router
+    await router.iniciar()
+
+    response = TestClient(app).put(
+        "/questionario", json={"status_questionario": "pendente"}
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"mensagem": "Questionário não encontrado."}

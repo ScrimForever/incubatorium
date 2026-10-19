@@ -1,6 +1,5 @@
-from sqlalchemy.ext.asyncio import AsyncSession
 from src.domain.models.questionario import Questionario, StatusEnum
-from src.repository.arquivos.arquivos_rep import ArquivosRepository
+from src.repository.questionario import QuestionarioRepository
 from src.shared.exceptions import ConflitoError, NaoEncontradoError
 
 STATUS_EDITAVEIS = (StatusEnum.iniciado, StatusEnum.pendente, StatusEnum.aprovado)
@@ -9,9 +8,8 @@ STATUS_EDITAVEIS = (StatusEnum.iniciado, StatusEnum.pendente, StatusEnum.aprovad
 class ArquivosService:
     """Regra de edição dos anexos: o questionário existe e está em estado editável."""
 
-    def __init__(self, db: AsyncSession, repository: ArquivosRepository | None = None):
-        self.db = db
-        self.repository = repository or ArquivosRepository(db)
+    def __init__(self, questionarios: QuestionarioRepository):
+        self.questionarios = questionarios
 
     @staticmethod
     def _checar_edicao(questionario: Questionario | None) -> Questionario:
@@ -26,4 +24,4 @@ class ArquivosService:
 
     async def verificar_edicao(self, email: str) -> Questionario:
         """Antes de gravar/apagar arquivos: questionário existe e é editável."""
-        return self._checar_edicao(await self.repository.buscar(email))
+        return self._checar_edicao(await self.questionarios.buscar(email))
