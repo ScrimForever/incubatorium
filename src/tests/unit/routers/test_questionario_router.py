@@ -14,6 +14,7 @@ from domain.models.questionario import (
 from domain.models.usuario import User
 from routers.dependencias import get_questionario_service
 from routers.questionario import router as questionario_router
+from shared.handlers import registrar_handlers
 
 
 @pytest.fixture
@@ -26,8 +27,6 @@ async def setup_questionario_router(async_db: AsyncSession, sample_email):
     )
     async_db.add(user)
     await async_db.commit()
-
-    from shared.handlers import registrar_handlers
 
     app = FastAPI()
     registrar_handlers(app)
@@ -63,21 +62,20 @@ async def test_criar_questionario(setup_questionario_router, sample_email):
         "json_questionario": {"pergunta_1": "resposta_1"},
     }
 
-    if True:
-        mock_repo = MagicMock()
-        app.dependency_overrides[get_questionario_service] = lambda: mock_repo
+    mock_repo = MagicMock()
+    app.dependency_overrides[get_questionario_service] = lambda: mock_repo
 
-        questionario = Questionario(
-            usuario_email=sample_email,
-            status_questionario=StatusEnum.iniciado,
-            json_questionario={"pergunta_1": "resposta_1"},
-        )
+    questionario = Questionario(
+        usuario_email=sample_email,
+        status_questionario=StatusEnum.iniciado,
+        json_questionario={"pergunta_1": "resposta_1"},
+    )
 
-        mock_repo.criar = AsyncMock(return_value=questionario)
+    mock_repo.criar = AsyncMock(return_value=questionario)
 
-        response = client.post("/questionario", json=payload)
+    response = client.post("/questionario", json=payload)
 
-        assert response.status_code in [200, 422]
+    assert response.status_code in [200, 422]
 
 
 @pytest.mark.asyncio
@@ -87,21 +85,20 @@ async def test_buscar_questionario(setup_questionario_router, sample_email):
 
     client = TestClient(app)
 
-    if True:
-        mock_repo = MagicMock()
-        app.dependency_overrides[get_questionario_service] = lambda: mock_repo
+    mock_repo = MagicMock()
+    app.dependency_overrides[get_questionario_service] = lambda: mock_repo
 
-        questionario = Questionario(
-            usuario_email=sample_email,
-            status_questionario=StatusEnum.iniciado,
-            json_questionario={},
-        )
+    questionario = Questionario(
+        usuario_email=sample_email,
+        status_questionario=StatusEnum.iniciado,
+        json_questionario={},
+    )
 
-        mock_repo.buscar = AsyncMock(return_value=questionario)
+    mock_repo.buscar = AsyncMock(return_value=questionario)
 
-        response = client.get("/questionario")
+    response = client.get("/questionario")
 
-        assert response.status_code in [200, 422]
+    assert response.status_code in [200, 422]
 
 
 @pytest.mark.asyncio
@@ -120,11 +117,6 @@ async def test_atualizar_questionario(
     )
     await async_db.commit()
 
-    from fastapi.testclient import TestClient
-
-    from shared.handlers import registrar_handlers
-
-    registrar_handlers(app)
     client = TestClient(app)
 
     payload = {

@@ -59,6 +59,26 @@ Bancos que já existiam (criados antes do Alembic) mantêm suas tabelas: a migra
 `0001` só cria o que falta e carimba a revisão.
 
 
+## Arquitetura (`src/`)
+
+```
+domain/       models (SQLAlchemy) e schemas (Pydantic); não importa de nenhuma outra camada
+auth/         backend de autenticação e usuario_manager
+infra/        config, db (sessão), armazenamento (ArmazenamentoLocal)
+repository/   acesso ao banco, sem estado (base, usuarios, questionario)
+services/     regras de negócio (usuarios, questionario, arquivos, email)
+routers/      APIRouters de módulo (auth, usuarios, questionario, arquivos); `ROUTERS` é
+              incluído em startapp.py; dependencias.py monta services via Depends
+shared/       permissoes, exceptions, handlers, validacao_arquivos
+```
+
+Regras de dependência: `domain` não importa das demais camadas; `repository` não importa de
+`services`/`routers`; `services` não importam de `routers`; routers não acessam o banco nem
+constroem services/repositories (usam `Depends`). Verificadas por
+`tests/unit/test_arquitetura.py`.
+
+Testes: `python -m pytest tests -q -p no:cacheprovider` (ver `tests/README.md`).
+
 ## Perfis e criação da equipe
 
 Há quatro perfis, definidos por flags em `User`: **incubado** (`is_incubado`, o padrão de quem
