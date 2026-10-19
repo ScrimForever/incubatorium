@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.domain.models.user_model import current_active_user
 from src.domain.schemas.questionario_schema import (
     QuestionarioInputSchema,
     QuestionarioOutputSchema,
@@ -9,6 +8,7 @@ from src.infra.db import User, get_async_session
 from src.logger import logger
 from src.services.questionario.questionario_service import QuestionarioService
 from src.shared.exceptions import NegocioError
+from src.shared.permissoes import exigir_perfil
 from starlette.responses import JSONResponse
 
 
@@ -23,7 +23,7 @@ class QuestionarioRouter:
         @self.router.post("", response_model=QuestionarioOutputSchema)
         async def inserir_questionario(
             questionario: QuestionarioInputSchema,
-            user: User = Depends(current_active_user),
+            user: User = Depends(exigir_perfil("incubado")),
             db: AsyncSession = Depends(get_async_session),
         ):
             logger.info(f"Gravando novo questionário para usuário: {user.email}")
@@ -43,7 +43,7 @@ class QuestionarioRouter:
 
         @self.router.get("")
         async def buscar_questionario(
-            user: User = Depends(current_active_user),
+            user: User = Depends(exigir_perfil("incubado")),
             db: AsyncSession = Depends(get_async_session),
         ):
             questionario = await QuestionarioService(user, db).buscar()
@@ -52,7 +52,7 @@ class QuestionarioRouter:
         @self.router.put("", response_model=QuestionarioOutputSchema)
         async def atualizar_questionario(
             questionario: QuestionarioInputSchema,
-            user: User = Depends(current_active_user),
+            user: User = Depends(exigir_perfil("incubado")),
             db: AsyncSession = Depends(get_async_session),
         ):
             try:
@@ -65,7 +65,7 @@ class QuestionarioRouter:
 
         @self.router.get("/todos")
         async def buscar_questionario(
-                user: User = Depends(current_active_user),
+                user: User = Depends(exigir_perfil("colaborador", "consultor")),
                 db: AsyncSession = Depends(get_async_session),
         ):
             questionario = await QuestionarioService(user, db).buscar_todos()

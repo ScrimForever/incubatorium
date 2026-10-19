@@ -11,7 +11,7 @@ from src.domain.schemas.incubado_schema import (
 from src.domain.schemas.plano_schema import PlanoOutput
 from src.infra.db import User, get_async_session
 from src.services.usuarios.usuarios_service import UsuariosService
-from src.shared.permissoes import exigir_acesso_incubado, exigir_colaborador
+from src.shared.permissoes import exigir_acesso_incubado, exigir_perfil
 
 router = APIRouter(prefix="/usuarios", tags=["usuarios"])
 
@@ -24,7 +24,7 @@ def _service(db: AsyncSession = Depends(get_async_session)) -> UsuariosService:
 async def painel_de_incubados(
     perfil: Literal["incubado"] = "incubado",
     situacao: SituacaoIncubacao | None = None,
-    _: User = Depends(exigir_colaborador),
+    _: User = Depends(exigir_perfil("colaborador")),
     service: UsuariosService = Depends(_service),
 ):
     """Painel do colaborador: situação e estado do plano."""
@@ -35,7 +35,7 @@ async def painel_de_incubados(
 async def alterar_situacao(
     email: str,
     corpo: SituacaoUpdate,
-    colaborador: User = Depends(exigir_colaborador),
+    colaborador: User = Depends(exigir_perfil("colaborador")),
     service: UsuariosService = Depends(_service),
 ):
     usuario = await service.alterar_situacao(colaborador, email, corpo.situacao)

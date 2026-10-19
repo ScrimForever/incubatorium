@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.domain.models.user_model import current_active_user
 from src.infra.config import settings
 from src.infra.db import User, get_async_session
 from src.logger import logger
@@ -23,7 +22,7 @@ from src.shared.exceptions import (
     ErroAoListarArquivosError,
     ErroAoSalvarArquivoError,
 )
-from src.shared.permissoes import pode_acessar_incubado
+from src.shared.permissoes import exigir_perfil, pode_acessar_incubado
 from src.shared.validacao_arquivos import (
     BYTES_ASSINATURA,
     ArquivoInvalidoError,
@@ -81,7 +80,7 @@ class ArquivosRouter:
         async def inserir_arquivo_questionario(
             aba: int,
             arquivos: list[UploadFile] = File(...),
-            user: User = Depends(current_active_user),
+            user: User = Depends(exigir_perfil("incubado", "consultor")),
             db: AsyncSession = Depends(get_async_session),
         ):
             servico = ArquivosService(db)
@@ -140,7 +139,7 @@ class ArquivosRouter:
         async def listar_arquivos_aba_questionario(
             aba: int,
             email: str | None = None,
-            user: User = Depends(current_active_user),
+            user: User = Depends(exigir_perfil("incubado", "colaborador", "consultor")),
             db: AsyncSession = Depends(get_async_session),
         ):
             dono = await self._dono_dos_arquivos(db, user, email)
@@ -157,7 +156,7 @@ class ArquivosRouter:
             aba: int,
             todos: int | None = None,
             email: str | None = None,
-            user: User = Depends(current_active_user),
+            user: User = Depends(exigir_perfil("incubado", "colaborador", "consultor")),
             db: AsyncSession = Depends(get_async_session),
         ):
             dono = await self._dono_dos_arquivos(db, user, email)
@@ -189,7 +188,7 @@ class ArquivosRouter:
         async def listar_arquivos_questionario(
             delecao: list[str],
             aba: int,
-            user: User = Depends(current_active_user),
+            user: User = Depends(exigir_perfil("incubado", "colaborador", "consultor")),
             db: AsyncSession = Depends(get_async_session),
         ):
             servico = ArquivosService(db)

@@ -137,7 +137,7 @@ class TestPainel:
         assert resposta.status_code == 422
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("perfil", ["incubado", "consultor", "admin"])
+    @pytest.mark.parametrize("perfil", ["incubado", "consultor"])
     async def test_so_colaborador_ve_o_painel(self, criar_usuario, cliente_api, perfil):
         usuario = await criar_usuario(perfil)
 
@@ -146,6 +146,16 @@ class TestPainel:
         )
 
         assert resposta.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_admin_ve_o_painel(self, criar_usuario, cliente_api):
+        admin = await criar_usuario("admin")
+
+        resposta = await (await cliente_api([router], admin)).get(
+            "/usuarios?perfil=incubado"
+        )
+
+        assert resposta.status_code == 200
 
 
 class TestSituacao:
