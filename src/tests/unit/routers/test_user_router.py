@@ -1,159 +1,60 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from domain.models.usuario import User
-from routers.users.r_user import UserRouter
+from routers.auth import router
+from routers.dependencias import get_ativacao_service
 
 
 @pytest.fixture
-async def setup_user_router(async_db: AsyncSession, sample_email):
-    """Setup para router de usuário"""
-    user = User(
-        email=sample_email,
-        hashed_password="hashed_pwd",
-        is_active=True,
-    )
-    async_db.add(user)
-    await async_db.commit()
+def servico():
+    return AsyncMock()
 
+
+@pytest.fixture
+def client(servico):
     app = FastAPI()
+    app.include_router(router)
+    app.dependency_overrides[get_ativacao_service] = lambda: servico
+    return TestClient(app, follow_redirects=False)
 
-    router = UserRouter(app=app)
-    yield router, app, user
 
+class TestAuthRouter:
+    def test_authenticated_route_exige_login(self, client):
+        assert client.get("/authenticated-route").status_code == 401
 
-class TestUserRouter:
-    @pytest.mark.asyncio
-    async def test_authenticated_route(self, setup_user_router):
-        """Teste de rota autenticada"""
-        router, app, user = setup_user_router
+    def test_validar_email_sucesso(self, client, servico):
+        servico.ativar.return_value = True
 
-        client = TestClient(app)
+        response = client.get("/validar_email/a@b.com/123456")
 
-        with patch("routers.users.r_user.current_active_user") as mock_user:
-            mock_user.return_value = user
+        assert response.status_code == 307
+        assert response.headers["location"] == "http://localhost:3000/conta-ativada"
+        servico.ativar.assert_awaited_once_with("a@b.com", "123456")
 
-            await router.start_router()
+    def test_validar_email_falha(self, client, servico):
+        servico.ativar.return_value = False
 
-            response = client.get("/authenticated-route")
+        response = client.get("/validar_email/a@b.com/999999")
 
-            assert response.status_code in [200, 401, 422]
+        assert response.status_code == 307
+        assert response.headers["location"] == "http://localhost:3000/nao-encontrado"
 
-    @pytest.mark.asyncio
-    async def test_validar_email_sucesso(self, setup_user_router, sample_email):
-        """Teste para validar email com sucesso"""
-        router, app, user = setup_user_router
-        codigo = user.codigo_ativacao
+    def test_reenviar_codigo_sucesso(self, client, servico):
+        servico.reenviar_codigo.return_value = True
 
-        assert codigo is not None
+        response = client.post("/reenviar_codigo/a@b.com")
 
-        client = TestClient(app)
+        assert response.status_code == 200
+        assert response.json() == {"mensagem": "Email enviado com sucesso."}
+        servico.reenviar_codigo.assert_awaited_once_with("a@b.com")
 
-        with patch(
-            "services.email.setup.EmailSetup.enviar_email_cadastro"
-        ) as mock_email:
-            mock_email.return_value = AsyncMock(return_value=True)
+    def test_reenviar_codigo_falha(self, client, servico):
+        servico.reenviar_codigo.return_value = False
 
-            with patch("routers.users.r_user.get_async_session") as mock_session:
-                mock_session.return_value = AsyncMock()
+        response = client.post("/reenviar_codigo/nao@existe.com")
 
-                with patch("routers.users.r_user.AtivacaoService") as mock_service_class:
-                    mock_service = AsyncMock()
-                    mock_service_class.return_value = mock_service
-                    mock_service.ativar = AsyncMock(
-                        return_value=True
-                    )
-
-                    await router.start_router()
-
-                    response = client.get(f"/validar_email/{sample_email}/{codigo}")
-
-                    assert response.status_code in [200, 307, 422]
-
-    @pytest.mark.asyncio
-    async def test_validar_email_falha(self, setup_user_router, sample_email):
-        """Teste para validar email com falha"""
-        router, app, _user = setup_user_router
-
-        client = TestClient(app)
-
-        with patch(
-            "services.email.setup.EmailSetup.enviar_email_cadastro"
-        ) as mock_email:
-            mock_email.return_value = AsyncMock(return_value=False)
-
-            with patch("routers.users.r_user.get_async_session") as mock_session:
-                mock_session.return_value = AsyncMock()
-
-                with patch("routers.users.r_user.AtivacaoService") as mock_service_class:
-                    mock_service = AsyncMock()
-                    mock_service_class.return_value = mock_service
-                    mock_service.ativar = AsyncMock(
-                        return_value=False
-                    )
-
-                    await router.start_router()
-
-                    response = client.get(f"/validar_email/{sample_email}/999999")
-
-                    assert response.status_code in [200, 307, 422]
-
-    @pytest.mark.asyncio
-    async def test_reenviar_codigo_sucesso(self, setup_user_router, sample_email):
-        """Teste para reenviar código"""
-        router, app, _user = setup_user_router
-
-        client = TestClient(app)
-
-        with patch(
-            "services.email.setup.EmailSetup.enviar_email_cadastro"
-        ) as mock_email:
-            mock_email.return_value = AsyncMock(return_value=True)
-
-            with patch("routers.users.r_user.get_async_session") as mock_session:
-                mock_session.return_value = AsyncMock()
-
-                with patch("routers.users.r_user.AtivacaoService") as mock_service_class:
-                    mock_service = AsyncMock()
-                    mock_service_class.return_value = mock_service
-                    mock_service.reenviar_codigo = AsyncMock(
-                        return_value=True
-                    )
-
-                    await router.start_router()
-
-                    response = client.post(f"/reenviar_codigo/{sample_email}")
-
-                    assert response.status_code in [200, 422]
-
-    @pytest.mark.asyncio
-    async def test_reenviar_codigo_falha(self, setup_user_router):
-        """Teste para reenviar código com falha"""
-        router, app, _user = setup_user_router
-
-        client = TestClient(app)
-
-        with patch(
-            "services.email.setup.EmailSetup.enviar_email_cadastro"
-        ) as mock_email:
-            mock_email.return_value = AsyncMock(return_value=False)
-
-            with patch("routers.users.r_user.get_async_session") as mock_session:
-                mock_session.return_value = AsyncMock()
-
-                with patch("routers.users.r_user.AtivacaoService") as mock_service_class:
-                    mock_service = AsyncMock()
-                    mock_service_class.return_value = mock_service
-                    mock_service.reenviar_codigo = AsyncMock(
-                        return_value=False
-                    )
-
-                    await router.start_router()
-
-                    response = client.post("/reenviar_codigo/nao@existe.com")
-
-                    assert response.status_code in [200, 422]
+        assert response.status_code == 403
+        assert response.json() == {"mensagem": "Email ou Código Inválido."}

@@ -7,14 +7,10 @@ RAIZ = Path(__file__).resolve().parents[2]
 PADRAO_BANCO = re.compile(
     r"\bdb\.(get|execute|add|commit|refresh)\(|\bselect\(|\bupdate\("
 )
-# routers/questionario e routers/users são anteriores à feature (o plano os mantém como estão)
-ANTIGOS = {"questionario", "users"}
 
 
 def _arquivos_novos():
-    for pasta in sorted((RAIZ / "routers").iterdir()):
-        if pasta.is_dir() and pasta.name not in ANTIGOS and pasta.name != "__pycache__":
-            yield from pasta.glob("*.py")
+    yield from sorted((RAIZ / "routers").glob("*.py"))
     yield RAIZ / "shared" / "permissoes.py"
 
 

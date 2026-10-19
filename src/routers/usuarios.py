@@ -1,7 +1,7 @@
 from typing import Literal
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
+
 from src.domain.models.enums import SituacaoIncubacao
 from src.domain.models.usuario import User
 from src.domain.schemas.incubado_schema import (
@@ -10,17 +10,11 @@ from src.domain.schemas.incubado_schema import (
     SituacaoUpdate,
 )
 from src.domain.schemas.plano_schema import PlanoOutput
-from src.infra.db import get_async_session
-from src.repository.questionario import QuestionarioRepository
-from src.repository.usuarios import UsuariosRepository
+from src.routers.dependencias import get_usuarios_service
 from src.services.usuarios.usuarios_service import UsuariosService
 from src.shared.permissoes import exigir_acesso_incubado, exigir_perfil
 
 router = APIRouter(prefix="/usuarios", tags=["usuarios"])
-
-
-def _service(db: AsyncSession = Depends(get_async_session)) -> UsuariosService:
-    return UsuariosService(UsuariosRepository(db), QuestionarioRepository(db))
 
 
 @router.get("", response_model=list[IncubadoResumo])
@@ -28,7 +22,7 @@ async def painel_de_incubados(
     perfil: Literal["incubado"] = "incubado",
     situacao: SituacaoIncubacao | None = None,
     _: User = Depends(exigir_perfil("colaborador")),
-    service: UsuariosService = Depends(_service),
+    service: UsuariosService = Depends(get_usuarios_service),
 ):
     """Painel do colaborador: situação e estado do plano."""
     return await service.painel(situacao)
@@ -39,7 +33,7 @@ async def alterar_situacao(
     email: str,
     corpo: SituacaoUpdate,
     colaborador: User = Depends(exigir_perfil("colaborador")),
-    service: UsuariosService = Depends(_service),
+    service: UsuariosService = Depends(get_usuarios_service),
 ):
     usuario = await service.alterar_situacao(colaborador, email, corpo.situacao)
     return SituacaoAlteradaOutput(
@@ -53,7 +47,7 @@ async def alterar_situacao(
 @router.get("/{email}/plano", response_model=PlanoOutput)
 async def plano_do_incubado(
     alvo: User = Depends(exigir_acesso_incubado),
-    service: UsuariosService = Depends(_service),
+    service: UsuariosService = Depends(get_usuarios_service),
 ):
     """Questionário (plano de negócio) vigente do incubado."""
     return await service.plano(alvo.email)

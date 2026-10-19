@@ -3,7 +3,7 @@ from sqlalchemy import select
 
 from domain.models.enums import SituacaoIncubacao
 from domain.models.questionario import Questionario, StatusEnum
-from routers.usuarios.r_usuarios import router
+from routers.usuarios import router
 
 
 async def _plano(async_db, email):

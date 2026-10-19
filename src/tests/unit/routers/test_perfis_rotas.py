@@ -1,22 +1,17 @@
 """Matriz de perfis das rotas de questionário e arquivos."""
 
 import pytest
-from fastapi import FastAPI
 
-from routers.arquivos.r_arquivos import ArquivosRouter
-from routers.questionario.r_questionario import QuestionarioRouter
+from routers.arquivos import router as router_arquivos
+from routers.questionario import router as router_questionario
 
 
 async def _router_questionario():
-    router = QuestionarioRouter(FastAPI())
-    await router.iniciar()
-    return router.router
+    return router_questionario
 
 
 async def _router_arquivos():
-    router = ArquivosRouter(FastAPI())
-    await router.iniciar()
-    return router.router
+    return router_arquivos
 
 
 @pytest.mark.asyncio

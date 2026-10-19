@@ -5,7 +5,7 @@ from fastapi import FastAPI
 
 from domain.models.questionario import Questionario, StatusEnum
 from infra.config import settings
-from routers.arquivos.r_arquivos import ArquivosRouter
+from routers.arquivos import router as router_arquivos
 from shared import armazenamento
 from shared.handlers import registrar_handlers
 
@@ -63,8 +63,7 @@ async def api(async_db):
 
         app = FastAPI()
         registrar_handlers(app)
-        roteador = ArquivosRouter(app)
-        await roteador.iniciar()
+        app.include_router(router_arquivos)
 
         async def _usuario():
             return usuario
