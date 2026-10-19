@@ -1,6 +1,7 @@
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.infra.armazenamento import ArmazenamentoLocal
 from src.infra.db import get_async_session
 from src.repository.questionario import QuestionarioRepository
 from src.repository.usuarios import UsuariosRepository
@@ -31,7 +32,12 @@ def get_ativacao_service(
     )
 
 
+def get_armazenamento() -> ArmazenamentoLocal:
+    return ArmazenamentoLocal()
+
+
 def get_arquivos_service(
     db: AsyncSession = Depends(get_async_session),
+    armazenamento: ArmazenamentoLocal = Depends(get_armazenamento),
 ) -> ArquivosService:
-    return ArquivosService(QuestionarioRepository(db))
+    return ArquivosService(QuestionarioRepository(db), armazenamento)

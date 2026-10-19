@@ -4,9 +4,11 @@ import pytest
 from fastapi import FastAPI
 
 from domain.models.questionario import Questionario, StatusEnum
+from infra import armazenamento
+from infra.armazenamento import ArmazenamentoLocal
 from infra.config import settings
 from routers.arquivos import router as router_arquivos
-from shared import armazenamento
+from routers.dependencias import get_armazenamento
 from shared.handlers import registrar_handlers
 
 PASTA_ANA = armazenamento.sanitizar_email("ana@example.com")
@@ -17,8 +19,7 @@ PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
 
 
 @pytest.fixture(autouse=True)
-def _pasta_temporaria(tmp_path, monkeypatch):
-    monkeypatch.setattr(armazenamento, "UPLOAD_DIR", tmp_path)
+def _pasta_temporaria(tmp_path):
     return tmp_path
 
 
@@ -52,7 +53,7 @@ def criar_usuario(criar_usuario, criar_questionario):
 
 
 @pytest.fixture
-async def api(async_db):
+async def api(async_db, _pasta_temporaria):
     """Cliente do router de arquivos, com o usuário informado na chamada."""
 
     async def _montar(usuario):
@@ -73,6 +74,9 @@ async def api(async_db):
 
         app.dependency_overrides[current_active_user] = _usuario
         app.dependency_overrides[get_async_session] = _sessao
+        app.dependency_overrides[get_armazenamento] = lambda: ArmazenamentoLocal(
+            _pasta_temporaria
+        )
         return httpx.AsyncClient(
             transport=httpx.ASGITransport(app=app), base_url="http://test"
         )
