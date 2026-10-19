@@ -6,15 +6,15 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
-from src.domain.models.base_models import Base
-from src.domain.models.questionarios.questionario import (  # noqa: F401
+from src.domain.models.base import Base
+from src.domain.models.questionario import (  # noqa: F401
     Questionario,
     QuestionarioHistorico,
 )
-from src.infra.config import settings
 
 # Importar os models garante que suas tabelas estejam em Base.metadata.
-from src.infra.db import User  # noqa: F401
+from src.domain.models.usuario import User  # noqa: F401
+from src.infra.config import settings
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

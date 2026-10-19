@@ -5,30 +5,42 @@ Perfis são flags em `User`: `is_admin`, `is_colaborador`, `is_consultor`, `is_i
 
 from fastapi import Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.domain.models.user_model import current_active_user
-from src.infra.db import User, get_async_session
-from src.repository.usuarios.usuarios_rep import UsuariosRepository
+from src.auth.backend import current_active_user
+from src.domain.models.usuario import User
+from src.infra.db import get_async_session
+from src.repository.usuarios import UsuariosRepository
 
 
 def _negar(detalhe: str = "Sem permissão para esta operação.") -> HTTPException:
     return HTTPException(status_code=403, detail=detalhe)
 
 
-async def exigir_colaborador(user: User = Depends(current_active_user)) -> User:
-    if not user.is_colaborador:
-        raise _negar("Operação restrita a colaboradores da incubadora.")
-    return user
+PERFIS = ("admin", "colaborador", "consultor", "incubado")
 
 
-async def exigir_consultor(user: User = Depends(current_active_user)) -> User:
-    if not user.is_consultor:
-        raise _negar("Operação restrita a consultores.")
-    return user
+def exigir_perfil(*perfis: str):
+    """Dependência que libera a rota a quem tem ao menos uma flag `is_<perfil>`.
+
+    `is_admin` passa em qualquer rota. Perfil desconhecido falha ao definir a rota.
+    """
+    desconhecidos = set(perfis) - set(PERFIS)
+    if desconhecidos:
+        raise ValueError(f"Perfil(is) desconhecido(s): {sorted(desconhecidos)}")
+    aceitos = {"admin", *perfis}
+
+    async def dependencia(user: User = Depends(current_active_user)) -> User:
+        if not any(getattr(user, f"is_{perfil}", False) for perfil in aceitos):
+            raise _negar()
+        return user
+
+    return dependencia
 
 
 async def pode_acessar_incubado(db: AsyncSession, user: User, email: str) -> bool:
-    """Próprio incubado, qualquer colaborador ou qualquer consultor."""
-    return user.email == email or bool(user.is_colaborador) or bool(user.is_consultor)
+    """Próprio incubado, qualquer colaborador, consultor ou admin."""
+    return user.email == email or any(
+        (user.is_admin, user.is_colaborador, user.is_consultor)
+    )
 
 
 async def exigir_acesso_incubado(

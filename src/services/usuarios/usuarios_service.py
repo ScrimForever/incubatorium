@@ -1,9 +1,9 @@
-from sqlalchemy.ext.asyncio import AsyncSession
 from src.domain.models.enums import SituacaoIncubacao
-from src.domain.models.questionarios.questionario import Questionario
-from src.infra.db import User
+from src.domain.models.questionario import Questionario
+from src.domain.models.usuario import User
 from src.logger import logger
-from src.repository.usuarios.usuarios_rep import UsuariosRepository
+from src.repository.questionario import QuestionarioRepository
+from src.repository.usuarios import UsuariosRepository
 from src.shared.exceptions import (
     ConflitoError,
     NaoEncontradoError,
@@ -11,12 +11,14 @@ from src.shared.exceptions import (
 
 
 class UsuariosService:
-    def __init__(self, db: AsyncSession):
-        self.db = db
-        self.usuarios = UsuariosRepository(db)
+    def __init__(
+        self, usuarios: UsuariosRepository, questionarios: QuestionarioRepository
+    ):
+        self.usuarios = usuarios
+        self.questionarios = questionarios
 
     async def plano(self, email: str) -> Questionario:
-        plano = await self.usuarios.buscar_plano(email)
+        plano = await self.questionarios.buscar(email)
         if plano is None:
             raise NaoEncontradoError("O incubado ainda não possui questionário.")
         return plano

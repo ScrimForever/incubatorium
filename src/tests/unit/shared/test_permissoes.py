@@ -4,19 +4,44 @@ from fastapi import HTTPException
 from shared import permissoes
 
 
-class TestExigirColaborador:
+class TestExigirPerfil:
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("perfil", ["admin", "consultor", "incubado"])
-    async def test_outros_perfis_recebem_403(self, criar_usuario, perfil):
+    async def test_perfil_listado_passa(self, criar_usuario):
+        usuario = await criar_usuario("colaborador")
+        dependencia = permissoes.exigir_perfil("colaborador")
+        assert await dependencia(usuario) is usuario
+
+    @pytest.mark.asyncio
+    async def test_qualquer_perfil_da_lista_passa(self, criar_usuario):
+        dependencia = permissoes.exigir_perfil("colaborador", "consultor")
+        for perfil in ("colaborador", "consultor"):
+            usuario = await criar_usuario(perfil)
+            assert await dependencia(usuario) is usuario
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("perfil", ["consultor", "incubado"])
+    async def test_perfil_nao_listado_recebe_403(self, criar_usuario, perfil):
         usuario = await criar_usuario(perfil)
         with pytest.raises(HTTPException) as erro:
-            await permissoes.exigir_colaborador(usuario)
+            await permissoes.exigir_perfil("colaborador")(usuario)
         assert erro.value.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_colaborador_passa(self, criar_usuario):
-        usuario = await criar_usuario("colaborador")
-        assert await permissoes.exigir_colaborador(usuario) is usuario
+    async def test_admin_passa_em_qualquer_rota(self, criar_usuario):
+        admin = await criar_usuario("admin")
+        assert await permissoes.exigir_perfil("consultor")(admin) is admin
+
+    @pytest.mark.asyncio
+    async def test_usuario_sem_perfil_recebe_403(self, criar_usuario):
+        usuario = await criar_usuario("incubado")
+        usuario.is_incubado = False
+        with pytest.raises(HTTPException) as erro:
+            await permissoes.exigir_perfil("incubado", "colaborador")(usuario)
+        assert erro.value.status_code == 403
+
+    def test_perfil_inexistente_falha_na_definicao_da_rota(self):
+        with pytest.raises(ValueError):
+            permissoes.exigir_perfil("coladorador")
 
 
 class TestExigirAcessoIncubado:
@@ -53,18 +78,6 @@ class TestExigirAcessoIncubado:
             incubado.email, consultor, async_db
         )
         assert alvo.email == incubado.email
-
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize("perfil", ["incubado", "colaborador", "admin"])
-    async def test_exigir_consultor_nega_outros_perfis(self, criar_usuario, perfil):
-        with pytest.raises(HTTPException) as erro:
-            await permissoes.exigir_consultor(await criar_usuario(perfil))
-        assert erro.value.status_code == 403
-
-    @pytest.mark.asyncio
-    async def test_exigir_consultor_aceita_consultor(self, criar_usuario):
-        consultor = await criar_usuario("consultor")
-        assert await permissoes.exigir_consultor(consultor) is consultor
 
     @pytest.mark.asyncio
     async def test_alvo_inexistente_ou_nao_incubado_recebe_404(

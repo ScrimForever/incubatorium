@@ -1,18 +1,15 @@
 import pytest
-from fastapi import FastAPI
 from sqlalchemy import select
 
-from domain.models.questionarios.questionario import (
+from domain.models.questionario import (
     Questionario,
     QuestionarioHistorico,
 )
-from routers.questionario.r_questionario import QuestionarioRouter
+from routers.questionario import router
 
 
 async def _router():
-    router = QuestionarioRouter(FastAPI())
-    await router.iniciar()
-    return router.router
+    return router
 
 
 @pytest.mark.asyncio

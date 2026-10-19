@@ -7,20 +7,30 @@ Estrutura de testes unitários e de integração para o projeto.
 ```
 tests/
 ├── conftest.py              # Fixtures compartilhadas
-├── pytest.ini              # Configuração do pytest
-├── README.md               # Este arquivo
+├── validate_imports.py      # Checagem de imports do pacote
 └── unit/
-    ├── domain/
-    │   ├── test_models.py
-    │   └── test_schemas.py
-    ├── repository/          # user, questionario
-    ├── services/            # user, usuarios
-    ├── routers/             # questionario, usuarios, arquivos
+    ├── auth/                # usuario_manager
+    ├── domain/              # models, schemas
+    ├── infra/               # armazenamento local
+    ├── repository/          # usuarios, questionario
+    ├── services/            # ativacao, usuarios, questionario, arquivos, email
+    ├── routers/             # usuarios, user (auth), questionario, arquivos, perfis
     │   └── test_isolamento_dados.py   # toda rota exige login; ninguém lê dados alheios
     ├── shared/              # permissoes, handlers
     ├── scripts/             # criar_admin
-    └── test_infra_db.py
+    ├── test_arquitetura.py  # regras de dependência entre camadas
+    ├── test_rotas_publicas.py
+    ├── test_infra_db.py
+    └── test_exceptions.py
 ```
+
+## Regras de arquitetura
+
+`unit/test_arquitetura.py` falha se: routers ou `shared/permissoes.py` acessarem o banco
+direto; houver `print` no código; `domain` importar de `infra`/`repository`/`services`/
+`routers`/`auth`; `repository` importar de `services`/`routers`; `services` importar de
+`routers`; ou um módulo de `routers/` (exceto `dependencias.py`) construir `*Service(` ou
+`*Repository(` (use `Depends`).
 
 ## Requisitos
 
@@ -42,7 +52,7 @@ pytest tests/unit
 
 ### Testes de um módulo específico
 ```bash
-pytest tests/unit/repository/test_user_repository.py
+pytest tests/unit/repository/test_usuarios_repository.py
 ```
 
 ### Com cobertura

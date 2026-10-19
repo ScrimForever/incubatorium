@@ -1,5 +1,5 @@
 from pydantic import BaseModel, field_validator
-from src.domain.models.questionarios.questionario import StatusEnum
+from src.domain.models.questionario import StatusEnum
 from src.domain.schemas.mixindate_schema import MixinCriadoSchema
 
 

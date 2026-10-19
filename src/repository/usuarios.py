@@ -2,28 +2,42 @@ from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
 from src.domain.models.enums import SituacaoIncubacao
-from src.domain.models.questionarios.questionario import Questionario
-from src.infra.db import User
+from src.domain.models.questionario import Questionario
+from src.domain.models.usuario import User, gerar_codigo_ativacao
+from src.logger import logger
+from src.repository.base import Repositorio
 
 
-class UsuariosRepository:
-    def __init__(self, db: AsyncSession):
-        self.db = db
-
+class UsuariosRepository(Repositorio):
     async def buscar_por_email(self, email: str) -> User | None:
         resultado = await self.db.execute(select(User).where(User.email == email))
         return resultado.scalar_one_or_none()
 
-    async def buscar_plano(self, email: str) -> Questionario | None:
-        resultado = await self.db.execute(
-            select(Questionario).where(Questionario.usuario_email == email)
-        )
-        return resultado.scalars().first()
-
     async def buscar_por_id(self, user_id) -> User | None:
         return await self.db.get(User, user_id)
+
+    async def buscar_codigo_ativacao(self, email: str) -> str | None:
+        usuario = await self.buscar_por_email(email)
+        return None if usuario is None else usuario.codigo_ativacao
+
+    async def ativar_por_codigo(self, email: str, codigo: str) -> bool:
+        """Ativa a conta se o código confere. Falha no commit é logada e vira `False`."""
+        usuario = await self.buscar_por_email(email)
+        if usuario is None or usuario.codigo_ativacao != codigo:
+            return False
+        usuario.is_active = True
+        usuario.codigo_ativacao = None
+        try:
+            await self.salvar()
+        except SQLAlchemyError as e:
+            logger.error(e)
+            return False
+        return True
+
+    async def gerar_novo_codigo(self, usuario: User) -> None:
+        usuario.codigo_ativacao = gerar_codigo_ativacao()
+        await self.salvar()
 
     async def painel_incubados(
         self, situacao: SituacaoIncubacao | None = None
@@ -57,9 +71,5 @@ class UsuariosRepository:
         usuario.situacao_incubacao = situacao
         usuario.situacao_alterada_em = datetime.now(UTC)
         usuario.situacao_alterada_por = autor
-        try:
-            await self.db.commit()
-        except SQLAlchemyError:
-            await self.db.rollback()
-            raise
+        await self.salvar()
         return usuario

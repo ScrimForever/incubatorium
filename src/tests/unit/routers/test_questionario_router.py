@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi import FastAPI
@@ -6,13 +6,15 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from domain.models.questionarios.questionario import (
+from domain.models.questionario import (
     Questionario,
     QuestionarioHistorico,
     StatusEnum,
 )
-from infra.db import User
-from routers.questionario.r_questionario import QuestionarioRouter
+from domain.models.usuario import User
+from routers.dependencias import get_questionario_service
+from routers.questionario import router as questionario_router
+from shared.handlers import registrar_handlers
 
 
 @pytest.fixture
@@ -27,9 +29,10 @@ async def setup_questionario_router(async_db: AsyncSession, sample_email):
     await async_db.commit()
 
     app = FastAPI()
+    registrar_handlers(app)
 
     # Override dependencies
-    from domain.models.user_model import current_active_user
+    from auth.backend import current_active_user
     from infra.db import get_async_session
 
     def mock_get_user():
@@ -41,8 +44,8 @@ async def setup_questionario_router(async_db: AsyncSession, sample_email):
     app.dependency_overrides[current_active_user] = mock_get_user
     app.dependency_overrides[get_async_session] = mock_get_session
 
-    router = QuestionarioRouter(app)
-    yield router, app
+    app.include_router(questionario_router)
+    yield app
 
     app.dependency_overrides.clear()
 
@@ -50,7 +53,7 @@ async def setup_questionario_router(async_db: AsyncSession, sample_email):
 @pytest.mark.asyncio
 async def test_criar_questionario(setup_questionario_router, sample_email):
     """Teste para criar novo questionário"""
-    router, app = setup_questionario_router
+    app = setup_questionario_router
 
     client = TestClient(app)
 
@@ -59,53 +62,43 @@ async def test_criar_questionario(setup_questionario_router, sample_email):
         "json_questionario": {"pergunta_1": "resposta_1"},
     }
 
-    with patch(
-        "routers.questionario.r_questionario.QuestionarioService"
-    ) as mock_repo_class:
-        mock_repo = MagicMock()
-        mock_repo_class.return_value = mock_repo
+    mock_repo = MagicMock()
+    app.dependency_overrides[get_questionario_service] = lambda: mock_repo
 
-        questionario = Questionario(
-            usuario_email=sample_email,
-            status_questionario=StatusEnum.iniciado,
-            json_questionario={"pergunta_1": "resposta_1"},
-        )
+    questionario = Questionario(
+        usuario_email=sample_email,
+        status_questionario=StatusEnum.iniciado,
+        json_questionario={"pergunta_1": "resposta_1"},
+    )
 
-        mock_repo.criar = AsyncMock(return_value=questionario)
+    mock_repo.criar = AsyncMock(return_value=questionario)
 
-        await router.iniciar()
+    response = client.post("/questionario", json=payload)
 
-        response = client.post("/questionario", json=payload)
-
-        assert response.status_code in [200, 422]
+    assert response.status_code in [200, 422]
 
 
 @pytest.mark.asyncio
 async def test_buscar_questionario(setup_questionario_router, sample_email):
     """Teste para buscar questionário"""
-    router, app = setup_questionario_router
+    app = setup_questionario_router
 
     client = TestClient(app)
 
-    with patch(
-        "routers.questionario.r_questionario.QuestionarioService"
-    ) as mock_repo_class:
-        mock_repo = MagicMock()
-        mock_repo_class.return_value = mock_repo
+    mock_repo = MagicMock()
+    app.dependency_overrides[get_questionario_service] = lambda: mock_repo
 
-        questionario = Questionario(
-            usuario_email=sample_email,
-            status_questionario=StatusEnum.iniciado,
-            json_questionario={},
-        )
+    questionario = Questionario(
+        usuario_email=sample_email,
+        status_questionario=StatusEnum.iniciado,
+        json_questionario={},
+    )
 
-        mock_repo.buscar = AsyncMock(return_value=questionario)
+    mock_repo.buscar = AsyncMock(return_value=questionario)
 
-        await router.iniciar()
+    response = client.get("/questionario")
 
-        response = client.get("/questionario")
-
-        assert response.status_code in [200, 422]
+    assert response.status_code in [200, 422]
 
 
 @pytest.mark.asyncio
@@ -113,7 +106,7 @@ async def test_atualizar_questionario(
     setup_questionario_router, async_db, sample_email
 ):
     """PUT grava as respostas e o status enviado pelo cliente"""
-    router, app = setup_questionario_router
+    app = setup_questionario_router
     async_db.add(
         Questionario(
             usuario_email=sample_email,
@@ -124,12 +117,6 @@ async def test_atualizar_questionario(
     )
     await async_db.commit()
 
-    await router.iniciar()
-    from fastapi.testclient import TestClient
-
-    from shared.handlers import registrar_handlers
-
-    registrar_handlers(app)
     client = TestClient(app)
 
     payload = {
@@ -149,3 +136,41 @@ async def test_atualizar_questionario(
     assert historico[0].usuario_email == sample_email
     assert historico[0].status_questionario == StatusEnum.pendente
     assert historico[0].json_questionario == {"2": {"business_canvas": "Canvas"}}
+
+
+@pytest.mark.asyncio
+async def test_buscar_sem_questionario_devolve_false(setup_questionario_router):
+    """Contrato com o frontend: sem documento, GET devolve `false` (200)"""
+    app = setup_questionario_router
+
+    response = TestClient(app).get("/questionario")
+
+    assert response.status_code == 200
+    assert response.json() is False
+
+
+@pytest.mark.asyncio
+async def test_criar_duas_vezes_da_409(setup_questionario_router):
+    app = setup_questionario_router
+    client = TestClient(app)
+    payload = {"status_questionario": "pendente", "json_questionario": {}}
+
+    assert client.post("/questionario", json=payload).status_code == 200
+    response = client.post("/questionario", json=payload)
+
+    assert response.status_code == 409
+    assert response.json() == {
+        "mensagem": "Questionario já existe. Não é possível criar um novo questionario."
+    }
+
+
+@pytest.mark.asyncio
+async def test_atualizar_sem_questionario_da_404(setup_questionario_router):
+    app = setup_questionario_router
+
+    response = TestClient(app).put(
+        "/questionario", json={"status_questionario": "pendente"}
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"mensagem": "Questionário não encontrado."}

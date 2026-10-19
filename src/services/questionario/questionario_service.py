@@ -1,49 +1,51 @@
 from datetime import UTC, datetime
-from typing import Literal
 
-from sqlalchemy.ext.asyncio import AsyncSession
-from src.domain.models.questionarios.questionario import Questionario, QuestionarioHistorico
+from src.domain.models.questionario import (
+    Questionario,
+    QuestionarioHistorico,
+)
+from src.domain.models.usuario import User
 from src.domain.schemas.questionario_schema import QuestionarioInputSchema
-from src.infra.db import User
 from src.logger import logger
-from src.repository.questionario.questionario_rep import QuestionarioRepository
+from src.repository.questionario import QuestionarioRepository
 from src.shared.exceptions import ConflitoError, NaoEncontradoError
 
 
 class QuestionarioService:
-    def __init__(
-        self,
-        user: User,
-        db: AsyncSession,
-        repository: QuestionarioRepository | None = None,
-    ):
-        self.user = user
-        self.repository = repository or QuestionarioRepository(user, db)
+    def __init__(self, repository: QuestionarioRepository):
+        self.repository = repository
 
-    async def buscar(self) -> Questionario | Literal[False]:
-        return await self.repository.buscar_questionario()
+    async def buscar(self, user: User) -> Questionario | None:
+        return await self.repository.buscar(user.email)
 
-    async def buscar_todos(self) -> list[Questionario] | Literal[False]:
-        return await self.repository.buscar_questionarios()
+    async def listar_todos(self) -> list[Questionario]:
+        return await self.repository.listar_todos()
 
-    async def criar(self, entrada: QuestionarioInputSchema) -> Questionario:
+    async def criar(self, user: User, entrada: QuestionarioInputSchema) -> Questionario:
         """Grava o primeiro questionário do usuário (409 se ele já existir)."""
-        questionario = await self.repository.gravar_questionario(entrada)
-        if not questionario:
-            logger.warning(f"Questionário existe para usuário: {self.user.email}")
+        if await self.repository.buscar(user.email) is not None:
+            logger.warning(f"Questionário existe para usuário: {user.email}")
             raise ConflitoError(
                 "Questionario já existe. Não é possível criar um novo questionario."
             )
-        return questionario
+        return await self.repository.criar(
+            Questionario(
+                **entrada.model_dump(),
+                usuario_email=user.email,
+                criado_por=user.email,
+            )
+        )
 
-    async def atualizar(self, entrada: QuestionarioInputSchema) -> Questionario:
+    async def atualizar(
+        self, user: User, entrada: QuestionarioInputSchema
+    ) -> Questionario:
         """Grava o questionário como enviado (o JSON é do cliente)."""
-        questionario = await self.repository.buscar_para_atualizar()
+        questionario = await self.repository.buscar_para_atualizar(user.email)
         if questionario is None:
             raise NaoEncontradoError("Questionário não encontrado.")
         if "json_questionario" in entrada.model_fields_set:
             questionario.json_questionario = entrada.json_questionario
-            self.repository.db.add(
+            self.repository.adicionar_historico(
                 QuestionarioHistorico(
                     questionario_id=questionario.id,
                     usuario_email=questionario.usuario_email,
@@ -52,7 +54,7 @@ class QuestionarioService:
                 )
             )
         questionario.status_questionario = entrada.status_questionario
-        questionario.atualizado_por = self.user.email
+        questionario.atualizado_por = user.email
         questionario.atualizado_em = datetime.now(UTC)
         await self.repository.salvar()
         return questionario
