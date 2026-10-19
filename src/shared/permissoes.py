@@ -36,6 +36,15 @@ def exigir_perfil(*perfis: str):
     return dependencia
 
 
+# Políticas nomeadas: cada uma lista as flags `is_<perfil>` que liberam a rota
+# (basta uma ser True; `is_admin` sempre passa). Uso: `Depends(visualizador_questionario)`.
+visualizador_questionario = exigir_perfil("incubado", "colaborador", "consultor")
+editor_questionario = exigir_perfil("incubado")
+avaliador_questionario = exigir_perfil("colaborador", "consultor")
+enviador_arquivos = exigir_perfil("incubado", "consultor")
+gestor_incubados = exigir_perfil("colaborador")
+
+
 async def pode_acessar_incubado(db: AsyncSession, user: User, email: str) -> bool:
     """Próprio incubado, qualquer colaborador, consultor ou admin."""
     return user.email == email or any(
