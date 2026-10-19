@@ -16,7 +16,11 @@ from src.shared.exceptions import (
     ErroAoFazerDownloadError,
     ErroAoListarArquivosError,
 )
-from src.shared.permissoes import exigir_perfil, pode_acessar_incubado
+from src.shared.permissoes import (
+    enviador_arquivos,
+    pode_acessar_incubado,
+    visualizador_questionario,
+)
 from src.shared.validacao_arquivos import ArquivoInvalidoError
 
 router = APIRouter(prefix="/arquivos", tags=["arquivos"])
@@ -39,7 +43,7 @@ async def _dono_dos_arquivos(db: AsyncSession, user: User, email: str | None) ->
 async def inserir_arquivo_questionario(
     aba: int,
     arquivos: list[UploadFile] = File(...),
-    user: User = Depends(exigir_perfil("incubado", "consultor")),
+    user: User = Depends(enviador_arquivos),
     servico: ArquivosService = Depends(get_arquivos_service),
 ):
     await servico.verificar_edicao(user.email)
@@ -59,7 +63,7 @@ async def inserir_arquivo_questionario(
 async def listar_arquivos_aba_questionario(
     aba: int,
     email: str | None = None,
-    user: User = Depends(exigir_perfil("incubado", "colaborador", "consultor")),
+    user: User = Depends(visualizador_questionario),
     db: AsyncSession = Depends(get_async_session),
     servico: ArquivosService = Depends(get_arquivos_service),
 ):
@@ -78,7 +82,7 @@ async def baixar_arquivos_aba_questionario(
     aba: int,
     todos: int | None = None,
     email: str | None = None,
-    user: User = Depends(exigir_perfil("incubado", "colaborador", "consultor")),
+    user: User = Depends(visualizador_questionario),
     db: AsyncSession = Depends(get_async_session),
     servico: ArquivosService = Depends(get_arquivos_service),
 ):
@@ -102,7 +106,7 @@ async def baixar_arquivos_aba_questionario(
 async def listar_arquivos_questionario(
     delecao: list[str],
     aba: int,
-    user: User = Depends(exigir_perfil("incubado", "colaborador", "consultor")),
+    user: User = Depends(visualizador_questionario),
     servico: ArquivosService = Depends(get_arquivos_service),
 ):
     await servico.verificar_edicao(user.email)

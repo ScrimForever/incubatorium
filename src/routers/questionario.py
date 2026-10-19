@@ -8,7 +8,7 @@ from src.domain.schemas.questionario_schema import (
 from src.logger import logger
 from src.routers.dependencias import get_questionario_service
 from src.services.questionario.questionario_service import QuestionarioService
-from src.shared.permissoes import exigir_perfil
+from src.shared.permissoes import avaliador_questionario, editor_questionario
 
 router = APIRouter(prefix="/questionario", tags=["questionario"])
 
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/questionario", tags=["questionario"])
 @router.post("", response_model=QuestionarioOutputSchema)
 async def inserir_questionario(
     questionario: QuestionarioInputSchema,
-    user: User = Depends(exigir_perfil("incubado")),
+    user: User = Depends(editor_questionario),
     service: QuestionarioService = Depends(get_questionario_service),
 ):
     logger.info(f"Gravando novo questionário para usuário: {user.email}")
@@ -27,7 +27,7 @@ async def inserir_questionario(
 
 @router.get("")
 async def buscar_questionario(
-    user: User = Depends(exigir_perfil("incubado")),
+    user: User = Depends(editor_questionario),
     service: QuestionarioService = Depends(get_questionario_service),
 ):
     return await service.buscar(user) or False
@@ -36,7 +36,7 @@ async def buscar_questionario(
 @router.put("", response_model=QuestionarioOutputSchema)
 async def atualizar_questionario(
     questionario: QuestionarioInputSchema,
-    user: User = Depends(exigir_perfil("incubado")),
+    user: User = Depends(editor_questionario),
     service: QuestionarioService = Depends(get_questionario_service),
 ):
     return await service.atualizar(user, questionario)
@@ -44,7 +44,7 @@ async def atualizar_questionario(
 
 @router.get("/todos")
 async def buscar_todos_questionarios(
-    user: User = Depends(exigir_perfil("colaborador", "consultor")),
+    user: User = Depends(avaliador_questionario),
     service: QuestionarioService = Depends(get_questionario_service),
 ):
     return await service.listar_todos()
