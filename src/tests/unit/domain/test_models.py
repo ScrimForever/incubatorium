@@ -1,5 +1,4 @@
 import pytest
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain.models.questionarios.questionario import (

@@ -64,7 +64,7 @@ class QuestionarioRouter:
                 )
 
         @self.router.get("/todos")
-        async def buscar_questionario(
+        async def buscar_todos_questionarios(
                 user: User = Depends(exigir_perfil("colaborador", "consultor")),
                 db: AsyncSession = Depends(get_async_session),
         ):

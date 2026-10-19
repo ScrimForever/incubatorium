@@ -1,6 +1,5 @@
-from sqlalchemy import select
-
 import pytest
+from sqlalchemy import select
 
 from domain.models.enums import SituacaoIncubacao
 from domain.models.questionarios.questionario import Questionario, StatusEnum
