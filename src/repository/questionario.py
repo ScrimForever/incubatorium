@@ -25,7 +25,17 @@ class QuestionarioRepository(Repositorio):
         return list(resultado.scalars().all())
 
     async def criar(self, questionario: Questionario) -> Questionario:
+        """Grava o questionário e o primeiro registro do histórico na mesma transação."""
         self.db.add(questionario)
+        await self.db.flush()
+        self.adicionar_historico(
+            QuestionarioHistorico(
+                questionario_id=questionario.id,
+                usuario_email=questionario.usuario_email,
+                json_questionario=questionario.json_questionario,
+                status_questionario=questionario.status_questionario,
+            )
+        )
         await self.salvar()
         await self.db.refresh(questionario)
         return questionario

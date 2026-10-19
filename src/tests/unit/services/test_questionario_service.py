@@ -39,6 +39,22 @@ class TestCriar:
         assert questionario.criado_por == user_with_email.email
 
     @pytest.mark.asyncio
+    async def test_criar_grava_historico_inicial(
+        self, async_db, service, user_with_email
+    ):
+        questionario = await service.criar(
+            user_with_email,
+            QuestionarioInputSchema(status_questionario=StatusEnum.iniciado),
+        )
+
+        [historico] = (
+            (await async_db.execute(select(QuestionarioHistorico))).scalars().all()
+        )
+        assert historico.questionario_id == questionario.id
+        assert historico.usuario_email == user_with_email.email
+        assert historico.status_questionario == StatusEnum.iniciado
+
+    @pytest.mark.asyncio
     async def test_criar_duas_vezes_da_conflito(self, service, user_with_email):
         entrada = QuestionarioInputSchema(status_questionario=StatusEnum.pendente)
         await service.criar(user_with_email, entrada)
