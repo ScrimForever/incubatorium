@@ -8,3 +8,9 @@ __pycache__
 .env
 .pre-commit-config.yaml
 README.md
+frontend
+graphify-out
+src/graphify-out
+src/htmlcov
+src/logs
+*.md

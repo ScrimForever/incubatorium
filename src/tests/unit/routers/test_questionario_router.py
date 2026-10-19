@@ -3,10 +3,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from domain.models.questionarios.questionario import (
     Questionario,
+    QuestionarioHistorico,
     StatusEnum,
 )
 from infra.db import User
@@ -110,7 +112,7 @@ async def test_buscar_questionario(setup_questionario_router, sample_email):
 async def test_atualizar_questionario(
     setup_questionario_router, async_db, sample_email
 ):
-    """PUT grava as respostas sem alterar o status"""
+    """PUT grava as respostas e o status enviado pelo cliente"""
     router, app = setup_questionario_router
     async_db.add(
         Questionario(
@@ -137,5 +139,13 @@ async def test_atualizar_questionario(
     response = client.put("/questionario", json=payload)
 
     assert response.status_code == 200
-    assert response.json()["status_questionario"] == "iniciado"
+    assert response.json()["status_questionario"] == "pendente"
     assert response.json()["json_questionario"]["2"]["business_canvas"] == "Canvas"
+
+    historico = (
+        (await async_db.execute(select(QuestionarioHistorico))).scalars().all()
+    )
+    assert len(historico) == 1
+    assert historico[0].usuario_email == sample_email
+    assert historico[0].status_questionario == StatusEnum.pendente
+    assert historico[0].json_questionario == {"2": {"business_canvas": "Canvas"}}
