@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.domain.models.questionarios.questionario import Questionario, StatusEnum
+from src.domain.models.questionario import Questionario, StatusEnum
 from src.repository.arquivos.arquivos_rep import ArquivosRepository
 from src.shared.exceptions import ConflitoError, NaoEncontradoError
 

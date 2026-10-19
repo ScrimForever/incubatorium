@@ -1,6 +1,6 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.domain.models.questionarios.questionario import Questionario
+from src.domain.models.questionario import Questionario
 
 
 class ArquivosRepository:

@@ -1,12 +1,12 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from domain.models.questionarios.questionario import (
+from domain.models.questionario import (
     Questionario,
     StatusEnum,
 )
+from domain.models.usuario import User
 from domain.schemas.questionario_schema import QuestionarioInputSchema
-from infra.db import User
 from repository.questionario.questionario_rep import QuestionarioRepository
 
 

@@ -5,8 +5,9 @@ Perfis são flags em `User`: `is_admin`, `is_colaborador`, `is_consultor`, `is_i
 
 from fastapi import Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.domain.models.user_model import current_active_user
-from src.infra.db import User, get_async_session
+from src.auth.backend import current_active_user
+from src.domain.models.usuario import User
+from src.infra.db import get_async_session
 from src.repository.usuarios.usuarios_rep import UsuariosRepository
 
 

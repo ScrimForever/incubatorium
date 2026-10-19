@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import select
 
 from domain.models.enums import SituacaoIncubacao
-from domain.models.questionarios.questionario import Questionario, StatusEnum
+from domain.models.questionario import Questionario, StatusEnum
 from routers.usuarios.r_usuarios import router
 
 

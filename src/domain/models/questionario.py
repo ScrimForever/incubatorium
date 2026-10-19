@@ -5,8 +5,8 @@ from typing import Any
 from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
-from src.domain.models.base_models import Base
-from src.domain.models.mixin_model import MixinDate
+from src.domain.models.base import Base
+from src.domain.models.mixin import MixinDate
 
 
 class StatusEnum(str, enum.Enum):

@@ -3,7 +3,7 @@ import re
 import pytest
 from fastapi import FastAPI
 
-from domain.models.questionarios.questionario import Questionario, StatusEnum
+from domain.models.questionario import Questionario, StatusEnum
 from infra.config import settings
 from routers.arquivos.r_arquivos import ArquivosRouter
 from shared import armazenamento
@@ -58,7 +58,7 @@ async def api(async_db):
     async def _montar(usuario):
         import httpx
 
-        from domain.models.user_model import current_active_user
+        from auth.backend import current_active_user
         from infra.db import get_async_session
 
         app = FastAPI()

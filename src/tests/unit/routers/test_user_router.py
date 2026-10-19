@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from infra.db import User
+from domain.models.usuario import User
 from routers.users.r_user import UserRouter
 
 

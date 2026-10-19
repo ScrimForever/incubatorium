@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession
+from src.domain.models.usuario import User
 from src.domain.schemas.questionario_schema import (
     QuestionarioInputSchema,
     QuestionarioOutputSchema,
 )
-from src.infra.db import User, get_async_session
+from src.infra.db import get_async_session
 from src.logger import logger
 from src.services.questionario.questionario_service import QuestionarioService
 from src.shared.exceptions import NegocioError

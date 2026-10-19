@@ -3,7 +3,7 @@ from typing import Any, Literal
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.infra.db import User, gerar_codigo_ativacao
+from src.domain.models.usuario import User, gerar_codigo_ativacao
 from src.logger import logger
 
 

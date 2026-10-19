@@ -2,7 +2,7 @@ import pytest
 from fastapi import FastAPI
 from sqlalchemy import select
 
-from domain.models.questionarios.questionario import (
+from domain.models.questionario import (
     Questionario,
     QuestionarioHistorico,
 )

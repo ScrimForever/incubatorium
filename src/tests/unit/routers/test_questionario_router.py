@@ -6,12 +6,12 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from domain.models.questionarios.questionario import (
+from domain.models.questionario import (
     Questionario,
     QuestionarioHistorico,
     StatusEnum,
 )
-from infra.db import User
+from domain.models.usuario import User
 from routers.questionario.r_questionario import QuestionarioRouter
 
 
@@ -29,7 +29,7 @@ async def setup_questionario_router(async_db: AsyncSession, sample_email):
     app = FastAPI()
 
     # Override dependencies
-    from domain.models.user_model import current_active_user
+    from auth.backend import current_active_user
     from infra.db import get_async_session
 
     def mock_get_user():

@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from domain.models.questionarios.questionario import Questionario, StatusEnum
+from domain.models.questionario import Questionario, StatusEnum
 from domain.schemas.questionario_schema import QuestionarioInputSchema
 from services.questionario.questionario_service import QuestionarioService
 from shared.exceptions import ConflitoError

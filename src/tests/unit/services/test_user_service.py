@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from infra.db import User
+from domain.models.usuario import User
 from services.verificacoes.usuario import UserService
 
 

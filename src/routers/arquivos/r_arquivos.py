@@ -6,8 +6,9 @@ from fastapi import APIRouter, Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+from src.domain.models.usuario import User
 from src.infra.config import settings
-from src.infra.db import User, get_async_session
+from src.infra.db import get_async_session
 from src.logger import logger
 from src.services.arquivos.arquivos_service import ArquivosService
 from src.shared.armazenamento import (

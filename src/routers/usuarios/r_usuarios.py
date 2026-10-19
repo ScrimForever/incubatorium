@@ -3,13 +3,14 @@ from typing import Literal
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.domain.models.enums import SituacaoIncubacao
+from src.domain.models.usuario import User
 from src.domain.schemas.incubado_schema import (
     IncubadoResumo,
     SituacaoAlteradaOutput,
     SituacaoUpdate,
 )
 from src.domain.schemas.plano_schema import PlanoOutput
-from src.infra.db import User, get_async_session
+from src.infra.db import get_async_session
 from src.services.usuarios.usuarios_service import UsuariosService
 from src.shared.permissoes import exigir_acesso_incubado, exigir_perfil
 

@@ -1,7 +1,7 @@
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.domain.models.user_model import User
+from src.domain.models.usuario import User
 from src.logger import logger
 from src.repository.questionario.questionario_rep import QuestionarioRepository
 from src.repository.user.user_rep import UserRepository

@@ -4,8 +4,8 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.domain.models.enums import SituacaoIncubacao
-from src.domain.models.questionarios.questionario import Questionario
-from src.infra.db import User
+from src.domain.models.questionario import Questionario
+from src.domain.models.usuario import User
 
 
 class UsuariosRepository:

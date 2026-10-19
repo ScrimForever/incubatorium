@@ -52,3 +52,23 @@ def test_nao_ha_print_no_codigo_da_aplicacao():
                 if re.match(r"\s*print\(", linha):
                     infratores.append(f"{arquivo.relative_to(RAIZ)}:{numero}")
     assert infratores == [], f"use logger em vez de print: {infratores}"
+
+
+PADRAO_IMPORT_PROIBIDO = re.compile(
+    r"^\s*(?:from|import)\s+(?:src\.)?(?:infra|repository|services|routers|auth)\b"
+)
+
+
+def test_domain_nao_importa_de_infra_nem_de_camadas_superiores():
+    infratores = []
+    for arquivo in sorted((RAIZ / "domain").rglob("*.py")):
+        for numero, linha in enumerate(
+            arquivo.read_text(encoding="utf-8").splitlines(), 1
+        ):
+            if PADRAO_IMPORT_PROIBIDO.search(linha):
+                infratores.append(
+                    f"{arquivo.relative_to(RAIZ)}:{numero}: {linha.strip()}"
+                )
+    assert infratores == [], (
+        "domain importando camadas superiores:\n" + "\n".join(infratores)
+    )

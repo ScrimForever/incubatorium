@@ -2,14 +2,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from domain.models import user_model
+from auth import usuario_manager
 
 
 @pytest.mark.asyncio
 async def test_verificacao_de_email_loga_sem_vazar_o_token(monkeypatch, capsys):
     registros = []
-    monkeypatch.setattr(user_model.logger, "info", registros.append)
-    gerenciador = user_model.UserManager(user_db=None)
+    monkeypatch.setattr(usuario_manager.logger, "info", registros.append)
+    gerenciador = usuario_manager.UserManager(user_db=None)
     usuario = SimpleNamespace(id="u-1")
 
     await gerenciador.on_after_request_verify(usuario, "TOKEN-SECRETO")

@@ -1,6 +1,6 @@
 import pytest
 
-from domain.models.questionarios.questionario import Questionario, StatusEnum
+from domain.models.questionario import Questionario, StatusEnum
 from services.arquivos.arquivos_service import ArquivosService
 from shared.exceptions import ConflitoError, NaoEncontradoError
 

@@ -2,12 +2,12 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.domain.models.questionarios.questionario import (
+from src.domain.models.questionario import (
     Questionario,
     QuestionarioHistorico,
 )
+from src.domain.models.usuario import User
 from src.domain.schemas.questionario_schema import QuestionarioInputSchema
-from src.infra.db import User
 from src.logger import logger
 from src.repository.questionario.questionario_rep import QuestionarioRepository
 from src.shared.exceptions import ConflitoError, NaoEncontradoError

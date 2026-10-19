@@ -7,7 +7,7 @@ import pytest
 from fastapi import FastAPI
 
 from domain.models.enums import SituacaoIncubacao
-from domain.models.questionarios.questionario import Questionario, StatusEnum
+from domain.models.questionario import Questionario, StatusEnum
 from routers.arquivos.r_arquivos import ArquivosRouter
 from routers.usuarios.r_usuarios import router as usuarios_router
 from shared.handlers import registrar_handlers
@@ -87,7 +87,7 @@ async def test_ninguem_acessa_dados_de_outro_incubado(
     app = await _app_com_todas_as_rotas()
     usuario = cenario[intruso]
 
-    from domain.models.user_model import current_active_user
+    from auth.backend import current_active_user
     from infra.db import get_async_session
 
     async def _usuario():

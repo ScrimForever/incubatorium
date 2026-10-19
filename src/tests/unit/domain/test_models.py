@@ -1,11 +1,11 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from domain.models.questionarios.questionario import (
+from domain.models.questionario import (
     Questionario,
     StatusEnum,
 )
-from infra.db import User, gerar_codigo_ativacao
+from domain.models.usuario import User, gerar_codigo_ativacao
 
 
 class TestStatusEnum:

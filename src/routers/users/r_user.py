@@ -2,13 +2,14 @@ from dataclasses import dataclass
 
 from fastapi import Depends, FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.domain.models.user_model import (
+from src.auth.backend import (
     auth_backend,
     current_active_user,
     fastapi_users,
 )
+from src.domain.models.usuario import User
 from src.domain.schemas.user_schema import UserCreate, UserRead, UserUpdate
-from src.infra.db import User, get_async_session
+from src.infra.db import get_async_session
 from src.logger import logger
 from src.services.verificacoes.usuario import UserService
 from starlette.responses import JSONResponse, RedirectResponse
