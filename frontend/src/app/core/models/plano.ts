@@ -38,6 +38,15 @@ export interface NotaEntrada {
 }
 
 /**
+ * O pedido de ajuste numa etapa. Sem status: quem leva o plano para `pendente` é
+ * o servidor. `avaliador` e `em` também são dele.
+ */
+export interface AjusteEntrada {
+  aba: NumeroEtapa;
+  mensagem: string;
+}
+
+/**
  * O que a coordenação envia ao corrigir as respostas de um incubado. Só o
  * documento: sem status, porque corrigir não envia nem aprova. Notas, decisão e
  * anexos que vierem junto são ignorados pelo servidor.

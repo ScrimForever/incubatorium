@@ -47,6 +47,8 @@ export const API_ROUTES = {
     notaDe: (email: string): string => `/questionario/${encodeURIComponent(email)}/nota`,
     /** Aprovar ou devolver — só a coordenação, e nunca por aqui a nota. Ainda não existe. */
     statusDe: (email: string): string => `/questionario/${encodeURIComponent(email)}/status`,
+    /** Pedido de ajuste numa etapa: volta o plano para `pendente`. Ainda não existe. */
+    ajusteDe: (email: string): string => `/questionario/${encodeURIComponent(email)}/ajuste`,
   },
   /**
    * Anexos do questionário. Sem `dono`, o backend usa o e-mail do token; com

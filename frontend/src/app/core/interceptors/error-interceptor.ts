@@ -72,6 +72,10 @@ const MESSAGES: Record<string, string> = {
   EDICAO_RESTRITA_COORDENACAO: 'Só a coordenação pode corrigir as respostas de um plano.',
   ETAPAS_PENDENTES: 'Avalie as nove etapas antes de decidir o plano.',
   JUSTIFICATIVA_OBRIGATORIA: 'Escreva o motivo para devolver o plano.',
+  AJUSTE_RESTRITO_AVALIADOR: 'Só o avaliador pode pedir ajuste numa etapa.',
+  ETAPA_SEM_AJUSTE: 'A etapa 1 não recebe pedido de ajuste.',
+  MENSAGEM_OBRIGATORIA: 'Escreva o que o incubado precisa corrigir.',
+  PLANO_FORA_DE_ANALISE: 'Só dá para pedir ajuste em plano enviado para análise.',
 };
 
 function normalize(error: unknown, url: string): ApiError {

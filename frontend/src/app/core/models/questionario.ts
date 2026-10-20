@@ -6,10 +6,11 @@
  *
  * ```json
  * {
- *   "1": { "nome_proponente": "", "...": "", "avaliacao": null },
+ *   "1": { "nome_proponente": "", "...": "", "avaliacao": null, "ajuste": null },
  *   "2": {
  *     "business_canvas": "",
- *     "avaliacao": { "avaliador": "ana@x", "nota": 4, "comentario": "" }
+ *     "avaliacao": { "avaliador": "ana@x", "nota": 4, "comentario": "" },
+ *     "ajuste": { "mensagem": "...", "avaliador": "ana@x", "em": "2026-10-18T14:00:00Z" }
  *   }
  * }
  * ```
@@ -105,9 +106,13 @@ export interface MembroEquipe {
   telefone: string;
 }
 
-/** Toda aba carrega uma só avaliação: quem avalia primeiro fecha a etapa. */
+/**
+ * Toda aba carrega uma só avaliação (quem avalia primeiro fecha a etapa) e um só
+ * pedido de ajuste. Os dois são do servidor: o `PUT` do incubado não os grava.
+ */
 interface EtapaBase {
   avaliacao: Avaliacao | null;
+  ajuste: AjusteEtapa | null;
 }
 
 interface Etapa1 extends EtapaBase {
@@ -171,6 +176,21 @@ export interface JsonQuestionario {
    */
   decisao?: DecisaoPlano;
 }
+
+/**
+ * O que falta corrigir numa etapa, quem pediu e quando. Some quando o incubado
+ * reenvia o plano para análise.
+ */
+export interface AjusteEtapa {
+  mensagem: string;
+  /** E-mail de quem pediu — vem do token, no servidor. */
+  avaliador: string;
+  /** ISO 8601 em UTC, gravado pelo servidor. */
+  em: string;
+}
+
+/** A etapa 1 só identifica o negócio: não recebe pedido de ajuste. */
+export const ETAPAS_COM_AJUSTE: readonly NumeroEtapa[] = [2, 3, 4, 5, 6, 7, 8, 9];
 
 /** Quem aprovou ou devolveu o plano, quando, e o motivo da devolução. */
 export interface DecisaoPlano {
@@ -241,20 +261,22 @@ export function documentoVazio(): JsonQuestionario {
       setor_atuacao: '',
       cnpj: '',
       avaliacao: null,
+      ajuste: null,
     },
-    '2': { business_canvas: '', avaliacao: null },
-    '3': { sumario_executivo: '', avaliacao: null },
-    '4': { equipe: [], avaliacao: null },
-    '5': { planejamento_produto: '', avaliacao: null },
+    '2': { business_canvas: '', avaliacao: null, ajuste: null },
+    '3': { sumario_executivo: '', avaliacao: null, ajuste: null },
+    '4': { equipe: [], avaliacao: null, ajuste: null },
+    '5': { planejamento_produto: '', avaliacao: null, ajuste: null },
     '6': {
       fornecedores: '',
       concorrentes: '',
       analise_acao: '',
       arquivos: [],
       avaliacao: null,
+      ajuste: null,
     },
-    '7': { planejamento_marketing: '', avaliacao: null },
-    '8': { planejamento_estrutura: '', avaliacao: null },
-    '9': { observacoes: '', arquivos: [], avaliacao: null },
+    '7': { planejamento_marketing: '', avaliacao: null, ajuste: null },
+    '8': { planejamento_estrutura: '', avaliacao: null, ajuste: null },
+    '9': { observacoes: '', arquivos: [], avaliacao: null, ajuste: null },
   };
 }

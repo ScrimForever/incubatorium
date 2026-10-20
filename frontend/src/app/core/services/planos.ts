@@ -2,7 +2,13 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { API_ROUTES } from '../constants/api-routes';
 import { Api } from '../http/api';
-import { DecisaoEntrada, NotaEntrada, PlanoCorrecaoEntrada, PlanoResumo } from '../models/plano';
+import {
+  AjusteEntrada,
+  DecisaoEntrada,
+  NotaEntrada,
+  PlanoCorrecaoEntrada,
+  PlanoResumo,
+} from '../models/plano';
 import { JsonQuestionario, Questionario, StatusQuestionario } from '../models/questionario';
 import { normalizar } from './questionario';
 
@@ -55,6 +61,16 @@ export class PlanosService {
   decidir(email: string, decisao: DecisaoEntrada): Observable<Questionario> {
     return this.api
       .patch<Questionario>(API_ROUTES.avaliacao.statusDe(email), decisao)
+      .pipe(map(normalizar));
+  }
+
+  /**
+   * Pede ajuste numa etapa. O servidor grava quem pediu e quando, e devolve o
+   * plano já em `pendente` (`docs/contrato-avaliacao.md`, Parte 5).
+   */
+  pedirAjuste(email: string, ajuste: AjusteEntrada): Observable<Questionario> {
+    return this.api
+      .patch<Questionario>(API_ROUTES.avaliacao.ajusteDe(email), ajuste)
       .pipe(map(normalizar));
   }
 
