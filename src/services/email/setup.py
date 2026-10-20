@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from pathlib import Path
@@ -110,7 +111,7 @@ class EmailSetup:
             )
             return False
         try:
-            resend.Emails.send(params)
+            await asyncio.to_thread(resend.Emails.send, params)
             logger.success(f"Notificação '{assunto}' enviada para {email}")
             return True
         except ResendError as error:

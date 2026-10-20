@@ -8,7 +8,11 @@ from src.domain.schemas.questionario_schema import (
 from src.logger import logger
 from src.routers.dependencias import get_questionario_service
 from src.services.questionario.questionario_service import QuestionarioService
-from src.shared.permissoes import avaliador_questionario, editor_questionario
+from src.shared.permissoes import (
+    avaliador_questionario,
+    editor_questionario,
+    editor_questionario_de_incubado,
+)
 
 router = APIRouter(prefix="/questionario", tags=["questionario"])
 
@@ -40,6 +44,17 @@ async def atualizar_questionario(
     service: QuestionarioService = Depends(get_questionario_service),
 ):
     return await service.atualizar(user, questionario)
+
+
+@router.put("/{questionario_id}", response_model=QuestionarioOutputSchema)
+async def atualizar_questionario_de_incubado(
+    questionario_id: int,
+    questionario: QuestionarioInputSchema,
+    user: User = Depends(editor_questionario_de_incubado),
+    service: QuestionarioService = Depends(get_questionario_service),
+):
+    """Consultor edita o questionário (por id) de um incubado, assinando a atualização."""
+    return await service.atualizar_por_id(user, questionario_id, questionario)
 
 
 @router.get("/todos")

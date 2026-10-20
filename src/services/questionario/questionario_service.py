@@ -41,6 +41,25 @@ class QuestionarioService:
     ) -> Questionario:
         """Grava o questionário como enviado (o JSON é do cliente)."""
         questionario = await self.repository.buscar_para_atualizar(user.email)
+        return await self._gravar(questionario, user, entrada)
+
+    async def atualizar_por_id(
+        self, autor: User, questionario_id: int, entrada: QuestionarioInputSchema
+    ) -> Questionario:
+        """Edição pelo consultor: o questionário é de outro usuário, localizado pelo id."""
+        questionario = await self.repository.buscar_por_id_para_atualizar(
+            questionario_id
+        )
+        return await self._gravar(questionario, autor, entrada)
+
+    async def _gravar(
+        self,
+        questionario: Questionario | None,
+        autor: User,
+        entrada: QuestionarioInputSchema,
+    ) -> Questionario:
+        """Só `json_questionario`, `status_questionario` e a assinatura da atualização
+        mudam; `usuario_email`, `criado_por` e `criado_em` nunca são tocados."""
         if questionario is None:
             raise NaoEncontradoError("Questionário não encontrado.")
         if "json_questionario" in entrada.model_fields_set:
@@ -50,11 +69,11 @@ class QuestionarioService:
                     questionario_id=questionario.id,
                     usuario_email=questionario.usuario_email,
                     json_questionario=entrada.json_questionario,
-                    status_questionario=entrada.status_questionario
+                    status_questionario=entrada.status_questionario,
                 )
             )
         questionario.status_questionario = entrada.status_questionario
-        questionario.atualizado_por = user.email
+        questionario.atualizado_por = autor.email
         questionario.atualizado_em = datetime.now(UTC)
         await self.repository.salvar()
         return questionario

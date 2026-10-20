@@ -36,13 +36,38 @@ def exigir_perfil(*perfis: str):
     return dependencia
 
 
+def exigir_apenas(perfil: str):
+    """Como `exigir_perfil`, mas recusa quem acumula outro perfil de equipe.
+
+    Impede, por exemplo, que um consultor que também tem `is_incubado=True` (valor
+    padrão da coluna) atue como incubado. `is_admin` passa em qualquer rota.
+    """
+    if perfil not in PERFIS:
+        raise ValueError(f"Perfil desconhecido: {perfil}")
+    outros = [p for p in PERFIS if p not in ("admin", perfil)]
+
+    async def dependencia(user: User = Depends(current_active_user)) -> User:
+        if user.is_admin:
+            return user
+        if getattr(user, f"is_{perfil}", False) and not any(
+            getattr(user, f"is_{outro}", False) for outro in outros
+        ):
+            return user
+        raise _negar()
+
+    return dependencia
+
+
 # Políticas nomeadas: cada uma lista as flags `is_<perfil>` que liberam a rota
 # (basta uma ser True; `is_admin` sempre passa). Uso: `Depends(visualizador_questionario)`.
 visualizador_questionario = exigir_perfil("incubado", "colaborador", "consultor")
-editor_questionario = exigir_perfil("incubado")
+editor_questionario = exigir_apenas("incubado")
 avaliador_questionario = exigir_perfil("colaborador", "consultor")
 enviador_arquivos = exigir_perfil("incubado", "consultor")
 gestor_incubados = exigir_perfil("colaborador")
+editor_questionario_de_incubado = exigir_perfil("consultor")
+gestor_agenda = exigir_perfil("consultor")
+agendador_consultoria = exigir_apenas("incubado")
 
 
 async def pode_acessar_incubado(db: AsyncSession, user: User, email: str) -> bool:
