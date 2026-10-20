@@ -20,6 +20,15 @@ class QuestionarioRepository(Repositorio):
         )
         return resultado.scalar_one_or_none()
 
+    async def buscar_por_id_para_atualizar(self, questionario_id: int) -> Questionario | None:
+        """Como `buscar_para_atualizar`, mas localizando pelo id (edição pelo consultor)."""
+        resultado = await self.db.execute(
+            select(Questionario)
+            .where(Questionario.id == questionario_id)
+            .with_for_update()
+        )
+        return resultado.scalar_one_or_none()
+
     async def listar_todos(self) -> list[Questionario]:
         resultado = await self.db.execute(select(Questionario))
         return list(resultado.scalars().all())

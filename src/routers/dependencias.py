@@ -3,9 +3,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.infra.armazenamento import ArmazenamentoLocal
 from src.infra.db import get_async_session
+from src.repository.consultoria import ConsultoriaRepository
 from src.repository.questionario import QuestionarioRepository
 from src.repository.usuarios import UsuariosRepository
 from src.services.arquivos.arquivos_service import ArquivosService
+from src.services.consultoria.consultoria_service import ConsultoriaService
 from src.services.email.setup import EmailSetup
 from src.services.questionario.questionario_service import QuestionarioService
 from src.services.usuarios.ativacao_service import AtivacaoService
@@ -41,3 +43,11 @@ def get_arquivos_service(
     armazenamento: ArmazenamentoLocal = Depends(get_armazenamento),
 ) -> ArquivosService:
     return ArquivosService(QuestionarioRepository(db), armazenamento)
+
+
+def get_consultoria_service(
+    db: AsyncSession = Depends(get_async_session),
+) -> ConsultoriaService:
+    return ConsultoriaService(
+        ConsultoriaRepository(db), UsuariosRepository(db), EmailSetup()
+    )

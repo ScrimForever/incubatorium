@@ -20,6 +20,7 @@ from tests.src_redirect import instalar
 instalar()
 
 # Now import all modules we need
+from domain.models import consultoria  # noqa: F401  (registra as tabelas)
 from domain.models.base import Base
 from domain.models.usuario import User
 
