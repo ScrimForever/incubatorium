@@ -147,8 +147,31 @@ describe('PlanosService', () => {
     pedido.flush({ status_questionario: 'aguardando_aprovacao', json_questionario: json });
   });
 
-  it('avaliar, decidir e corrigir sao as unicas escritas, e so decidir mexe no status', () => {
+  it('pedirAjuste manda so aba e mensagem, e devolve o plano ja pendente', () => {
+    let status: string | undefined;
+    service
+      .pedirAjuste('ana@teccampos.com', { aba: 6, mensagem: 'Faltam os preços.' })
+      .subscribe((plano) => (status = plano.status_questionario));
+
+    const pedido = http.expectOne('/api/questionario/ana%40teccampos.com/ajuste');
+    expect(pedido.request.method).toBe('PATCH');
+    // Quem pediu e quando são do servidor; o status também.
+    expect(pedido.request.body).toEqual({ aba: 6, mensagem: 'Faltam os preços.' });
+
+    pedido.flush({ status_questionario: 'pendente', json_questionario: documentoVazio() });
+    expect(status).toBe('pendente');
+  });
+
+  it('as escritas sao avaliar, decidir, pedirAjuste e corrigir', () => {
     const metodos = Object.getOwnPropertyNames(Object.getPrototypeOf(service));
-    expect(metodos).toEqual(['constructor', 'listar', 'plano', 'avaliar', 'decidir', 'corrigir']);
+    expect(metodos).toEqual([
+      'constructor',
+      'listar',
+      'plano',
+      'avaliar',
+      'decidir',
+      'pedirAjuste',
+      'corrigir',
+    ]);
   });
 });

@@ -9,14 +9,18 @@ import {
 import { Observable, catchError, delay, map, of, switchMap, tap, throwError } from 'rxjs';
 import { API_BASE, API_ROUTES } from '../constants/api-routes';
 import { UserRead } from '../models/auth';
-import { DecisaoEntrada, NotaEntrada, PlanoCorrecaoEntrada } from '../models/plano';
+import { AjusteEntrada, DecisaoEntrada, NotaEntrada, PlanoCorrecaoEntrada } from '../models/plano';
 import {
+  AjusteEtapa,
   Avaliacao,
   ChaveEtapa,
   DecisaoPlano,
+  ETAPAS_COM_AJUSTE,
   JsonQuestionario,
   NUMEROS_ETAPA,
+  NumeroEtapa,
   Questionario,
+  StatusQuestionario,
 } from '../models/questionario';
 import { papelDaConta } from '../services/auth';
 import { normalizar } from '../services/questionario';
@@ -25,8 +29,9 @@ import { normalizar } from '../services/questionario';
  * Backend falso da avaliação de planos, só em desenvolvimento. Leituras e papel
  * são reais; aqui só o que o backend não tem (`docs/contrato-avaliacao.md`):
  * `PATCH .../nota` (nota do avaliador), `PATCH .../status` (decisão da
- * coordenação) e `PUT /usuarios/{email}/plano` (a coordenação corrigindo as
- * respostas). O gravado fica no `localStorage`, aplicado por cima das leituras.
+ * coordenação), `PUT /usuarios/{email}/plano` (a coordenação corrigindo as
+ * respostas) e `PATCH .../ajuste` (pedido de ajuste por etapa). O gravado fica
+ * no `localStorage`, aplicado por cima das leituras.
  *
  * O backend ainda recusa (`403`) o plano alheio à coordenação; nesse caso o mock
  * lê o mesmo documento no `/questionario/todos` real.
@@ -42,7 +47,9 @@ const CHAVE = `${MARCA}-v2`;
 const LATENCIA_MS = 300;
 
 const PLANO_ALHEIO = /\/usuarios\/([^/?]+)\/plano$/;
-const ESCRITA = /\/questionario\/([^/?]+)\/(nota|status)$/;
+const ESCRITA = /\/questionario\/([^/?]+)\/(nota|status|ajuste)$/;
+/** O plano do próprio usuário: `GET` lê e `PUT` grava. */
+const MEU_PLANO = `${API_BASE}${API_ROUTES.questionario}`;
 
 interface Guardado {
   /** email do plano → aba → a avaliação daquela aba (uma só, como em produção) */
@@ -51,6 +58,8 @@ interface Guardado {
   decisoes: Record<string, DecisaoPlano>;
   /** email do plano → aba → os campos que a coordenação corrigiu (sem nota nem anexo) */
   correcoes: Record<string, Record<string, Record<string, unknown>>>;
+  /** email do plano → aba → o ajuste pedido naquela aba (um por aba) */
+  ajustes: Record<string, Partial<Record<ChaveEtapa, AjusteEtapa>>>;
 }
 
 function ler(): Guardado {
@@ -60,9 +69,10 @@ function ler(): Guardado {
       notas: dados.notas ?? {},
       decisoes: dados.decisoes ?? {},
       correcoes: dados.correcoes ?? {},
+      ajustes: dados.ajustes ?? {},
     };
   } catch {
-    return { notas: {}, decisoes: {}, correcoes: {} };
+    return { notas: {}, decisoes: {}, correcoes: {}, ajustes: {} };
   }
 }
 
@@ -106,12 +116,31 @@ function aplicar(plano: Questionario, email: string): Questionario {
   if (decisao) {
     json.decisao = decisao;
   }
+  const comAjustes = aplicarAjustes({ ...normalizado, json_questionario: json }, email);
   return {
-    ...normalizado,
+    ...comAjustes,
     // Decidido manda: é a decisão que move o plano de `aguardando_aprovacao`.
-    status_questionario: decisao?.status ?? normalizado.status_questionario,
-    json_questionario: json,
+    status_questionario: decisao?.status ?? comAjustes.status_questionario,
   };
+}
+
+/**
+ * Só os ajustes, por cima do plano: é a camada que o incubado também vê, no
+ * `GET` e no `PUT` do próprio plano. Com ajuste pedido, o plano que o servidor
+ * ainda tem em análise volta a ser `pendente` (contrato, Parte 5).
+ */
+function aplicarAjustes(plano: Questionario, email: string): Questionario {
+  const ajustes = ler().ajustes[email];
+  if (!ajustes || !Object.keys(ajustes).length) {
+    return plano;
+  }
+  const status: StatusQuestionario =
+    plano.status_questionario === 'aguardando_aprovacao' ? 'pendente' : plano.status_questionario;
+  const json = { ...plano.json_questionario };
+  for (const [aba, ajuste] of Object.entries(ajustes) as [ChaveEtapa, AjusteEtapa][]) {
+    (json as unknown as Record<string, unknown>)[aba] = { ...json[aba], ajuste };
+  }
+  return { ...plano, status_questionario: status, json_questionario: json };
 }
 
 /** Recusa com o mesmo shape de erro da API (o error-interceptor lê `detail`). */
@@ -215,6 +244,28 @@ export const avaliacaoMockInterceptor: HttpInterceptorFn = (req, next) => {
     );
   }
 
+  // O plano do próprio incubado: real, com os ajustes pedidos por cima. Reenviar
+  // para análise apaga os ajustes, como o servidor fará.
+  if (url === MEU_PLANO && (req.method === 'GET' || req.method === 'PUT')) {
+    return next(req).pipe(
+      map(
+        trocarCorpo<Questionario | false>((plano) => {
+          const dono = (plano && plano.usuario_email) || usuarioLogado?.email;
+          if (!plano || !dono) {
+            return plano;
+          }
+          if (req.method === 'PUT' && plano.status_questionario === 'aguardando_aprovacao') {
+            const dados = ler();
+            delete dados.ajustes[dono];
+            gravar(dados);
+            return plano;
+          }
+          return aplicarAjustes(normalizar(plano), dono);
+        }),
+      ),
+    );
+  }
+
   const alheio = req.method === 'GET' ? PLANO_ALHEIO.exec(url) : null;
   if (alheio) {
     const email = decodeURIComponent(alheio[1]);
@@ -276,6 +327,10 @@ export const avaliacaoMockInterceptor: HttpInterceptorFn = (req, next) => {
     );
   }
 
+  if (escrita[2] === 'ajuste') {
+    return pedirAjuste(req, next, email, quem);
+  }
+
   // Aprovar ou devolver. As três recusas são as que o backend precisa ter.
   const entrada = req.body as DecisaoEntrada;
   if (!ehCoordenacao()) {
@@ -312,4 +367,43 @@ let usuarioLogado: UserRead | null = null;
 /** A coordenação, pela mesma regra da sessão (`papelDaConta`). */
 function ehCoordenacao(): boolean {
   return !!usuarioLogado && papelDaConta(usuarioLogado) === 'admin';
+}
+
+/** Pedido de ajuste numa etapa. As quatro recusas são as que o backend precisa ter. */
+function pedirAjuste(
+  req: HttpRequest<unknown>,
+  next: HttpHandlerFn,
+  email: string,
+  quem: string,
+): Observable<HttpEvent<unknown>> {
+  // Só o avaliador pede ajuste: a coordenação decide, não devolve etapa.
+  if (!usuarioLogado || papelDaConta(usuarioLogado) !== 'avaliador') {
+    return recusar(403, 'AJUSTE_RESTRITO_AVALIADOR', req.url);
+  }
+  const entrada = req.body as AjusteEntrada;
+  if (!ETAPAS_COM_AJUSTE.includes(entrada.aba as NumeroEtapa)) {
+    return recusar(422, 'ETAPA_SEM_AJUSTE', req.url);
+  }
+  const mensagem = entrada.mensagem.trim();
+  if (!mensagem) {
+    return recusar(400, 'MENSAGEM_OBRIGATORIA', req.url);
+  }
+  return planoReal(req, next, email).pipe(
+    switchMap((plano) => {
+      const atual = aplicar(plano, email);
+      const jaDevolvido =
+        atual.status_questionario === 'pendente' &&
+        NUMEROS_ETAPA.some((n) => !!atual.json_questionario[String(n) as ChaveEtapa].ajuste);
+      if (atual.status_questionario !== 'aguardando_aprovacao' && !jaDevolvido) {
+        return recusar(409, 'PLANO_FORA_DE_ANALISE', req.url);
+      }
+      const dados = ler();
+      dados.ajustes[email] = {
+        ...(dados.ajustes[email] ?? {}),
+        [String(entrada.aba)]: { mensagem, avaliador: quem, em: new Date().toISOString() },
+      };
+      gravar(dados);
+      return responder(aplicar(plano, email));
+    }),
+  );
 }

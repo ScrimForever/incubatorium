@@ -11,6 +11,7 @@ import {
   etapaAcessivel,
   etapaCompleta,
   etapaParaRetomar,
+  etapasComAjuste,
   etapasCompletas,
   normalizar,
   progresso,
@@ -263,6 +264,42 @@ describe('temConteudo', () => {
   });
 });
 
+describe('ajuste por etapa', () => {
+  const ajuste = { mensagem: 'Faltam os preços.', avaliador: 'a@x', em: '2026-10-18' };
+
+  it('normalizar preserva o ajuste dentro da etapa', () => {
+    const plano = {
+      status_questionario: 'pendente',
+      json_questionario: { '6': { fornecedores: 'x', ajuste } },
+    } as unknown as Questionario;
+    expect(normalizar(plano).json_questionario['6'].ajuste).toEqual(ajuste);
+  });
+
+  it('etapa sem pedido tem ajuste nulo', () => {
+    expect(normalizar(resposta(documentoVazio())).json_questionario['2'].ajuste).toBeNull();
+  });
+
+  it('o plano devolvido reabre na primeira etapa com ajuste, mesmo completo', () => {
+    const json = documentoVazio();
+    json['7'].ajuste = ajuste;
+    json['3'].ajuste = ajuste;
+    expect(etapaParaRetomar(json)).toBe(3);
+  });
+
+  it('lista as etapas com ajuste em ordem', () => {
+    const json = documentoVazio();
+    json['9'].ajuste = ajuste;
+    json['2'].ajuste = ajuste;
+    expect(etapasComAjuste(json)).toEqual([2, 9]);
+  });
+
+  it('o ajuste nao conta como conteudo do incubado', () => {
+    const json = documentoVazio();
+    json['2'].ajuste = ajuste;
+    expect(temConteudo(json)).toBeFalse();
+  });
+});
+
 describe('normalizar', () => {
   it('completa as abas que o JSONB não trouxe', () => {
     const parcial = {
@@ -420,6 +457,20 @@ describe('QuestionarioService', () => {
     expect(req.request.method).toBe('PUT');
     expect(req.request.body.status_questionario).toBe('aguardando_aprovacao');
     req.flush({ status_questionario: 'aguardando_aprovacao', json_questionario: documentoVazio() });
+  });
+
+  it('nao manda o ajuste no PUT: e do servidor', () => {
+    const json = documentoVazio();
+    json['2'].business_canvas = 'texto';
+    json['2'].ajuste = { mensagem: 'Faltou o canal.', avaliador: 'a@x', em: '2026-10-18' };
+    service.salvar(json).subscribe();
+
+    const req = backend.expectOne('/api/questionario');
+    expect(Object.keys(req.request.body.json_questionario['2'])).not.toContain('ajuste');
+    expect(req.request.body.json_questionario['2'].business_canvas).toBe('texto');
+    // O documento na tela continua com ele até o servidor dizer o contrário.
+    expect(json['2'].ajuste).not.toBeNull();
+    req.flush(resposta(json));
   });
 
   it('envio que o servidor nao registrou vira erro, em vez de sucesso calado', () => {

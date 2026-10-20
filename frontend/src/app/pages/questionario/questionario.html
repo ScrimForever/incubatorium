@@ -46,6 +46,7 @@
               [attr.data-passo]="passo.numero"
               [class.quest-passo--atual]="passo.atual"
               [class.quest-passo--ok]="passo.completa"
+              [class.quest-passo--ajuste]="passo.ajuste"
               [disabled]="!passo.acessivel"
               [attr.aria-label]="passo.nome"
               [attr.aria-current]="passo.atual ? 'step' : null"
@@ -64,6 +65,19 @@
 
       @if (mensagemErro()) {
         <div class="error-message" role="alert"><app-icone nome="erro" />{{ mensagemErro() }}</div>
+      }
+      <!-- O que quem avalia pediu para corrigir nesta etapa: é a primeira coisa
+           que o incubado precisa ler ao reabrir o plano devolvido. -->
+      @if (!ehAvaliacao() && ajusteDaEtapa(); as ajuste) {
+        <div class="error-message" role="alert">
+          <app-icone nome="erro" />
+          <span>
+            Ajuste pedido nesta etapa: {{ ajuste.mensagem }}
+            @if (outrasComAjuste(); as outras) {
+              Também há ajuste nas etapas {{ outras }}.
+            }
+          </span>
+        </div>
       }
       @if (mensagemSucesso()) {
         <div class="success-message" role="status">
@@ -345,6 +359,17 @@
             } @else if (ehAvaliacao()) {
               <p class="quest-vazio">Sem anexos nesta etapa.</p>
             }
+          </div>
+        }
+
+        <!-- Pedido de ajuste: etapas 2 a 9, só o avaliador. A pílula vermelha da
+             trilha mostra onde já foi pedido. -->
+        @if (podePedirAjuste()) {
+          <div class="ajuste-rodape">
+            <button type="button" class="btn btn--secundario ajuste-pedir" (click)="abrirAjuste()">
+              <app-icone nome="alerta" />
+              {{ ajusteDaEtapa() ? 'Alterar ajuste' : 'Solicitar ajuste nesta etapa' }}
+            </button>
           </div>
         }
       </section>
@@ -874,6 +899,104 @@
           }
         </button>
       </footer>
+    </div>
+  </div>
+}
+
+@if (pedindoAjuste()) {
+  <div class="overlay">
+    <div
+      #dialogoAjuste
+      class="modal ajuste-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ajuste-titulo"
+      aria-describedby="ajuste-texto"
+      tabindex="-1"
+      (keydown.tab)="prenderTab($event, false, dialogoAjuste)"
+      (keydown.shift.tab)="prenderTab($event, true, dialogoAjuste)"
+    >
+      <header class="modal-header">
+        <div class="ajuste-cabecalho">
+          <span class="ajuste-etapa" aria-hidden="true">{{ numero() }}</span>
+          <div>
+            <span class="ajuste-sobretitulo">
+              {{ confirmandoAjuste() ? 'Confirmar ajuste' : 'Solicitar ajuste' }} · etapa
+              {{ numero() }} de {{ totalEtapas }}
+            </span>
+            <h2 id="ajuste-titulo">{{ etapa().titulo }}</h2>
+          </div>
+        </div>
+        <button type="button" class="close" aria-label="Fechar" (click)="fecharAjuste()">
+          &times;
+        </button>
+      </header>
+
+      @if (confirmandoAjuste()) {
+        <div class="modal-body">
+          <p id="ajuste-texto">O incubado vai receber este pedido:</p>
+          <blockquote class="ajuste-citacao">{{ mensagemAjuste().trim() }}</blockquote>
+          <ul class="ajuste-efeitos">
+            <li><app-icone nome="email" />Aviso por e-mail.</li>
+            <li><app-icone nome="alerta" />Alerta no topo desta etapa, até reenviar o plano.</li>
+            <li>
+              <app-icone nome="relogio" /><span>O plano volta para <strong>pendente</strong>.</span>
+            </li>
+          </ul>
+        </div>
+
+        <footer class="modal-footer">
+          <button
+            type="button"
+            class="btn btn--secundario"
+            [disabled]="salvandoAjuste()"
+            (click)="voltarAoTextoAjuste()"
+          >
+            Voltar
+          </button>
+          <button
+            type="button"
+            class="btn btn--azul"
+            [disabled]="salvandoAjuste()"
+            (click)="confirmarAjuste()"
+          >
+            {{ salvandoAjuste() ? 'Enviando…' : 'Confirmar envio' }}
+          </button>
+        </footer>
+      } @else {
+        <div class="modal-body">
+          <p id="ajuste-texto" class="ajuste-dica">
+            O plano volta para o incubado até ele corrigir e reenviar.
+          </p>
+          <div class="form-group">
+            <label for="ajuste-mensagem">O que corrigir</label>
+            <textarea
+              id="ajuste-mensagem"
+              rows="6"
+              [value]="mensagemAjuste()"
+              (input)="escreverAjuste($event)"
+              placeholder="Ex.: incluir a comparação de preços dos concorrentes."
+            ></textarea>
+            @if (mexeuAjuste() && !ajusteValido()) {
+              <span class="field-error">Escreva o pedido.</span>
+            }
+          </div>
+        </div>
+
+        <footer class="modal-footer">
+          <button type="button" class="btn btn--secundario" (click)="fecharAjuste()">
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class="btn btn--azul"
+            [disabled]="!ajusteValido()"
+            (click)="revisarAjuste()"
+          >
+            Enviar para o incubado
+          </button>
+        </footer>
+      }
     </div>
   </div>
 }

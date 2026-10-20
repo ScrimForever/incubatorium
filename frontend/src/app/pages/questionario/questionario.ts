@@ -24,10 +24,12 @@ import { APP_ROUTES } from '../../core/constants/app-constants';
 import { destinoPara } from '../../core/guards/plano-guard';
 import { ApiError, SessionUser } from '../../core/models/auth';
 import {
+  AjusteEtapa,
   Anexo,
   CLASSE_NOTA,
   ChaveEtapa,
   DecisaoPlano,
+  ETAPAS_COM_AJUSTE,
   EXTENSOES_ANEXO,
   JsonQuestionario,
   MAXIMO_ANEXOS_POR_ETAPA,
@@ -50,6 +52,7 @@ import {
   etapaAcessivel,
   etapaCompleta,
   etapaParaRetomar,
+  etapasComAjuste,
   progresso,
 } from '../../core/services/questionario';
 import { Icone } from '../../shared/components/icone/icone';
@@ -83,6 +86,8 @@ interface Passo {
   readonly rotulo: string;
   readonly nome: string;
   readonly completa: boolean;
+  /** Etapa com ajuste pedido por quem avalia: a pílula fica vermelha. */
+  readonly ajuste: boolean;
   readonly acessivel: boolean;
   readonly atual: boolean;
 }
@@ -390,6 +395,105 @@ export class Questionario implements OnInit {
       });
   }
 
+  // ----- pedido de ajuste por etapa (contrato, Parte 5) -----
+
+  /** O ajuste pedido na etapa aberta, quando houver. */
+  protected readonly ajusteDaEtapa = computed<AjusteEtapa | null>(
+    () => this.json()[String(this.numero()) as ChaveEtapa].ajuste,
+  );
+
+  /** As outras etapas com ajuste, para o incubado saber que não é só esta. */
+  protected readonly outrasComAjuste = computed(() =>
+    etapasComAjuste(this.json())
+      .filter((numero) => numero !== this.numero())
+      .join(', '),
+  );
+
+  protected readonly pedindoAjuste = signal(false);
+  protected readonly mensagemAjuste = signal('');
+  protected readonly salvandoAjuste = signal(false);
+
+  /** Mexeu no campo e o deixou vazio: só então o aviso aparece. */
+  protected readonly mexeuAjuste = signal(false);
+  /** Segundo passo da modal: revisar o que o incubado vai receber antes de enviar. */
+  protected readonly confirmandoAjuste = signal(false);
+
+  /**
+   * O avaliador pede ajuste nas etapas 2 a 9, com o plano em análise ou já
+   * devolvido por outro ajuste. A coordenação não pede: ela decide. A trava que
+   * vale é a do servidor.
+   */
+  protected readonly podePedirAjuste = computed(() => {
+    const status = this.statusPlano();
+    return (
+      this.ehAvaliacao() &&
+      this.user()?.role === 'avaliador' &&
+      ETAPAS_COM_AJUSTE.includes(this.numero()) &&
+      (status === 'aguardando_aprovacao' ||
+        (status === 'pendente' && etapasComAjuste(this.json()).length > 0))
+    );
+  });
+
+  protected readonly ajusteValido = computed(() => this.mensagemAjuste().trim().length > 0);
+
+  /** Abre a modal; com ajuste já pedido nesta etapa, ele vem para ser reescrito. */
+  protected abrirAjuste(): void {
+    this.mensagemAjuste.set(this.ajusteDaEtapa()?.mensagem ?? '');
+    this.mexeuAjuste.set(false);
+    this.confirmandoAjuste.set(false);
+    this.pedindoAjuste.set(true);
+  }
+
+  protected fecharAjuste(): void {
+    if (this.pedindoAjuste() && !this.salvandoAjuste()) {
+      this.pedindoAjuste.set(false);
+    }
+  }
+
+  protected escreverAjuste(evento: Event): void {
+    this.mensagemAjuste.set((evento.target as HTMLTextAreaElement).value);
+    this.mexeuAjuste.set(true);
+  }
+
+  /** Do texto para a revisão: o envio só sai depois do "Confirmar". */
+  protected revisarAjuste(): void {
+    if (this.ajusteValido()) {
+      this.confirmandoAjuste.set(true);
+    } else {
+      this.mexeuAjuste.set(true);
+    }
+  }
+
+  protected voltarAoTextoAjuste(): void {
+    this.confirmandoAjuste.set(false);
+  }
+
+  /** Envia o pedido. Quem pediu e quando são do servidor, não daqui. */
+  protected confirmarAjuste(): void {
+    if (!this.ajusteValido() || !this.confirmandoAjuste() || this.salvandoAjuste()) {
+      return;
+    }
+    this.salvandoAjuste.set(true);
+    this.limparAvisos();
+    this.planos
+      .pedirAjuste(this.email(), { aba: this.numero(), mensagem: this.mensagemAjuste().trim() })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (plano) => {
+          this.json.set(plano.json_questionario);
+          this.statusPlano.set(plano.status_questionario);
+          this.salvandoAjuste.set(false);
+          this.pedindoAjuste.set(false);
+          this.mensagemSucesso.set('Pedido de ajuste enviado. O plano voltou para o incubado.');
+        },
+        error: (err: ApiError) => {
+          this.salvandoAjuste.set(false);
+          this.pedindoAjuste.set(false);
+          this.mensagemErro.set(err.message);
+        },
+      });
+  }
+
   /** Data e hora da nota: a hora importa porque a etapa pode ser regravada no mesmo dia. */
   protected readonly dataNota = formatarQuando;
 
@@ -451,6 +555,7 @@ export class Questionario implements OnInit {
           ? json[String(numero) as ChaveEtapa].avaliacao !== null
           : minhas.has(String(numero))
         : etapaCompleta(json, numero),
+      ajuste: !!json[String(numero) as ChaveEtapa].ajuste,
       acessivel: avaliacao ? true : etapaAcessivel(json, numero),
       atual: numero === this.numero(),
     }));
@@ -504,6 +609,7 @@ export class Questionario implements OnInit {
   private readonly dialogoEnvio = viewChild<ElementRef<HTMLElement>>('dialogoEnvio');
   private readonly dialogoSaida = viewChild<ElementRef<HTMLElement>>('dialogoSaida');
   private readonly dialogoDecisao = viewChild<ElementRef<HTMLElement>>('dialogoDecisao');
+  private readonly dialogoAjuste = viewChild<ElementRef<HTMLElement>>('dialogoAjuste');
   private ultimoFoco: HTMLElement | null = null;
 
   constructor() {
@@ -515,13 +621,15 @@ export class Questionario implements OnInit {
         this.dialogoRemocao() ??
         this.dialogoEnvio() ??
         this.dialogoSaida() ??
-        this.dialogoDecisao();
+        this.dialogoDecisao() ??
+        this.dialogoAjuste();
       const aberto =
         this.membroAberto() ||
         this.remocao() !== null ||
         this.confirmandoEnvio() ||
         this.saidaPendente() !== null ||
-        this.decidindo() !== null;
+        this.decidindo() !== null ||
+        this.pedindoAjuste();
       if (aberto && dialogo) {
         this.ultimoFoco ??= document.activeElement as HTMLElement | null;
         dialogo.nativeElement.focus();
@@ -871,6 +979,7 @@ export class Questionario implements OnInit {
     this.cancelarEnvio();
     this.fecharPreview();
     this.cancelarSaida();
+    this.fecharAjuste();
   }
 
   // ----- pré-visualização de anexo -----

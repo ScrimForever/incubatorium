@@ -106,7 +106,19 @@ export class QuestionarioService {
     status: StatusQuestionario,
     json: JsonQuestionario,
   ): Observable<Questionario> {
-    const corpo: QuestionarioEntrada = { status_questionario: status, json_questionario: json };
+    // O ajuste de cada etapa é do servidor (contrato, Parte 5): mandado de
+    // volta, o incubado poderia apagá-lo ou reescrevê-lo no próprio PUT.
+    const documento = { ...json } as Record<string, unknown>;
+    for (const numero of NUMEROS_ETAPA) {
+      const chave = String(numero) as ChaveEtapa;
+      const aba: Record<string, unknown> = { ...json[chave] };
+      delete aba['ajuste'];
+      documento[chave] = aba;
+    }
+    const corpo: QuestionarioEntrada = {
+      status_questionario: status,
+      json_questionario: documento as unknown as JsonQuestionario,
+    };
     return this.api.put<Questionario>(API_ROUTES.questionario, corpo).pipe(
       map(normalizar),
       tap((plano) => this.guardar(plano)),
@@ -204,7 +216,7 @@ export function temConteudo(json: JsonQuestionario): boolean {
     const aba = json[String(numero) as ChaveEtapa] as unknown as Record<string, unknown>;
     return Object.entries(aba).some(([chave, valor]) => {
       // Sem esta saída a avaliação promoveria um plano vazio a `pendente`.
-      if (chave === 'avaliacao') {
+      if (chave === 'avaliacao' || chave === 'ajuste') {
         return false;
       }
       if (typeof valor === 'string') {
@@ -265,7 +277,15 @@ export function etapaAcessivel(json: JsonQuestionario, numero: NumeroEtapa): boo
  * completas formam um prefixo, e a primeira incompleta é onde o incubado estava.
  */
 export function etapaParaRetomar(json: JsonQuestionario): NumeroEtapa {
-  return NUMEROS_ETAPA.find((numero) => !etapaCompleta(json, numero)) ?? 9;
+  // Plano devolvido com ajuste: abre onde o avaliador pediu, não no fim.
+  return (
+    etapasComAjuste(json)[0] ?? NUMEROS_ETAPA.find((numero) => !etapaCompleta(json, numero)) ?? 9
+  );
+}
+
+/** As etapas com ajuste pedido, em ordem. */
+export function etapasComAjuste(json: JsonQuestionario): NumeroEtapa[] {
+  return NUMEROS_ETAPA.filter((numero) => !!json[String(numero) as ChaveEtapa].ajuste);
 }
 
 export function etapasCompletas(json: JsonQuestionario): number {
