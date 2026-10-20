@@ -1,11 +1,18 @@
+import pytest
 from sqlalchemy import select
 
-import pytest
-
 from domain.models.enums import SituacaoIncubacao
-from domain.models.questionarios.questionario import Questionario, StatusEnum
+from domain.models.questionario import Questionario, StatusEnum
+from repository.questionario import QuestionarioRepository
+from repository.usuarios import UsuariosRepository
 from services.usuarios.usuarios_service import UsuariosService
 from shared.exceptions import ConflitoError, NaoEncontradoError
+
+
+def _service(async_db) -> UsuariosService:
+    return UsuariosService(
+        UsuariosRepository(async_db), QuestionarioRepository(async_db)
+    )
 
 
 async def _incubado_aprovado(async_db, criar_usuario):
@@ -30,7 +37,7 @@ class TestAlterarSituacao:
     ):
         incubado = await _incubado_aprovado(async_db, criar_usuario)
         colaborador = await criar_usuario("colaborador")
-        service = UsuariosService(async_db)
+        service = _service(async_db)
 
         await service.alterar_situacao(
             colaborador, incubado.email, SituacaoIncubacao.desistente
@@ -51,7 +58,7 @@ class TestAlterarSituacao:
         candidato = await criar_usuario("incubado")
         equipe = await criar_usuario("consultor")
         colaborador = await criar_usuario("colaborador")
-        service = UsuariosService(async_db)
+        service = _service(async_db)
 
         with pytest.raises(ConflitoError):
             await service.alterar_situacao(
@@ -69,7 +76,7 @@ class TestPainel:
         await _incubado_aprovado(async_db, criar_usuario)
         await criar_usuario("incubado", "candidato@example.com")
 
-        painel = await UsuariosService(async_db).painel()
+        painel = await _service(async_db).painel()
 
         assert [linha["email"] for linha in painel] == ["ana@example.com"]
 
@@ -79,10 +86,11 @@ class TestPlano:
     async def test_devolve_o_questionario_vigente_ou_404(self, async_db, criar_usuario):
         incubado = await _incubado_aprovado(async_db, criar_usuario)
         sem_plano = await criar_usuario("incubado")
-        service = UsuariosService(async_db)
+        service = _service(async_db)
 
         plano = await service.plano(incubado.email)
 
         assert plano.usuario_email == incubado.email
-        with pytest.raises(NaoEncontradoError):
+        with pytest.raises(NaoEncontradoError) as erro:
             await service.plano(sem_plano.email)
+        assert erro.value.mensagem == "O incubado ainda não possui questionário."

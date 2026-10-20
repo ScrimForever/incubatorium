@@ -5,30 +5,76 @@ Perfis são flags em `User`: `is_admin`, `is_colaborador`, `is_consultor`, `is_i
 
 from fastapi import Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.domain.models.user_model import current_active_user
-from src.infra.db import User, get_async_session
-from src.repository.usuarios.usuarios_rep import UsuariosRepository
+from src.auth.backend import current_active_user
+from src.domain.models.usuario import User
+from src.infra.db import get_async_session
+from src.repository.usuarios import UsuariosRepository
 
 
 def _negar(detalhe: str = "Sem permissão para esta operação.") -> HTTPException:
     return HTTPException(status_code=403, detail=detalhe)
 
 
-async def exigir_colaborador(user: User = Depends(current_active_user)) -> User:
-    if not user.is_colaborador:
-        raise _negar("Operação restrita a colaboradores da incubadora.")
-    return user
+PERFIS = ("admin", "colaborador", "consultor", "incubado")
 
 
-async def exigir_consultor(user: User = Depends(current_active_user)) -> User:
-    if not user.is_consultor:
-        raise _negar("Operação restrita a consultores.")
-    return user
+def exigir_perfil(*perfis: str):
+    """Dependência que libera a rota a quem tem ao menos uma flag `is_<perfil>`.
+
+    `is_admin` passa em qualquer rota. Perfil desconhecido falha ao definir a rota.
+    """
+    desconhecidos = set(perfis) - set(PERFIS)
+    if desconhecidos:
+        raise ValueError(f"Perfil(is) desconhecido(s): {sorted(desconhecidos)}")
+    aceitos = {"admin", *perfis}
+
+    async def dependencia(user: User = Depends(current_active_user)) -> User:
+        if not any(getattr(user, f"is_{perfil}", False) for perfil in aceitos):
+            raise _negar()
+        return user
+
+    return dependencia
+
+
+def exigir_apenas(perfil: str):
+    """Como `exigir_perfil`, mas recusa quem acumula outro perfil de equipe.
+
+    Impede, por exemplo, que um consultor que também tem `is_incubado=True` (valor
+    padrão da coluna) atue como incubado. `is_admin` passa em qualquer rota.
+    """
+    if perfil not in PERFIS:
+        raise ValueError(f"Perfil desconhecido: {perfil}")
+    outros = [p for p in PERFIS if p not in ("admin", perfil)]
+
+    async def dependencia(user: User = Depends(current_active_user)) -> User:
+        if user.is_admin:
+            return user
+        if getattr(user, f"is_{perfil}", False) and not any(
+            getattr(user, f"is_{outro}", False) for outro in outros
+        ):
+            return user
+        raise _negar()
+
+    return dependencia
+
+
+# Políticas nomeadas: cada uma lista as flags `is_<perfil>` que liberam a rota
+# (basta uma ser True; `is_admin` sempre passa). Uso: `Depends(visualizador_questionario)`.
+visualizador_questionario = exigir_perfil("incubado", "colaborador", "consultor")
+editor_questionario = exigir_apenas("incubado")
+avaliador_questionario = exigir_perfil("colaborador", "consultor")
+enviador_arquivos = exigir_perfil("incubado", "consultor")
+gestor_incubados = exigir_perfil("colaborador")
+editor_questionario_de_incubado = exigir_perfil("consultor")
+gestor_agenda = exigir_perfil("consultor")
+agendador_consultoria = exigir_apenas("incubado")
 
 
 async def pode_acessar_incubado(db: AsyncSession, user: User, email: str) -> bool:
-    """Próprio incubado, qualquer colaborador ou qualquer consultor."""
-    return user.email == email or bool(user.is_colaborador) or bool(user.is_consultor)
+    """Próprio incubado, qualquer colaborador, consultor ou admin."""
+    return user.email == email or any(
+        (user.is_admin, user.is_colaborador, user.is_consultor)
+    )
 
 
 async def exigir_acesso_incubado(

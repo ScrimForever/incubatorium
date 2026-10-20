@@ -1,6 +1,6 @@
 import pytest
 
-from domain.models.questionarios.questionario import StatusEnum
+from domain.models.questionario import StatusEnum
 from domain.schemas.questionario_schema import (
     QuestionarioInputSchema,
 )
