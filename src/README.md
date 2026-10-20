@@ -67,7 +67,7 @@ auth/         backend de autenticação e usuario_manager
 infra/        config, db (sessão), armazenamento (ArmazenamentoLocal)
 repository/   acesso ao banco, sem estado (base, usuarios, questionario)
 services/     regras de negócio (usuarios, questionario, arquivos, email)
-routers/      APIRouters de módulo (auth, usuarios, questionario, arquivos); `ROUTERS` é
+routers/      um pacote por módulo (auth, usuarios, questionario, arquivos), cada um com `<modulo>_router.py`; `ROUTERS` é
               incluído em startapp.py; dependencias.py monta services via Depends
 shared/       permissoes, exceptions, handlers, validacao_arquivos
 ```

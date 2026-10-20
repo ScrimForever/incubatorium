@@ -10,7 +10,7 @@ PADRAO_BANCO = re.compile(
 
 
 def _arquivos_novos():
-    yield from sorted((RAIZ / "routers").glob("*.py"))
+    yield from sorted((RAIZ / "routers").rglob("*.py"))
     yield RAIZ / "shared" / "permissoes.py"
 
 
