@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from infra.db import User, gerar_codigo_ativacao
+from domain.models.usuario import User, gerar_codigo_ativacao
 
 
 class TestGerarCodigoAtivacao:

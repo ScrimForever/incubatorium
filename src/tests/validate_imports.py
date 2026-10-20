@@ -23,15 +23,24 @@ print(f"[IMPORT VALIDATION] Current working directory: {Path.cwd()}")
 print(f"[IMPORT VALIDATION] Python version: {sys.version}")
 
 critical_modules = [
-    "domain.models.base_models",
+    "domain.models.base",
     "infra.db",
-    "domain.models.user_model",
-    "routers.questionario.r_questionario",
-    "routers.usuarios.r_usuarios",
-    "routers.arquivos.r_arquivos",
+    "domain.models.usuario",
+    "auth.backend",
+    "routers.questionario",
+    "routers.usuarios",
+    "routers.arquivos",
+    "routers.auth",
+    "routers.dependencias",
     "services",
     "services.usuarios.usuarios_service",
     "repository",
+    "repository.base",
+    "repository.usuarios",
+    "repository.questionario",
+    "services.usuarios.ativacao_service",
+    "services.questionario.questionario_service",
+    "services.arquivos.arquivos_service",
     "shared.permissoes",
 ]
 
@@ -54,15 +63,15 @@ print("\n[IMPORT VALIDATION] Testando redirecionamento src.*...\n")
 try:
     import importlib.util
 
-    spec = importlib.util.find_spec("src.domain.models.base_models")
+    spec = importlib.util.find_spec("src.domain.models.base")
     if spec:
-        print("✓ src.domain.models.base_models (com redirecionamento)")
+        print("✓ src.domain.models.base (com redirecionamento)")
         success_count += 1
     else:
-        print("✗ src.domain.models.base_models - módulo não encontrado")
+        print("✗ src.domain.models.base - módulo não encontrado")
         failure_count += 1
 except (ImportError, AttributeError, ValueError) as e:
-    print(f"✗ src.domain.models.base_models - Error: {e}")
+    print(f"✗ src.domain.models.base - Error: {e}")
     failure_count += 1
 
 print(

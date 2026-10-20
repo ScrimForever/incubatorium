@@ -20,8 +20,9 @@ from tests.src_redirect import instalar
 instalar()
 
 # Now import all modules we need
-from domain.models.base_models import Base
-from infra.db import User
+from domain.models import consultoria  # noqa: F401  (registra as tabelas)
+from domain.models.base import Base
+from domain.models.usuario import User
 
 
 def patch_jsonb_for_sqlite():
@@ -139,7 +140,7 @@ async def cliente_api(async_db):
     import httpx
     from fastapi import FastAPI
 
-    from domain.models.user_model import current_active_user
+    from auth.backend import current_active_user
     from infra.db import get_async_session
     from shared.handlers import registrar_handlers
 
