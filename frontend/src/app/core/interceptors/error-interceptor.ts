@@ -65,17 +65,6 @@ const MESSAGES: Record<string, string> = {
   REGISTER_INVALID_PASSWORD: 'A senha não atende aos requisitos mínimos.',
   RESET_PASSWORD_BAD_TOKEN: 'Link de redefinição inválido ou expirado.',
   RESET_PASSWORD_INVALID_PASSWORD: 'A senha não atende aos requisitos mínimos.',
-  // Da avaliação de planos — recusas do servidor, não da interface.
-  ETAPA_JA_AVALIADA: 'Esta etapa já foi avaliada por outro consultor.',
-  AVALIACAO_RESTRITA_CONSULTOR: 'Quem avalia as etapas é o consultor, não a coordenação.',
-  DECISAO_RESTRITA_COORDENACAO: 'Só a coordenação pode aprovar ou devolver um plano.',
-  EDICAO_RESTRITA_COORDENACAO: 'Só a coordenação pode corrigir as respostas de um plano.',
-  ETAPAS_PENDENTES: 'Avalie as nove etapas antes de decidir o plano.',
-  JUSTIFICATIVA_OBRIGATORIA: 'Escreva o motivo para devolver o plano.',
-  AJUSTE_RESTRITO_AVALIADOR: 'Só o avaliador pode pedir ajuste numa etapa.',
-  ETAPA_SEM_AJUSTE: 'A etapa 1 não recebe pedido de ajuste.',
-  MENSAGEM_OBRIGATORIA: 'Escreva o que o incubado precisa corrigir.',
-  PLANO_FORA_DE_ANALISE: 'Só dá para pedir ajuste em plano enviado para análise.',
 };
 
 function normalize(error: unknown, url: string): ApiError {
@@ -123,7 +112,7 @@ const CODIGO_POR_STATUS: Record<number, string> = {
   422: 'UNPROCESSABLE',
 };
 
-/** `LOGIN_BAD_CREDENTIALS`, `ETAPA_JA_AVALIADA`: maiúsculas e sublinhado, sem espaço. */
+/** `LOGIN_BAD_CREDENTIALS`, `UPLOAD_BAD_REQUEST`: maiúsculas e sublinhado, sem espaço. */
 const PARECE_CODIGO = /^[A-Z][A-Z0-9_]*$/;
 
 /** `/reenviar_codigo/{email}` — o prefixo sai de `API_ROUTES`, sem e-mail nenhum. */

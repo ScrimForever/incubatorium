@@ -31,24 +31,20 @@ export const API_ROUTES = {
    */
   questionario: '/questionario',
   /**
-   * Avaliação de planos (`docs/contrato-avaliacao.md`). As leituras existem no
-   * backend; nota e decisão ainda não — em desenvolvimento quem responde é o mock.
+   * Avaliação de planos (`docs/contrato-avaliacao.md`). Tudo real: as leituras e
+   * uma rota de escrita só, o `PUT` por id, que grava o documento inteiro e o
+   * status — nota, ajuste, decisão e correção passam todos por ela.
    */
   avaliacao: {
-    /** Todos os planos, com o documento inteiro — sem `?status=`: o filtro é da tela. */
+    /** Todos os planos, com o documento inteiro e o `id` — sem `?status=`: o filtro é da tela. */
     planos: '/questionario/todos',
-    /**
-     * O plano de outra pessoa. `GET` lê: dono, consultor e colaborador (a coordenação
-     * ainda recebe `403`). `PUT` é a coordenação corrigindo as respostas: ainda não
-     * existe no backend e é respondido pelo mock em desenvolvimento.
-     */
+    /** O plano de outra pessoa, em leitura: consultor, colaborador e coordenação. Sem `id`. */
     planoDe: (email: string): string => `/usuarios/${encodeURIComponent(email)}/plano`,
-    /** Ainda não existe no backend — respondida pelo mock em desenvolvimento. */
-    notaDe: (email: string): string => `/questionario/${encodeURIComponent(email)}/nota`,
-    /** Aprovar ou devolver — só a coordenação, e nunca por aqui a nota. Ainda não existe. */
-    statusDe: (email: string): string => `/questionario/${encodeURIComponent(email)}/status`,
-    /** Pedido de ajuste numa etapa: volta o plano para `pendente`. Ainda não existe. */
-    ajusteDe: (email: string): string => `/questionario/${encodeURIComponent(email)}/ajuste`,
+    /**
+     * Grava o plano de outra pessoa (só consultor e coordenação). Corpo de sempre,
+     * `{ status_questionario, json_questionario }`, que substitui o documento inteiro.
+     */
+    porId: (id: number): string => `/questionario/${id}`,
   },
   /**
    * Anexos do questionário. Sem `dono`, o backend usa o e-mail do token; com

@@ -66,6 +66,17 @@
       @if (mensagemErro()) {
         <div class="error-message" role="alert"><app-icone nome="erro" />{{ mensagemErro() }}</div>
       }
+      <!-- Plano devolvido que a coordenação reabriu: o motivo fica à vista em
+           todas as etapas até o incubado reenviar. -->
+      @if (devolucaoAnterior(); as devolucao) {
+        <div class="error-message" role="alert">
+          <app-icone nome="alerta" />
+          <span>
+            A coordenação reabriu seu plano para ajustes. Motivo da devolução:
+            {{ devolucao.justificativa }}
+          </span>
+        </div>
+      }
       <!-- O que quem avalia pediu para corrigir nesta etapa: é a primeira coisa
            que o incubado precisa ler ao reabrir o plano devolvido. -->
       @if (!ehAvaliacao() && ajusteDaEtapa(); as ajuste) {
@@ -74,7 +85,7 @@
           <span>
             Ajuste pedido nesta etapa: {{ ajuste.mensagem }}
             @if (outrasComAjuste(); as outras) {
-              Também há ajuste nas etapas {{ outras }}.
+              Também há ajuste {{ outras }}.
             }
           </span>
         </div>
@@ -508,11 +519,23 @@
             }
           </p>
 
-          @if (decisao(); as decidida) {
+          @if (decisaoVigente(); as decidida) {
             <p class="decisao-tomada">
               <app-icone [nome]="decidida.status === 'aprovado' ? 'sucesso' : 'alerta'" />
               {{ decidida.status === 'aprovado' ? 'Aprovado' : 'Devolvido' }} por
               {{ decidida.por }} em {{ dataNota(decidida.em) }}
+            </p>
+            @if (decidida.status === 'rejeitado') {
+              <div class="decisao-acoes">
+                <button type="button" class="btn btn--azul" (click)="abrirReabertura()">
+                  Reabrir para edição
+                </button>
+              </div>
+            }
+          } @else if (comOIncubado()) {
+            <p class="decisao-pendente">
+              <app-icone nome="relogio" />
+              Com o incubado para correção — decidir depois que ele reenviar.
             </p>
           } @else if (podeDecidir()) {
             <div class="decisao-acoes">
@@ -903,6 +926,55 @@
   </div>
 }
 
+@if (reabrindo()) {
+  <div class="overlay">
+    <div
+      #dialogoReabertura
+      class="modal"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="reabertura-titulo"
+      aria-describedby="reabertura-texto"
+      tabindex="-1"
+      (keydown.tab)="prenderTab($event, false, dialogoReabertura)"
+      (keydown.shift.tab)="prenderTab($event, true, dialogoReabertura)"
+    >
+      <header class="modal-header">
+        <h2 id="reabertura-titulo">Reabrir para edição</h2>
+        <button type="button" class="close" aria-label="Fechar" (click)="fecharReabertura()">
+          &times;
+        </button>
+      </header>
+
+      <div class="modal-body">
+        <p id="reabertura-texto">
+          O plano volta para o incubado como <strong>Em preenchimento</strong>. Ele vê o motivo da
+          devolução no topo do formulário, corrige e reenvia para análise — aí você decide de novo.
+          Notas e anexos ficam como estão.
+        </p>
+      </div>
+
+      <footer class="modal-footer">
+        <button type="button" class="btn btn--secundario" (click)="fecharReabertura()">
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="btn btn--azul"
+          [disabled]="salvandoReabertura()"
+          (click)="confirmarReabertura()"
+        >
+          @if (salvandoReabertura()) {
+            Salvando…
+          } @else {
+            Reabrir plano
+          }
+        </button>
+      </footer>
+    </div>
+  </div>
+}
+
 @if (pedindoAjuste()) {
   <div class="overlay">
     <div
@@ -937,7 +1009,6 @@
           <p id="ajuste-texto">O incubado vai receber este pedido:</p>
           <blockquote class="ajuste-citacao">{{ mensagemAjuste().trim() }}</blockquote>
           <ul class="ajuste-efeitos">
-            <li><app-icone nome="email" />Aviso por e-mail.</li>
             <li><app-icone nome="alerta" />Alerta no topo desta etapa, até reenviar o plano.</li>
             <li>
               <app-icone nome="relogio" /><span>O plano volta para <strong>pendente</strong>.</span>

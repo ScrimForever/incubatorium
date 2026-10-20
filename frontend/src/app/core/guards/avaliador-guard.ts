@@ -6,8 +6,8 @@ import { Auth } from '../services/auth';
 
 /**
  * Planos de negócio: avaliador e admin entram; o incubado, não. Como todo guard,
- * é conforto de navegação, não segurança — a trava que vale é a do servidor, e
- * o backend ainda não confere papel nessas rotas.
+ * é conforto de navegação, não segurança — o backend confere o papel na lista
+ * (`/questionario/todos`) e na escrita (`PUT /questionario/{id}`).
  */
 export const avaliadorGuard: CanActivateFn = () => {
   const auth = inject(Auth);
