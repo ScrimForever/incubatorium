@@ -1,6 +1,6 @@
 import pytest
 
-from shared.exceptions import (
+from src.shared.exceptions import (
     ArquivoNaoEncontradoError,
     DiretorioNaoEncontradoError,
     ErroAoDeletarArquivoError,

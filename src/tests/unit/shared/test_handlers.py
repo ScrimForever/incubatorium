@@ -2,13 +2,13 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from shared.exceptions import (
+from src.shared.exceptions import (
     ConflitoError,
     NaoEncontradoError,
     SemPermissaoError,
     ValidacaoNegocioError,
 )
-from shared.handlers import registrar_handlers
+from src.shared.handlers import registrar_handlers
 
 
 @pytest.mark.parametrize(

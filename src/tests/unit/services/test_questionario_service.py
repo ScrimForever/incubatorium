@@ -2,15 +2,15 @@ import pytest
 from pydantic import ValidationError
 from sqlalchemy import select
 
-from domain.models.questionario import (
+from src.domain.models.questionario import (
     Questionario,
     QuestionarioHistorico,
     StatusEnum,
 )
-from domain.schemas.questionario_schema import QuestionarioInputSchema
-from repository.questionario import QuestionarioRepository
-from services.questionario.questionario_service import QuestionarioService
-from shared.exceptions import ConflitoError, NaoEncontradoError
+from src.domain.schemas.questionario_schema import QuestionarioInputSchema
+from src.repository.questionario import QuestionarioRepository
+from src.services.questionario.questionario_service import QuestionarioService
+from src.shared.exceptions import ConflitoError, NaoEncontradoError
 
 
 @pytest.fixture
@@ -106,8 +106,11 @@ class TestBuscar:
         assert encontrado.usuario_email == sample_email
 
     @pytest.mark.asyncio
-    async def test_sem_questionario_devolve_none(self, service, user_with_email):
-        assert await service.buscar(user_with_email) is None
+    async def test_sem_questionario_levanta_nao_encontrado(
+        self, service, user_with_email
+    ):
+        with pytest.raises(NaoEncontradoError):
+            await service.buscar(user_with_email)
 
     @pytest.mark.asyncio
     async def test_listar_todos(self, async_db, service, criar_usuario):

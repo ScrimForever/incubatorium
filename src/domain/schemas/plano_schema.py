@@ -15,3 +15,4 @@ class PlanoOutput(BaseModel):
     decidido_por: str | None = None
     decidido_em: datetime | None = None
     motivo_decisao: str | None = None
+    id: int

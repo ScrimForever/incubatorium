@@ -1,8 +1,8 @@
 import pytest
 
-from infra.config import settings
-from services.email import setup
-from services.email.setup import EmailSetup
+from src.infra.config import settings
+from src.services.email import setup
+from src.services.email.setup import EmailSetup
 
 
 @pytest.fixture

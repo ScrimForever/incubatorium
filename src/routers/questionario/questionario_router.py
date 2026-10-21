@@ -29,12 +29,12 @@ async def inserir_questionario(
     return gravado
 
 
-@router.get("")
+@router.get("", response_model=QuestionarioOutputSchema)
 async def buscar_questionario(
     user: User = Depends(editor_questionario),
     service: QuestionarioService = Depends(get_questionario_service),
 ):
-    return await service.buscar(user) or False
+    return await service.buscar(user)
 
 
 @router.put("", response_model=QuestionarioOutputSchema)
@@ -63,3 +63,13 @@ async def buscar_todos_questionarios(
     service: QuestionarioService = Depends(get_questionario_service),
 ):
     return await service.listar_todos()
+
+
+@router.get("/{questionario_id}", response_model=QuestionarioOutputSchema)
+async def buscar_questionario_por_id(
+    questionario_id: int,
+    user: User = Depends(editor_questionario_de_incubado),
+    service: QuestionarioService = Depends(get_questionario_service),
+):
+    """Consultor (ou admin) consulta um questionário pelo id."""
+    return await service.buscar_por_id(questionario_id)

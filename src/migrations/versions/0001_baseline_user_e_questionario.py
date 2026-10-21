@@ -28,21 +28,21 @@ def upgrade() -> None:
     tabelas = sa.inspect(op.get_bind()).get_table_names()
 
     if "questionario" not in tabelas:
+        # O tipo pode sobrar de uma execução anterior sem a tabela.
+        status = postgresql.ENUM(
+            "iniciado",
+            "pendente",
+            "aguardando_aprovacao",
+            "aprovado",
+            "rejeitado",
+            name="statusenum",
+            create_type=False,
+        )
+        status.create(op.get_bind(), checkfirst=True)
         op.create_table(
             "questionario",
             sa.Column("usuario_email", sa.String(length=255), nullable=False),
-            sa.Column(
-                "status_questionario",
-                sa.Enum(
-                    "iniciado",
-                    "pendente",
-                    "aguardando_aprovacao",
-                    "aprovado",
-                    "rejeitado",
-                    name="statusenum",
-                ),
-                nullable=False,
-            ),
+            sa.Column("status_questionario", status, nullable=False),
             sa.Column(
                 "json_questionario",
                 postgresql.JSONB(astext_type=sa.Text()),

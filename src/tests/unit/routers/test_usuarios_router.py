@@ -1,9 +1,9 @@
 import pytest
 from sqlalchemy import select
 
-from domain.models.enums import SituacaoIncubacao
-from domain.models.questionario import Questionario, StatusEnum
-from routers.usuarios import router
+from src.domain.models.enums import SituacaoIncubacao
+from src.domain.models.questionario import Questionario, StatusEnum
+from src.routers.usuarios import router
 
 
 async def _plano(async_db, email):

@@ -61,7 +61,7 @@ def exigir_apenas(perfil: str):
 # Políticas nomeadas: cada uma lista as flags `is_<perfil>` que liberam a rota
 # (basta uma ser True; `is_admin` sempre passa). Uso: `Depends(visualizador_questionario)`.
 visualizador_questionario = exigir_perfil("incubado", "colaborador", "consultor")
-editor_questionario = exigir_apenas("incubado")
+editor_questionario = exigir_perfil("incubado", "consultor")
 avaliador_questionario = exigir_perfil("colaborador", "consultor")
 enviador_arquivos = exigir_perfil("incubado", "consultor")
 gestor_incubados = exigir_perfil("colaborador")

@@ -1,12 +1,12 @@
 import pytest
 from sqlalchemy import select
 
-from domain.models.enums import SituacaoIncubacao
-from domain.models.questionario import Questionario, StatusEnum
-from repository.questionario import QuestionarioRepository
-from repository.usuarios import UsuariosRepository
-from services.usuarios.usuarios_service import UsuariosService
-from shared.exceptions import ConflitoError, NaoEncontradoError
+from src.domain.models.enums import SituacaoIncubacao
+from src.domain.models.questionario import Questionario, StatusEnum
+from src.repository.questionario import QuestionarioRepository
+from src.repository.usuarios import UsuariosRepository
+from src.services.usuarios.usuarios_service import UsuariosService
+from src.shared.exceptions import ConflitoError, NaoEncontradoError
 
 
 def _service(async_db) -> UsuariosService:

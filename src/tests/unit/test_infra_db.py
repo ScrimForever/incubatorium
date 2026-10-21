@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from domain.models.usuario import User, gerar_codigo_ativacao
+from src.domain.models.usuario import User, gerar_codigo_ativacao
 
 
 class TestGerarCodigoAtivacao:
@@ -146,8 +146,8 @@ class TestGetAsyncSessionLogaNegocioComoAviso:
         from fastapi import HTTPException
         from fastapi.exceptions import RequestValidationError
 
-        from infra import db
-        from shared.exceptions import ConflitoError
+        from src.infra import db
+        from src.shared.exceptions import ConflitoError
 
         avisos, erros = [], []
         monkeypatch.setattr(db.logger, "warning", avisos.append)
@@ -168,7 +168,7 @@ class TestGetAsyncSessionLogaNegocioComoAviso:
 
     @pytest.mark.asyncio
     async def test_erro_inesperado_continua_como_error(self, monkeypatch):
-        from infra import db
+        from src.infra import db
 
         erros = []
         monkeypatch.setattr(db.logger, "error", erros.append)

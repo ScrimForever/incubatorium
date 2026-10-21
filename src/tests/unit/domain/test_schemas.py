@@ -1,10 +1,10 @@
 import pytest
 
-from domain.models.questionario import StatusEnum
-from domain.schemas.questionario_schema import (
+from src.domain.models.questionario import StatusEnum
+from src.domain.schemas.questionario_schema import (
     QuestionarioInputSchema,
 )
-from domain.schemas.user_schema import UserCreate
+from src.domain.schemas.user_schema import UserCreate
 
 
 class TestUserCreate:

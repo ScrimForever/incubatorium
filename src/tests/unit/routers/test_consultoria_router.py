@@ -5,10 +5,10 @@ from datetime import date, datetime, timedelta
 import pytest
 from sqlalchemy import select
 
-from domain.models.consultoria import ConsultoriaHorario, ConsultoriaJanela
-from routers.consultoria import router
-from services.consultoria.consultoria_service import ConsultoriaService
-from shared.datas import FUSO
+from src.domain.models.consultoria import ConsultoriaHorario, ConsultoriaJanela
+from src.routers.consultoria import router
+from src.services.consultoria.consultoria_service import ConsultoriaService
+from src.shared.datas import FUSO
 
 
 def hoje() -> date:
@@ -76,7 +76,7 @@ class TestAbrirAgenda:
     async def test_avisa_so_incubados_ativos(
         self, consultor_api, criar_usuario, async_db, enviados
     ):
-        from domain.models.enums import SituacaoIncubacao
+        from src.domain.models.enums import SituacaoIncubacao
 
         ativo = await criar_usuario("incubado", "ativo@example.com")
         ativo.situacao_incubacao = SituacaoIncubacao.ativo
@@ -203,22 +203,6 @@ class TestPerfis:
         cliente = await cliente_api([router], hibrido)
 
         resposta = await cliente.get("/consultorias/horarios")
-
-        assert resposta.status_code == 403
-
-    @pytest.mark.asyncio
-    async def test_consultor_com_is_incubado_nao_edita_proprio_questionario(
-        self, cliente_api, criar_usuario
-    ):
-        from routers.questionario import router as router_q
-
-        hibrido = await criar_usuario("consultor")
-        hibrido.is_incubado = True
-        cliente = await cliente_api([router_q], hibrido)
-
-        resposta = await cliente.put(
-            "/questionario", json={"status_questionario": "pendente"}
-        )
 
         assert resposta.status_code == 403
 

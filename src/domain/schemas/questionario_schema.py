@@ -40,3 +40,4 @@ class QuestionarioInputSchema(QuestionarioBaseSchema):
 
 class QuestionarioOutputSchema(QuestionarioBaseSchema, MixinCriadoSchema):
     json_questionario: dict | None = None
+    id: int

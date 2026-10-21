@@ -1,8 +1,8 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from domain.models.questionario import Questionario, StatusEnum
-from repository.questionario import QuestionarioRepository
+from src.domain.models.questionario import Questionario, StatusEnum
+from src.repository.questionario import QuestionarioRepository
 
 
 def _questionario(email: str, json=None) -> Questionario:

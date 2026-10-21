@@ -2,7 +2,7 @@ import hashlib
 
 import pytest
 
-from infra.armazenamento import ArmazenamentoLocal, sanitizar_email
+from src.infra.armazenamento import ArmazenamentoLocal, sanitizar_email
 
 EMAIL = "Ana@Example.com"
 

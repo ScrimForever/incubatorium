@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from auth import usuario_manager
+from src.auth import usuario_manager
 
 
 @pytest.mark.asyncio

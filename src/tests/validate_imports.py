@@ -7,41 +7,34 @@ import sys
 from pathlib import Path
 
 src_path = str(Path(__file__).parent.parent)
-if src_path not in sys.path:
-    sys.path.insert(0, src_path)
-
 repo_root = str(Path(__file__).parent.parent.parent)
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)  # permite resolver o pacote `src`
-
-from tests.src_redirect import instalar
-
-instalar()  # `src.x` e `x` passam a ser o mesmo módulo, como nos testes
 
 print(f"[IMPORT VALIDATION] Python path: {src_path}")
 print(f"[IMPORT VALIDATION] Current working directory: {Path.cwd()}")
 print(f"[IMPORT VALIDATION] Python version: {sys.version}")
 
 critical_modules = [
-    "domain.models.base",
-    "infra.db",
-    "domain.models.usuario",
-    "auth.backend",
-    "routers.questionario",
-    "routers.usuarios",
-    "routers.arquivos",
-    "routers.auth",
-    "routers.dependencias",
-    "services",
-    "services.usuarios.usuarios_service",
-    "repository",
-    "repository.base",
-    "repository.usuarios",
-    "repository.questionario",
-    "services.usuarios.ativacao_service",
-    "services.questionario.questionario_service",
-    "services.arquivos.arquivos_service",
-    "shared.permissoes",
+    "src.domain.models.base",
+    "src.infra.db",
+    "src.domain.models.usuario",
+    "src.auth.backend",
+    "src.routers.questionario",
+    "src.routers.usuarios",
+    "src.routers.arquivos",
+    "src.routers.auth",
+    "src.routers.dependencias",
+    "src.services",
+    "src.services.usuarios.usuarios_service",
+    "src.repository",
+    "src.repository.base",
+    "src.repository.usuarios",
+    "src.repository.questionario",
+    "src.services.usuarios.ativacao_service",
+    "src.services.questionario.questionario_service",
+    "src.services.arquivos.arquivos_service",
+    "src.shared.permissoes",
 ]
 
 success_count = 0
@@ -57,22 +50,6 @@ for module_name in critical_modules:
     except (ImportError, AttributeError, ValueError) as e:
         print(f"✗ {module_name} - Error: {e}")
         failure_count += 1
-
-print("\n[IMPORT VALIDATION] Testando redirecionamento src.*...\n")
-
-try:
-    import importlib.util
-
-    spec = importlib.util.find_spec("src.domain.models.base")
-    if spec:
-        print("✓ src.domain.models.base (com redirecionamento)")
-        success_count += 1
-    else:
-        print("✗ src.domain.models.base - módulo não encontrado")
-        failure_count += 1
-except (ImportError, AttributeError, ValueError) as e:
-    print(f"✗ src.domain.models.base - Error: {e}")
-    failure_count += 1
 
 print(
     f"\n[IMPORT VALIDATION] Resumo: {success_count} sucesso(s), {failure_count} falha(s)"

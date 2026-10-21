@@ -2,12 +2,12 @@ import io
 
 import pytest
 
-from domain.models.questionario import Questionario, StatusEnum
-from infra.armazenamento import ArmazenamentoLocal, sanitizar_email
-from repository.questionario import QuestionarioRepository
-from services.arquivos.arquivos_service import ArquivosService
-from shared.exceptions import ConflitoError, NaoEncontradoError
-from shared.validacao_arquivos import ArquivoInvalidoError
+from src.domain.models.questionario import Questionario, StatusEnum
+from src.infra.armazenamento import ArmazenamentoLocal, sanitizar_email
+from src.repository.questionario import QuestionarioRepository
+from src.services.arquivos.arquivos_service import ArquivosService
+from src.shared.exceptions import ConflitoError, NaoEncontradoError
+from src.shared.validacao_arquivos import ArquivoInvalidoError
 
 EMAIL = "ana@example.com"
 
