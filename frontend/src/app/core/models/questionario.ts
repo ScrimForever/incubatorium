@@ -108,7 +108,8 @@ export interface MembroEquipe {
 
 /**
  * Toda aba carrega uma só avaliação (quem avalia primeiro fecha a etapa) e um só
- * pedido de ajuste. Os dois são do servidor: o `PUT` do incubado não os grava.
+ * pedido de ajuste. Os dois são gravados por quem avalia (`PUT /questionario/{id}`);
+ * o `PUT` do incubado os devolve como vieram, e só o envio para análise limpa o ajuste.
  */
 interface EtapaBase {
   avaliacao: Avaliacao | null;

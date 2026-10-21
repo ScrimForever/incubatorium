@@ -459,18 +459,49 @@ describe('QuestionarioService', () => {
     req.flush({ status_questionario: 'aguardando_aprovacao', json_questionario: documentoVazio() });
   });
 
-  it('nao manda o ajuste no PUT: e do servidor', () => {
+  it('o rascunho devolve o ajuste como veio: o PUT substitui o documento', () => {
     const json = documentoVazio();
     json['2'].business_canvas = 'texto';
     json['2'].ajuste = { mensagem: 'Faltou o canal.', avaliador: 'a@x', em: '2026-10-18' };
     service.salvar(json).subscribe();
 
     const req = backend.expectOne('/api/questionario');
-    expect(Object.keys(req.request.body.json_questionario['2'])).not.toContain('ajuste');
+    expect(req.request.body.json_questionario['2'].ajuste.mensagem).toBe('Faltou o canal.');
     expect(req.request.body.json_questionario['2'].business_canvas).toBe('texto');
-    // O documento na tela continua com ele até o servidor dizer o contrário.
-    expect(json['2'].ajuste).not.toBeNull();
     req.flush(resposta(json));
+  });
+
+  it('o reenvio de um plano reaberto tira a decisao anterior; o rascunho a mantem', () => {
+    const json = documentoVazio();
+    json.decisao = { status: 'rejeitado', por: 'c@x', em: '2026-10-20', justificativa: 'Faltou.' };
+
+    service.salvar(json).subscribe();
+    const rascunho = backend.expectOne('/api/questionario');
+    expect(rascunho.request.body.json_questionario.decisao.justificativa).toBe('Faltou.');
+    rascunho.flush(resposta(json));
+
+    service.enviar(json).subscribe();
+    const envio = backend.expectOne('/api/questionario');
+    expect(Object.keys(envio.request.body.json_questionario)).not.toContain('decisao');
+    envio.flush({
+      status_questionario: 'aguardando_aprovacao',
+      json_questionario: documentoVazio(),
+    });
+  });
+
+  it('o envio para analise limpa os pedidos de ajuste', () => {
+    const json = documentoVazio();
+    json['2'].ajuste = { mensagem: 'Faltou o canal.', avaliador: 'a@x', em: '2026-10-18' };
+    json['2'].avaliacao = { avaliador: 'a@x', nota: 3, comentario: '' };
+    service.enviar(json).subscribe();
+
+    const req = backend.expectOne('/api/questionario');
+    expect(req.request.body.json_questionario['2'].ajuste).toBeNull();
+    // A nota não é do pedido de ajuste: fica.
+    expect(req.request.body.json_questionario['2'].avaliacao.nota).toBe(3);
+    // O documento na tela não é alterado: quem diz o novo estado é o servidor.
+    expect(json['2'].ajuste).not.toBeNull();
+    req.flush({ status_questionario: 'aguardando_aprovacao', json_questionario: documentoVazio() });
   });
 
   it('envio que o servidor nao registrou vira erro, em vez de sucesso calado', () => {

@@ -79,9 +79,11 @@ export class QuestionarioService {
   }
 
   /**
-   * Envio final: o plano vai para análise. Confere o status devolvido em vez de
-   * confiar no pedido: o `PUT` ignora `status_questionario`, e sem isto a tela
-   * seguiria para a análise e o guard a devolveria ao formulário, calado.
+   * Envio final: o plano vai para análise; os pedidos de ajuste e a decisão de
+   * uma devolução anterior saem. Confere o
+   * status devolvido em vez de confiar no pedido: o `PUT` já ignorou o status
+   * uma vez, e sem isto a tela seguiria para a análise e o guard a devolveria ao
+   * formulário, calado.
    */
   enviar(json: JsonQuestionario): Observable<Questionario> {
     return this.enviarDocumento('aguardando_aprovacao', json).pipe(
@@ -106,14 +108,17 @@ export class QuestionarioService {
     status: StatusQuestionario,
     json: JsonQuestionario,
   ): Observable<Questionario> {
-    // O ajuste de cada etapa é do servidor (contrato, Parte 5): mandado de
-    // volta, o incubado poderia apagá-lo ou reescrevê-lo no próprio PUT.
+    // O pedido de ajuste mora no documento e o PUT substitui o documento
+    // inteiro: no rascunho ele vai de volta como veio, senão salvar o apagaria
+    // antes da correção; no envio para análise ele sai, porque foi atendido. A
+    // decisão de um plano devolvido e reaberto sai junto: a análise recomeça.
     const documento = { ...json } as Record<string, unknown>;
-    for (const numero of NUMEROS_ETAPA) {
-      const chave = String(numero) as ChaveEtapa;
-      const aba: Record<string, unknown> = { ...json[chave] };
-      delete aba['ajuste'];
-      documento[chave] = aba;
+    if (status === 'aguardando_aprovacao') {
+      delete documento['decisao'];
+      for (const numero of NUMEROS_ETAPA) {
+        const chave = String(numero) as ChaveEtapa;
+        documento[chave] = { ...json[chave], ajuste: null };
+      }
     }
     const corpo: QuestionarioEntrada = {
       status_questionario: status,

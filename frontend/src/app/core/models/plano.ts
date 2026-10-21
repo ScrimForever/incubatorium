@@ -1,4 +1,4 @@
-import { JsonQuestionario, NumeroEtapa, StatusQuestionario } from './questionario';
+import { NumeroEtapa, StatusQuestionario } from './questionario';
 
 /**
  * Uma linha da lista de planos de negócio. Derivada no `PlanosService`, não
@@ -18,8 +18,8 @@ export interface PlanoResumo {
 }
 
 /**
- * O que a coordenação envia ao decidir. `por` e `em` não vão no corpo: quem
- * decidiu é o token, no servidor.
+ * A decisão da coordenação, como a tela a pede. `por` e `em` o `PlanosService`
+ * preenche com a sessão e o relógio: o backend só guarda o documento.
  */
 export interface DecisaoEntrada {
   status: 'aprovado' | 'rejeitado';
@@ -28,8 +28,8 @@ export interface DecisaoEntrada {
 }
 
 /**
- * O que o avaliador envia ao avaliar uma etapa. Sem status: avaliar não aprova.
- * `avaliador` não vai no corpo — quem assina é o token, no servidor.
+ * A nota de uma etapa, como a tela a pede. Sem status: avaliar não aprova. Quem
+ * assina (`avaliador`) sai da sessão, no `PlanosService`, nunca da tela.
  */
 export interface NotaEntrada {
   aba: NumeroEtapa;
@@ -39,18 +39,9 @@ export interface NotaEntrada {
 
 /**
  * O pedido de ajuste numa etapa. Sem status: quem leva o plano para `pendente` é
- * o servidor. `avaliador` e `em` também são dele.
+ * o `PlanosService`, que também assina `avaliador` e `em`.
  */
 export interface AjusteEntrada {
   aba: NumeroEtapa;
   mensagem: string;
-}
-
-/**
- * O que a coordenação envia ao corrigir as respostas de um incubado. Só o
- * documento: sem status, porque corrigir não envia nem aprova. Notas, decisão e
- * anexos que vierem junto são ignorados pelo servidor.
- */
-export interface PlanoCorrecaoEntrada {
-  json_questionario: JsonQuestionario;
 }

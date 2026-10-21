@@ -296,8 +296,8 @@ export class Questionario implements OnInit {
   protected readonly salvandoDecisao = signal(false);
 
   /**
-   * Só a coordenação decide e corrige as respostas do incubado — e a trava que
-   * vale é a do servidor.
+   * Só a coordenação decide e corrige as respostas do incubado. O backend aceita
+   * o consultor na mesma rota; a trava do papel fica no `PlanosService`.
    */
   protected readonly ehCoordenacao = computed(
     () => this.ehAvaliacao() && this.user()?.role === 'admin',
@@ -319,10 +319,19 @@ export class Questionario implements OnInit {
 
   protected readonly totalEtapas = NUMEROS_ETAPA.length;
 
-  /** Aprovar ou devolver só depois de o plano inteiro ter sido lido. */
+  /** Aprovar ou devolver só com o plano em análise e inteiro lido. */
   protected readonly podeDecidir = computed(
-    () => this.etapasAvaliadas() === NUMEROS_ETAPA.length && this.salvandoDecisao() === false,
+    () =>
+      this.statusPlano() === 'aguardando_aprovacao' &&
+      this.etapasAvaliadas() === NUMEROS_ETAPA.length &&
+      this.salvandoDecisao() === false,
   );
+
+  /** Plano reaberto ou devolvido por ajuste: está com o incubado, não há o que decidir. */
+  protected readonly comOIncubado = computed(() => {
+    const status = this.statusPlano();
+    return status !== null && emPreenchimento(status);
+  });
 
   /** Média das notas pontuadas do plano, para a barra resumir a leitura. */
   protected readonly mediaDoPlano = computed(() => {
@@ -340,6 +349,62 @@ export class Questionario implements OnInit {
 
   /** A decisão já tomada, quando houve — quem, quando e por quê. */
   protected readonly decisao = computed<DecisaoPlano | null>(() => this.json().decisao ?? null);
+
+  /**
+   * A decisão que ainda vale: a de um plano reaberto continua no documento (o
+   * incubado lê o motivo enquanto corrige), mas não fecha mais a barra.
+   */
+  protected readonly decisaoVigente = computed(() => {
+    const decisao = this.decisao();
+    return decisao && decisao.status === this.statusPlano() ? decisao : null;
+  });
+
+  /** Para o incubado, no formulário: o motivo da devolução que a coordenação reabriu. */
+  protected readonly devolucaoAnterior = computed(() => {
+    const decisao = this.decisao();
+    return !this.ehAvaliacao() && decisao?.status === 'rejeitado' ? decisao : null;
+  });
+
+  // ----- reabertura de um plano devolvido (só a coordenação) -----
+
+  protected readonly reabrindo = signal(false);
+  protected readonly salvandoReabertura = signal(false);
+
+  protected abrirReabertura(): void {
+    this.reabrindo.set(true);
+  }
+
+  protected fecharReabertura(): void {
+    if (this.reabrindo() && !this.salvandoReabertura()) {
+      this.reabrindo.set(false);
+    }
+  }
+
+  /** O plano volta a `pendente`; o incubado corrige e reenvia para análise. */
+  protected confirmarReabertura(): void {
+    if (this.salvandoReabertura()) {
+      return;
+    }
+    this.salvandoReabertura.set(true);
+    this.limparAvisos();
+    this.planos
+      .reabrir(this.email())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (plano) => {
+          this.json.set(plano.json_questionario);
+          this.statusPlano.set(plano.status_questionario);
+          this.salvandoReabertura.set(false);
+          this.reabrindo.set(false);
+          this.mensagemSucesso.set('Plano reaberto. O incubado já pode corrigir e reenviar.');
+        },
+        error: (err: ApiError) => {
+          this.salvandoReabertura.set(false);
+          this.reabrindo.set(false);
+          this.mensagemErro.set(err.message);
+        },
+      });
+  }
 
   protected readonly rotuloStatusPlano = computed(() => {
     const status = this.statusPlano();
@@ -366,7 +431,7 @@ export class Questionario implements OnInit {
     this.justificativa.set((evento.target as HTMLTextAreaElement).value);
   }
 
-  /** Confirma a decisão. O `por` e o `em` são do servidor, não daqui. */
+  /** Confirma a decisão. O `por` e o `em` o `PlanosService` tira da sessão. */
   protected confirmarDecisao(): void {
     const status = this.decidindo();
     if (status === null || !this.decisaoValida() || this.salvandoDecisao()) {
@@ -403,11 +468,13 @@ export class Questionario implements OnInit {
   );
 
   /** As outras etapas com ajuste, para o incubado saber que não é só esta. */
-  protected readonly outrasComAjuste = computed(() =>
-    etapasComAjuste(this.json())
-      .filter((numero) => numero !== this.numero())
-      .join(', '),
-  );
+  protected readonly outrasComAjuste = computed(() => {
+    const outras = etapasComAjuste(this.json()).filter((numero) => numero !== this.numero());
+    if (!outras.length) {
+      return '';
+    }
+    return `${outras.length === 1 ? 'na etapa' : 'nas etapas'} ${outras.join(', ')}`;
+  });
 
   protected readonly pedindoAjuste = signal(false);
   protected readonly mensagemAjuste = signal('');
@@ -420,8 +487,8 @@ export class Questionario implements OnInit {
 
   /**
    * O avaliador pede ajuste nas etapas 2 a 9, com o plano em análise ou já
-   * devolvido por outro ajuste. A coordenação não pede: ela decide. A trava que
-   * vale é a do servidor.
+   * devolvido por outro ajuste. A coordenação não pede: ela decide. O
+   * `PlanosService` repete a regra antes de gravar.
    */
   protected readonly podePedirAjuste = computed(() => {
     const status = this.statusPlano();
@@ -468,7 +535,7 @@ export class Questionario implements OnInit {
     this.confirmandoAjuste.set(false);
   }
 
-  /** Envia o pedido. Quem pediu e quando são do servidor, não daqui. */
+  /** Envia o pedido. Quem pediu e quando o `PlanosService` tira da sessão. */
   protected confirmarAjuste(): void {
     if (!this.ajusteValido() || !this.confirmandoAjuste() || this.salvandoAjuste()) {
       return;
@@ -610,6 +677,7 @@ export class Questionario implements OnInit {
   private readonly dialogoSaida = viewChild<ElementRef<HTMLElement>>('dialogoSaida');
   private readonly dialogoDecisao = viewChild<ElementRef<HTMLElement>>('dialogoDecisao');
   private readonly dialogoAjuste = viewChild<ElementRef<HTMLElement>>('dialogoAjuste');
+  private readonly dialogoReabertura = viewChild<ElementRef<HTMLElement>>('dialogoReabertura');
   private ultimoFoco: HTMLElement | null = null;
 
   constructor() {
@@ -622,14 +690,16 @@ export class Questionario implements OnInit {
         this.dialogoEnvio() ??
         this.dialogoSaida() ??
         this.dialogoDecisao() ??
-        this.dialogoAjuste();
+        this.dialogoAjuste() ??
+        this.dialogoReabertura();
       const aberto =
         this.membroAberto() ||
         this.remocao() !== null ||
         this.confirmandoEnvio() ||
         this.saidaPendente() !== null ||
         this.decidindo() !== null ||
-        this.pedindoAjuste();
+        this.pedindoAjuste() ||
+        this.reabrindo();
       if (aberto && dialogo) {
         this.ultimoFoco ??= document.activeElement as HTMLElement | null;
         dialogo.nativeElement.focus();
@@ -980,6 +1050,8 @@ export class Questionario implements OnInit {
     this.fecharPreview();
     this.cancelarSaida();
     this.fecharAjuste();
+    this.fecharDecisao();
+    this.fecharReabertura();
   }
 
   // ----- pré-visualização de anexo -----
@@ -992,7 +1064,7 @@ export class Questionario implements OnInit {
 
   /**
    * Abre a modal e já busca o conteúdo, para a prévia ser o arquivo real. No modo
-   * avaliação lê o disco do dono do plano; a coordenação ainda recebe `403` do backend.
+   * avaliação lê o disco do dono do plano (consultor, colaborador e coordenação).
    */
   protected abrirPreview(arquivo: Anexo, numero: NumeroEtapa): void {
     this.abaPreview.set(numero);

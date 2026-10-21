@@ -1,10 +1,29 @@
 import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import {
+  HttpTestingController,
+  TestRequest,
+  provideHttpClientTesting,
+} from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { of } from 'rxjs';
 
+import { ApiError, SessionUser } from '../models/auth';
 import { PlanoResumo } from '../models/plano';
-import { documentoVazio } from '../models/questionario';
+import {
+  JsonQuestionario,
+  Questionario,
+  QuestionarioEntrada,
+  documentoVazio,
+} from '../models/questionario';
+import { Auth } from './auth';
 import { PlanosService } from './planos';
+
+const conta = (email: string, role: SessionUser['role']): SessionUser =>
+  ({ email, role }) as SessionUser;
+const avaliador = conta('ana.avaliadora@teccampos.com', 'avaliador');
+const admin = conta('coordenacao@teccampos.com', 'admin');
+/** Quem está logado no teste; cada caso escolhe antes de chamar o service. */
+let eu: SessionUser = avaliador;
 
 describe('PlanosService', () => {
   let service: PlanosService;
@@ -12,7 +31,11 @@ describe('PlanosService', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: Auth, useValue: { me: () => of(eu) } },
+      ],
     });
     service = TestBed.inject(PlanosService);
     http = TestBed.inject(HttpTestingController);
@@ -100,78 +123,243 @@ describe('PlanosService', () => {
     expect((json as Record<string, { avaliacao: unknown }>)['9'].avaliacao).toBeNull();
   });
 
-  it('avaliar manda so aba, nota e comentario — nunca status nem avaliador', () => {
-    service.avaliar('ana@teccampos.com', { aba: 6, nota: 4, comentario: 'ok' }).subscribe();
+  describe('escritas: relem o plano e gravam pelo id', () => {
+    /** O plano da Ana como o `/todos` devolve, já com uma etapa avaliada por outro. */
+    function planoDaAna(status = 'aguardando_aprovacao') {
+      const json = documentoVazio();
+      json['1'].nome_negocio = 'NutriData';
+      json['2'].avaliacao = { avaliador: 'outro@teccampos.com', nota: 3, comentario: '' };
+      return [
+        {
+          id: 7,
+          usuario_email: 'ana@teccampos.com',
+          status_questionario: status,
+          json_questionario: json,
+        },
+        TODOS[1],
+      ];
+    }
 
-    const pedido = http.expectOne('/api/questionario/ana%40teccampos.com/nota');
-    expect(pedido.request.method).toBe('PATCH');
-    expect(pedido.request.body).toEqual({ aba: 6, nota: 4, comentario: 'ok' });
-    // Quem assina a nota e o token: mandar o avaliador daqui deixaria qualquer
-    // um assinar em nome de outro.
-    expect(Object.keys(pedido.request.body as object)).not.toContain('avaliador');
-    // A regra de produto no formato: avaliar não aprova.
-    expect(Object.keys(pedido.request.body as object)).not.toContain('status_questionario');
+    function gravacao(): TestRequest {
+      const pedido = http.expectOne('/api/questionario/7');
+      expect(pedido.request.method).toBe('PUT');
+      return pedido;
+    }
 
-    pedido.flush({ status_questionario: 'aguardando_aprovacao', json_questionario: {} });
-  });
+    /** O servidor devolve o que gravou, sem `id` nem `usuario_email`. */
+    const ecoar = (pedido: TestRequest): void => pedido.flush(pedido.request.body);
 
-  it('decidir manda o status por uma rota separada da nota', () => {
-    service
-      .decidir('ana@teccampos.com', { status: 'rejeitado', justificativa: 'Faltou o financeiro.' })
-      .subscribe();
+    it('avaliar assina com quem esta logado e nao mexe no status', () => {
+      eu = avaliador;
+      let plano: Questionario | undefined;
+      service
+        .avaliar('ana@teccampos.com', { aba: 6, nota: 4, comentario: 'ok' })
+        .subscribe((p) => (plano = p));
+      http.expectOne('/api/questionario/todos').flush(planoDaAna());
 
-    const pedido = http.expectOne('/api/questionario/ana%40teccampos.com/status');
-    expect(pedido.request.method).toBe('PATCH');
-    expect(pedido.request.body).toEqual({
-      status: 'rejeitado',
-      justificativa: 'Faltou o financeiro.',
+      const pedido = gravacao();
+      const corpo = pedido.request.body as QuestionarioEntrada;
+      expect(corpo.status_questionario).toBe('aguardando_aprovacao');
+      expect(corpo.json_questionario['6'].avaliacao).toEqual({
+        avaliador: 'ana.avaliadora@teccampos.com',
+        nota: 4,
+        comentario: 'ok',
+      });
+      // O resto do documento vai como o servidor tinha: o PUT substitui tudo.
+      expect(corpo.json_questionario['1'].nome_negocio).toBe('NutriData');
+      expect(corpo.json_questionario['2'].avaliacao?.avaliador).toBe('outro@teccampos.com');
+      ecoar(pedido);
+      expect(plano?.usuario_email).toBe('ana@teccampos.com');
     });
-    // Quem decidiu e quando são do servidor: mandar daqui seria assinar por outro.
-    expect(Object.keys(pedido.request.body as object)).not.toContain('por');
-    expect(Object.keys(pedido.request.body as object)).not.toContain('em');
 
-    pedido.flush({ status_questionario: 'rejeitado', json_questionario: {} });
-  });
+    it('avaliar etapa que ja tem nota de outro e recusado antes de gravar', () => {
+      eu = avaliador;
+      let erro: ApiError | undefined;
+      service
+        .avaliar('ana@teccampos.com', { aba: 2, nota: 5, comentario: '' })
+        .subscribe({ error: (e: ApiError) => (erro = e) });
+      http.expectOne('/api/questionario/todos').flush(planoDaAna());
 
-  it('corrigir grava o documento no plano alheio, sem status', () => {
-    const json = documentoVazio();
-    json['1'].nome_negocio = 'NutriData Corrigida';
-    service.corrigir('ana+teste@teccampos.com', json).subscribe();
+      http.expectNone('/api/questionario/7');
+      expect(erro?.code).toBe('ETAPA_JA_AVALIADA');
+    });
 
-    const pedido = http.expectOne('/api/usuarios/ana%2Bteste%40teccampos.com/plano');
-    expect(pedido.request.method).toBe('PUT');
-    expect(pedido.request.body).toEqual({ json_questionario: json });
-    // Corrigir não envia nem aprova: o status só muda pelo `decidir`.
-    expect(Object.keys(pedido.request.body as object)).not.toContain('status_questionario');
+    it('a coordenacao nao avalia nem pede ajuste', () => {
+      eu = admin;
+      const erros: string[] = [];
+      const guardar = { error: (e: ApiError) => erros.push(e.code) };
+      service.avaliar('ana@teccampos.com', { aba: 6, nota: 4, comentario: '' }).subscribe(guardar);
+      service.pedirAjuste('ana@teccampos.com', { aba: 6, mensagem: 'x' }).subscribe(guardar);
+      http.match('/api/questionario/todos').forEach((pedido) => pedido.flush(planoDaAna()));
 
-    pedido.flush({ status_questionario: 'aguardando_aprovacao', json_questionario: json });
-  });
+      http.expectNone('/api/questionario/7');
+      expect(erros).toEqual(['AVALIACAO_RESTRITA_CONSULTOR', 'AJUSTE_RESTRITO_AVALIADOR']);
+    });
 
-  it('pedirAjuste manda so aba e mensagem, e devolve o plano ja pendente', () => {
-    let status: string | undefined;
-    service
-      .pedirAjuste('ana@teccampos.com', { aba: 6, mensagem: 'Faltam os preços.' })
-      .subscribe((plano) => (status = plano.status_questionario));
+    it('pedirAjuste grava o pedido assinado e devolve o plano a pendente', () => {
+      eu = avaliador;
+      service
+        .pedirAjuste('ana@teccampos.com', { aba: 6, mensagem: '  Faltam os preços. ' })
+        .subscribe();
+      http.expectOne('/api/questionario/todos').flush(planoDaAna());
 
-    const pedido = http.expectOne('/api/questionario/ana%40teccampos.com/ajuste');
-    expect(pedido.request.method).toBe('PATCH');
-    // Quem pediu e quando são do servidor; o status também.
-    expect(pedido.request.body).toEqual({ aba: 6, mensagem: 'Faltam os preços.' });
+      const pedido = gravacao();
+      const corpo = pedido.request.body as QuestionarioEntrada;
+      expect(corpo.status_questionario).toBe('pendente');
+      expect(corpo.json_questionario['6'].ajuste?.mensagem).toBe('Faltam os preços.');
+      expect(corpo.json_questionario['6'].ajuste?.avaliador).toBe('ana.avaliadora@teccampos.com');
+      ecoar(pedido);
+    });
 
-    pedido.flush({ status_questionario: 'pendente', json_questionario: documentoVazio() });
-    expect(status).toBe('pendente');
-  });
+    it('pedirAjuste recusa plano que nao esta em analise', () => {
+      eu = avaliador;
+      let erro: ApiError | undefined;
+      service
+        .pedirAjuste('ana@teccampos.com', { aba: 6, mensagem: 'x' })
+        .subscribe({ error: (e: ApiError) => (erro = e) });
+      http.expectOne('/api/questionario/todos').flush(planoDaAna('aprovado'));
 
-  it('as escritas sao avaliar, decidir, pedirAjuste e corrigir', () => {
-    const metodos = Object.getOwnPropertyNames(Object.getPrototypeOf(service));
-    expect(metodos).toEqual([
-      'constructor',
-      'listar',
-      'plano',
-      'avaliar',
-      'decidir',
-      'pedirAjuste',
-      'corrigir',
-    ]);
+      expect(erro?.code).toBe('PLANO_FORA_DE_ANALISE');
+    });
+
+    it('decidir exige as nove etapas avaliadas', () => {
+      eu = admin;
+      let erro: ApiError | undefined;
+      service
+        .decidir('ana@teccampos.com', { status: 'aprovado', justificativa: '' })
+        .subscribe({ error: (e: ApiError) => (erro = e) });
+      http.expectOne('/api/questionario/todos').flush(planoDaAna());
+
+      expect(erro?.code).toBe('ETAPAS_PENDENTES');
+    });
+
+    it('decidir muda o status e guarda quem decidiu e por que', () => {
+      eu = admin;
+      const todos = planoDaAna();
+      const json = todos[0].json_questionario as JsonQuestionario;
+      for (const n of [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
+        json[String(n) as '1'].avaliacao = { avaliador: 'a@x', nota: 4, comentario: '' };
+      }
+      service
+        .decidir('ana@teccampos.com', {
+          status: 'rejeitado',
+          justificativa: ' Faltou o financeiro. ',
+        })
+        .subscribe();
+      http.expectOne('/api/questionario/todos').flush(todos);
+
+      const pedido = gravacao();
+      const corpo = pedido.request.body as QuestionarioEntrada;
+      expect(corpo.status_questionario).toBe('rejeitado');
+      expect(corpo.json_questionario.decisao).toEqual(
+        jasmine.objectContaining({
+          status: 'rejeitado',
+          por: 'coordenacao@teccampos.com',
+          justificativa: 'Faltou o financeiro.',
+        }),
+      );
+      ecoar(pedido);
+    });
+
+    it('o avaliador nao decide', () => {
+      eu = avaliador;
+      let erro: ApiError | undefined;
+      service
+        .decidir('ana@teccampos.com', { status: 'aprovado', justificativa: '' })
+        .subscribe({ error: (e: ApiError) => (erro = e) });
+      http.expectOne('/api/questionario/todos').flush(planoDaAna());
+
+      expect(erro?.code).toBe('DECISAO_RESTRITA_COORDENACAO');
+    });
+
+    it('corrigir troca so as respostas: nota, ajuste, anexo e status ficam', () => {
+      eu = admin;
+      const corrigido = documentoVazio();
+      corrigido['1'].nome_negocio = 'NutriData Corrigida';
+      // O que a tela mandar nestes campos não vale: são de quem avalia e do disco.
+      corrigido['2'].avaliacao = null;
+      corrigido['6'].arquivos = [{ nome: 'falso.pdf', tipo: 'application/pdf', tamanho: 1 }];
+      const todos = planoDaAna();
+      (todos[0].json_questionario as JsonQuestionario)['6'].arquivos = [
+        { nome: 'real.pdf', tipo: 'application/pdf', tamanho: 9 },
+      ];
+      service.corrigir('ana@teccampos.com', corrigido).subscribe();
+      http.expectOne('/api/questionario/todos').flush(todos);
+
+      const pedido = gravacao();
+      const corpo = pedido.request.body as QuestionarioEntrada;
+      expect(corpo.status_questionario).toBe('aguardando_aprovacao');
+      expect(corpo.json_questionario['1'].nome_negocio).toBe('NutriData Corrigida');
+      expect(corpo.json_questionario['2'].avaliacao?.avaliador).toBe('outro@teccampos.com');
+      expect(corpo.json_questionario['6'].arquivos.map((a) => a.nome)).toEqual(['real.pdf']);
+      ecoar(pedido);
+    });
+
+    it('decidir recusa plano que nao esta em analise', () => {
+      eu = admin;
+      let erro: ApiError | undefined;
+      service
+        .decidir('ana@teccampos.com', { status: 'aprovado', justificativa: '' })
+        .subscribe({ error: (e: ApiError) => (erro = e) });
+      http.expectOne('/api/questionario/todos').flush(planoDaAna('pendente'));
+
+      http.expectNone('/api/questionario/7');
+      expect(erro?.code).toBe('PLANO_FORA_DE_DECISAO');
+    });
+
+    it('reabrir leva o plano devolvido a pendente e guarda o motivo', () => {
+      eu = admin;
+      const todos = planoDaAna('rejeitado');
+      const decisao = {
+        status: 'rejeitado' as const,
+        por: 'coordenacao@teccampos.com',
+        em: '2026-10-20T12:00:00Z',
+        justificativa: 'Faltou o financeiro.',
+      };
+      (todos[0].json_questionario as JsonQuestionario).decisao = decisao;
+      let status: string | undefined;
+      service.reabrir('ana@teccampos.com').subscribe((p) => (status = p.status_questionario));
+      http.expectOne('/api/questionario/todos').flush(todos);
+
+      const pedido = gravacao();
+      const corpo = pedido.request.body as QuestionarioEntrada;
+      expect(corpo.status_questionario).toBe('pendente');
+      // O incubado lê o motivo enquanto corrige; ele sai só no reenvio.
+      expect(corpo.json_questionario.decisao).toEqual(decisao);
+      expect(corpo.json_questionario['2'].avaliacao?.avaliador).toBe('outro@teccampos.com');
+      ecoar(pedido);
+      expect(status).toBe('pendente');
+    });
+
+    it('reabrir recusa plano que nao foi devolvido', () => {
+      eu = admin;
+      let erro: ApiError | undefined;
+      service.reabrir('ana@teccampos.com').subscribe({ error: (e: ApiError) => (erro = e) });
+      http.expectOne('/api/questionario/todos').flush(planoDaAna('aprovado'));
+
+      http.expectNone('/api/questionario/7');
+      expect(erro?.code).toBe('PLANO_NAO_DEVOLVIDO');
+    });
+
+    it('so a coordenacao reabre', () => {
+      eu = avaliador;
+      let erro: ApiError | undefined;
+      service.reabrir('ana@teccampos.com').subscribe({ error: (e: ApiError) => (erro = e) });
+      http.expectOne('/api/questionario/todos').flush(planoDaAna('rejeitado'));
+
+      http.expectNone('/api/questionario/7');
+      expect(erro?.code).toBe('REABERTURA_RESTRITA_COORDENACAO');
+    });
+
+    it('plano que sumiu da lista vira erro, sem gravar', () => {
+      eu = avaliador;
+      let erro: ApiError | undefined;
+      service
+        .avaliar('ninguem@teccampos.com', { aba: 6, nota: 4, comentario: '' })
+        .subscribe({ error: (e: ApiError) => (erro = e) });
+      http.expectOne('/api/questionario/todos').flush(planoDaAna());
+
+      expect(erro?.code).toBe('PLANO_NAO_ENCONTRADO');
+    });
   });
 });

@@ -71,8 +71,8 @@ export class PlanosDeNegocio implements OnInit {
       classeStatus: `selo selo--${plano.status_questionario}`,
       rota: APP_ROUTES.planoDe(plano.usuario_email),
       quando: dataLegivel(plano.atualizado_em ?? plano.criado_em),
-      // Enquanto o backend não devolver os nomes, o mock preenche; sem eles a
-      // linha diz que falta o dado, e não um e-mail no lugar do nome.
+      // Etapa 1 ainda vazia: a linha diz que falta o dado, e não um e-mail no
+      // lugar do nome.
       negocio: plano.nome_negocio || 'Negócio sem nome',
       proponente: plano.nome_proponente || 'Proponente não informado',
     })),
