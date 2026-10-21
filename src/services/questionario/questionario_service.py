@@ -15,8 +15,17 @@ class QuestionarioService:
     def __init__(self, repository: QuestionarioRepository):
         self.repository = repository
 
-    async def buscar(self, user: User) -> Questionario | None:
-        return await self.repository.buscar(user.email)
+    async def buscar(self, user: User) -> Questionario:
+        questionario = await self.repository.buscar(user.email)
+        if questionario is None:
+            raise NaoEncontradoError("Questionário não encontrado.")
+        return questionario
+
+    async def buscar_por_id(self, questionario_id: int) -> Questionario:
+        questionario = await self.repository.buscar_por_id(questionario_id)
+        if questionario is None:
+            raise NaoEncontradoError("Questionário não encontrado.")
+        return questionario
 
     async def listar_todos(self) -> list[Questionario]:
         return await self.repository.listar_todos()

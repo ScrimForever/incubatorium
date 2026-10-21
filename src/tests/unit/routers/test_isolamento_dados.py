@@ -6,11 +6,11 @@ import httpx
 import pytest
 from fastapi import FastAPI
 
-from domain.models.enums import SituacaoIncubacao
-from domain.models.questionario import Questionario, StatusEnum
-from routers.arquivos import router as arquivos_router
-from routers.usuarios import router as usuarios_router
-from shared.handlers import registrar_handlers
+from src.domain.models.enums import SituacaoIncubacao
+from src.domain.models.questionario import Questionario, StatusEnum
+from src.routers.arquivos import router as arquivos_router
+from src.routers.usuarios import router as usuarios_router
+from src.shared.handlers import registrar_handlers
 
 ROUTERS = [
     usuarios_router,
@@ -87,8 +87,8 @@ async def test_ninguem_acessa_dados_de_outro_incubado(
     app = await _app_com_todas_as_rotas()
     usuario = cenario[intruso]
 
-    from auth.backend import current_active_user
-    from infra.db import get_async_session
+    from src.auth.backend import current_active_user
+    from src.infra.db import get_async_session
 
     async def _usuario():
         return usuario

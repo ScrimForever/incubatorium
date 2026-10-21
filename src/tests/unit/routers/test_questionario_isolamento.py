@@ -1,11 +1,11 @@
 import pytest
 from sqlalchemy import select
 
-from domain.models.questionario import (
+from src.domain.models.questionario import (
     Questionario,
     QuestionarioHistorico,
 )
-from routers.questionario import router
+from src.routers.questionario import router
 
 
 async def _router():

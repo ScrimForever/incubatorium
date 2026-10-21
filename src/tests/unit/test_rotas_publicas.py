@@ -1,6 +1,6 @@
 """Rede de segurança: congela as rotas públicas (path, método) da API."""
 
-from startapp import app
+from src.startapp import app
 
 ROTAS_CONGELADAS = {
     ("/arquivos/questionario/download/{aba}/{todos}", "POST"),
@@ -31,6 +31,7 @@ ROTAS_CONGELADAS = {
     ("/questionario", "PUT"),
     ("/questionario/todos", "GET"),
     ("/questionario/{questionario_id}", "PUT"),
+    ("/questionario/{questionario_id}", "GET"),
     ("/reenviar_codigo/{email}", "POST"),
     ("/users/me", "GET"),
     ("/users/me", "PATCH"),

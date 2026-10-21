@@ -3,8 +3,8 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from domain.models.usuario import User, gerar_codigo_ativacao
-from repository.usuarios import UsuariosRepository
+from src.domain.models.usuario import User, gerar_codigo_ativacao
+from src.repository.usuarios import UsuariosRepository
 
 
 @pytest.fixture

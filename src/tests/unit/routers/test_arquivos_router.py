@@ -3,13 +3,13 @@ import re
 import pytest
 from fastapi import FastAPI
 
-from domain.models.questionario import Questionario, StatusEnum
-from infra import armazenamento
-from infra.armazenamento import ArmazenamentoLocal
-from infra.config import settings
-from routers.arquivos import router as router_arquivos
-from routers.dependencias import get_armazenamento
-from shared.handlers import registrar_handlers
+from src.domain.models.questionario import Questionario, StatusEnum
+from src.infra import armazenamento
+from src.infra.armazenamento import ArmazenamentoLocal
+from src.infra.config import settings
+from src.routers.arquivos import router as router_arquivos
+from src.routers.dependencias import get_armazenamento
+from src.shared.handlers import registrar_handlers
 
 PASTA_ANA = armazenamento.sanitizar_email("ana@example.com")
 PASTA_BETO = armazenamento.sanitizar_email("beto@example.com")
@@ -59,8 +59,8 @@ async def api(async_db, _pasta_temporaria):
     async def _montar(usuario):
         import httpx
 
-        from auth.backend import current_active_user
-        from infra.db import get_async_session
+        from src.auth.backend import current_active_user
+        from src.infra.db import get_async_session
 
         app = FastAPI()
         registrar_handlers(app)

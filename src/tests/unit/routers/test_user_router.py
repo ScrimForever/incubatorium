@@ -4,8 +4,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from routers.auth import router
-from routers.dependencias import get_ativacao_service
+from src.routers.auth import router
+from src.routers.dependencias import get_ativacao_service
 
 
 @pytest.fixture

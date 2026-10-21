@@ -2,8 +2,8 @@
 
 import pytest
 
-from routers.arquivos import router as router_arquivos
-from routers.questionario import router as router_questionario
+from src.routers.arquivos import router as router_arquivos
+from src.routers.questionario import router as router_questionario
 
 
 async def _router_questionario():
@@ -34,14 +34,20 @@ async def test_listar_todos_admin_passa(criar_usuario, cliente_api):
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("perfil", ["colaborador", "consultor"])
-async def test_questionario_proprio_e_so_de_incubado(
-    criar_usuario, cliente_api, perfil
-):
-    usuario = await criar_usuario(perfil)
+async def test_questionario_proprio_nega_colaborador(criar_usuario, cliente_api):
+    usuario = await criar_usuario("colaborador")
     cliente = await cliente_api([await _router_questionario()], usuario)
 
     assert (await cliente.get("/questionario")).status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_questionario_proprio_libera_consultor(criar_usuario, cliente_api):
+    usuario = await criar_usuario("consultor")
+    cliente = await cliente_api([await _router_questionario()], usuario)
+
+    # Autorizado: sem questionário ainda, a resposta é 404 (e não 403).
+    assert (await cliente.get("/questionario")).status_code == 404
 
 
 @pytest.mark.asyncio

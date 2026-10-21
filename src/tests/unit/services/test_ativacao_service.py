@@ -4,11 +4,11 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from domain.models.questionario import Questionario, StatusEnum
-from domain.models.usuario import User
-from repository.questionario import QuestionarioRepository
-from repository.usuarios import UsuariosRepository
-from services.usuarios.ativacao_service import AtivacaoService
+from src.domain.models.questionario import Questionario, StatusEnum
+from src.domain.models.usuario import User
+from src.repository.questionario import QuestionarioRepository
+from src.repository.usuarios import UsuariosRepository
+from src.services.usuarios.ativacao_service import AtivacaoService
 
 
 @pytest.fixture

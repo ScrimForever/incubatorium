@@ -3,8 +3,12 @@
 import pytest
 from sqlalchemy import select
 
-from domain.models.questionario import Questionario, QuestionarioHistorico, StatusEnum
-from routers.questionario import router
+from src.domain.models.questionario import (
+    Questionario,
+    QuestionarioHistorico,
+    StatusEnum,
+)
+from src.routers.questionario import router
 
 
 @pytest.fixture

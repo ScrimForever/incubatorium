@@ -6,15 +6,15 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from domain.models.questionario import (
+from src.domain.models.questionario import (
     Questionario,
     QuestionarioHistorico,
     StatusEnum,
 )
-from domain.models.usuario import User
-from routers.dependencias import get_questionario_service
-from routers.questionario import router as questionario_router
-from shared.handlers import registrar_handlers
+from src.domain.models.usuario import User
+from src.routers.dependencias import get_questionario_service
+from src.routers.questionario import router as questionario_router
+from src.shared.handlers import registrar_handlers
 
 
 @pytest.fixture
@@ -32,8 +32,8 @@ async def setup_questionario_router(async_db: AsyncSession, sample_email):
     registrar_handlers(app)
 
     # Override dependencies
-    from auth.backend import current_active_user
-    from infra.db import get_async_session
+    from src.auth.backend import current_active_user
+    from src.infra.db import get_async_session
 
     def mock_get_user():
         return user
@@ -66,6 +66,7 @@ async def test_criar_questionario(setup_questionario_router, sample_email):
     app.dependency_overrides[get_questionario_service] = lambda: mock_repo
 
     questionario = Questionario(
+        id=1,
         usuario_email=sample_email,
         status_questionario=StatusEnum.iniciado,
         json_questionario={"pergunta_1": "resposta_1"},
@@ -89,6 +90,7 @@ async def test_buscar_questionario(setup_questionario_router, sample_email):
     app.dependency_overrides[get_questionario_service] = lambda: mock_repo
 
     questionario = Questionario(
+        id=1,
         usuario_email=sample_email,
         status_questionario=StatusEnum.iniciado,
         json_questionario={},
@@ -139,14 +141,13 @@ async def test_atualizar_questionario(
 
 
 @pytest.mark.asyncio
-async def test_buscar_sem_questionario_devolve_false(setup_questionario_router):
-    """Contrato com o frontend: sem documento, GET devolve `false` (200)"""
+async def test_buscar_sem_questionario_devolve_404(setup_questionario_router):
+    """Contrato com o frontend: sem documento, GET devolve 404 (o `meu()` cria o plano)"""
     app = setup_questionario_router
 
     response = TestClient(app).get("/questionario")
 
-    assert response.status_code == 200
-    assert response.json() is False
+    assert response.status_code == 404
 
 
 @pytest.mark.asyncio

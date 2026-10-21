@@ -10,6 +10,12 @@ class QuestionarioRepository(Repositorio):
         )
         return resultado.scalars().first()
 
+    async def buscar_por_id(self, questionario_id: int) -> Questionario | None:
+        resultado = await self.db.execute(
+            select(Questionario).where(Questionario.id == questionario_id)
+        )
+        return resultado.scalars().first()
+
     async def buscar_para_atualizar(self, email: str) -> Questionario | None:
         """Bloqueia a linha até o fim da transação, para o `PUT` não sobrescrever
         uma nota gravada no mesmo instante pelo consultor (que também lê com `FOR UPDATE`)."""

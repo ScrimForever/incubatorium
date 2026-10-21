@@ -1,7 +1,7 @@
 import pytest
 from fastapi import HTTPException
 
-from shared import permissoes
+from src.shared import permissoes
 
 
 class TestExigirPerfil:

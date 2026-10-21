@@ -10,19 +10,15 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
-src_path = str(Path(__file__).parent.parent)
-if src_path not in sys.path:
-    sys.path.insert(0, src_path)
-
-# Redireciona src.* antes de qualquer outro import
-from tests.src_redirect import instalar
-
-instalar()
+# O pacote é importado como `src.*` (como em produção); a raiz do repo precisa estar no path.
+repo_root = str(Path(__file__).resolve().parents[2])
+if repo_root not in sys.path:
+    sys.path.insert(0, repo_root)
 
 # Now import all modules we need
-from domain.models import consultoria  # noqa: F401  (registra as tabelas)
-from domain.models.base import Base
-from domain.models.usuario import User
+from src.domain.models import consultoria  # noqa: F401  (registra as tabelas)
+from src.domain.models.base import Base
+from src.domain.models.usuario import User
 
 
 def patch_jsonb_for_sqlite():
@@ -140,9 +136,9 @@ async def cliente_api(async_db):
     import httpx
     from fastapi import FastAPI
 
-    from auth.backend import current_active_user
-    from infra.db import get_async_session
-    from shared.handlers import registrar_handlers
+    from src.auth.backend import current_active_user
+    from src.infra.db import get_async_session
+    from src.shared.handlers import registrar_handlers
 
     clientes = []
 
