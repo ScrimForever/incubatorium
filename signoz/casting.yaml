@@ -1,0 +1,25 @@
+# Fonte do SigNoz (Foundry). Regerar os manifestos: `make signoz-forge`.
+# Gera `pours/deployment/compose.yaml`, o compose que `make up` usa.
+apiVersion: v1alpha1
+kind: Installation
+metadata:
+  name: signoz
+spec:
+  deployment:
+    flavor: compose
+    mode: docker
+  patches:
+    - target: "deployment/compose.yaml"
+      operations:
+        # Rede compartilhada com o compose da aplicação (criada por `make network`):
+        # o backend alcança o coletor em `signoz-ingester:4317`.
+        - op: add
+          path: /networks/observabilidade
+          value:
+            name: observabilidade
+            external: true
+        - op: add
+          path: /services/ingester/networks/observabilidade
+          value:
+            aliases:
+              - signoz-ingester

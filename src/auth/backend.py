@@ -1,5 +1,6 @@
 import uuid
 
+from fastapi import Depends, Request
 from fastapi_users import FastAPIUsers, models
 from fastapi_users.authentication import (
     AuthenticationBackend,
@@ -25,4 +26,12 @@ auth_backend = AuthenticationBackend(
 
 fastapi_users = FastAPIUsers[User, uuid.UUID](get_user_manager, [auth_backend])
 
-current_active_user = fastapi_users.current_user(active=True)
+_usuario_ativo = fastapi_users.current_user(active=True)
+
+
+async def current_active_user(
+    request: Request, user: User = Depends(_usuario_ativo)
+) -> User:
+    """Usuário logado da requisição; fica em `request.state` para o log de requisição."""
+    request.state.usuario_email = user.email
+    return user

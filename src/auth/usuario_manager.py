@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import Depends, Request
+from fastapi import Depends, Request, Response
 from fastapi_users import BaseUserManager, UUIDIDMixin
 from fastapi_users.db import SQLAlchemyUserDatabase
 
@@ -22,6 +22,15 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         logger.info(f"Enviando email para ativaçãoativaÃ§Ã£o de conta: {user.email}")
         email_service = EmailSetup()
         await email_service.enviar_email_cadastro(user.email)
+
+    async def on_after_login(
+        self,
+        user: User,
+        request: Request | None = None,
+        response: Response | None = None,
+    ):
+        if request is not None:
+            request.state.usuario_email = user.email
 
     async def on_after_forgot_password(
         self, user: User, token: str, request: Request | None = None

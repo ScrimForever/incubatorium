@@ -30,6 +30,13 @@ class Settings(BaseSettings):
     email_envio_habilitado: bool = True
     admin_password: str = ""
     upload_tamanho_maximo_mb: int = 10
+    otel_habilitado: bool = False
+    # Um span por função (args, variáveis locais e retorno): grava valores reais na telemetria.
+    otel_rastrear_funcoes: bool = False
+    otel_service_name: str = "incubatorium-api"
+    otel_exporter_otlp_endpoint: str = "http://localhost:4317"
+    # `chave=valor,...`; no SigNoz Cloud: `signoz-ingestion-key=<chave>`
+    otel_exporter_otlp_headers: str = ""
 
     @computed_field
     @property

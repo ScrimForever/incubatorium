@@ -16,6 +16,10 @@ services:
       PYTHONPATH: /app
       HOME: /tmp
       UV_CACHE_DIR: /tmp/uv-cache
+      # SigNoz (compose em ./signoz) alcançado pela rede compartilhada `observabilidade`
+      OTEL_HABILITADO: ${OTEL_HABILITADO:-true}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://signoz-ingester:4317
+      OTEL_RASTREAR_FUNCOES: ${OTEL_RASTREAR_FUNCOES:-true}
     env_file:
       - src/.env.development
     depends_on:
@@ -23,6 +27,7 @@ services:
         condition: service_healthy
     networks:
       - app_network
+      - observabilidade
 
   frontend:
     build:
@@ -113,3 +118,7 @@ volumes:
 networks:
   app_network:
     driver: bridge
+  # Compartilhada com o compose do SigNoz; criada por `make network`.
+  observabilidade:
+    name: observabilidade
+    external: true
