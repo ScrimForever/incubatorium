@@ -65,6 +65,30 @@ export const API_ROUTES = {
     download: (aba: number, dono?: string): string =>
       `/arquivos/questionario/download/${aba}/0${doDono(dono)}`,
   },
+  /**
+   * Agenda de consultoria (`docs/plano-consultorias.md`). O consultor abre janelas
+   * (data + faixa) que o backend fatia em horários; o incubado reserva um horário.
+   * Sem aceite nem status: reservado é marcado, cancelado some.
+   */
+  consultorias: {
+    /** `POST` abre janelas em várias datas de uma vez. */
+    agenda: '/consultorias/agenda',
+    /** As janelas do consultor logado, de hoje em diante, com quem reservou. */
+    minhaAgenda: '/consultorias/agenda/minha',
+    /** `PATCH` muda faixa ou duração (refatia os livres, com ids novos); `DELETE` cancela. */
+    janela: (id: number): string => `/consultorias/janelas/${id}`,
+    /** Cancela todas as janelas do consultor nas datas do corpo. */
+    cancelarDias: '/consultorias/janelas/cancelar',
+    /** `PATCH` remarca um horário dentro da janela; `DELETE` tira (hoje responde 500). */
+    horario: (id: number): string => `/consultorias/horarios/${id}`,
+    /** Horários livres e futuros — só incubado. */
+    livres: '/consultorias/horarios',
+    /** As reservas futuras do incubado logado. */
+    minhas: '/consultorias/minhas',
+    reservar: (id: number): string => `/consultorias/horarios/${id}/reservar`,
+    /** Cancela a reserva do incubado (hoje responde 500). */
+    reserva: (id: number): string => `/consultorias/horarios/${id}/reserva`,
+  },
 } as const;
 
 /** `?email=` dos anexos de outra pessoa; vazio quando o dono é quem está logado. */

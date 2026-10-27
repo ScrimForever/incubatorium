@@ -16,7 +16,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { QuillEditorComponent } from 'ngx-quill';
+import { QuillEditorComponent, type ContentChange } from 'ngx-quill';
 import type Quill from 'quill';
 import { forkJoin } from 'rxjs';
 
@@ -244,9 +244,13 @@ export class Questionario implements OnInit {
     this.formularioAberto() ? this.valorDe(this.numero()) : (this.notaDaEtapa()?.nota ?? null),
   );
 
-  protected readonly textoEmTela = computed(() =>
-    this.formularioAberto() ? this.textoDe(this.numero()) : (this.notaDaEtapa()?.comentario ?? ''),
-  );
+  protected readonly textoEmTela = computed(() => {
+    if (this.formularioAberto()) {
+      return this.textoDe(this.numero());
+    }
+    const comentario = this.notaDaEtapa()?.comentario ?? '';
+    return textoParaHtml(comentario);
+  });
 
   /** Os dois rótulos do card: é por eles que se sabe em que estado ele está. */
   protected readonly rotuloAvaliacao = computed(() => {
@@ -1410,8 +1414,17 @@ export class Questionario implements OnInit {
     this.escolhido.set({ ...this.escolhido(), [String(numero)]: atual === valor ? null : valor });
   }
 
-  protected escrever(numero: NumeroEtapa, evento: Event): void {
-    const texto = (evento.target as HTMLTextAreaElement).value;
+  protected aoCriarEditorAvaliacao(editor: Quill): void {
+    acessibilizarEditor(editor, 'aval-comentario-rotulo');
+    manterMenusNaTela(editor);
+    const conteudo = this.textoDe(this.numero());
+    if (conteudo) {
+      editor.clipboard.dangerouslyPasteHTML(textoParaHtml(conteudo), 'silent');
+    }
+  }
+
+  protected escreverAvaliacao(numero: NumeroEtapa, evento: ContentChange): void {
+    const texto = evento.editor.getText().trim() ? valorDoEditor(evento.editor) : '';
     this.comentario.set({ ...this.comentario(), [String(numero)]: texto });
   }
 

@@ -128,3 +128,42 @@
     height: calc(100dvh - 40px);
   }
 }
+
+/* csv: tabela branca que rola nos dois sentidos dentro da moldura; o
+   cabeçalho gruda no topo para a coluna não perder o nome ao rolar. */
+.visu-tabela-moldura {
+  width: 100%;
+  align-self: stretch;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid var(--borda-input);
+  border-radius: 6px;
+}
+
+.visu-tabela {
+  border-collapse: collapse;
+  min-width: 100%;
+  font-size: 13px;
+  color: var(--texto);
+}
+
+.visu-tabela th,
+.visu-tabela td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--borda);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.visu-tabela th {
+  position: sticky;
+  top: 0;
+  background: var(--fundo-app);
+  font-weight: 600;
+}
+
+.visu-tabela-aviso {
+  padding: 12px;
+  font-size: 13px;
+  color: var(--texto-suave);
+}

@@ -1,0 +1,193 @@
+@if (user(); as u) {
+  <app-painel [user]="u" ativo="Consultorias">
+    <h1>Consultorias</h1>
+    <p class="painel-subtitulo">
+      Os horários da sua agenda que um incubado reservou. A reserva já confirma a conversa: não há
+      aceite.
+    </p>
+
+    @if (mensagemErro()) {
+      <div class="error-message" role="alert"><app-icone nome="erro" />{{ mensagemErro() }}</div>
+    }
+
+    <div class="form-group lista-busca">
+      <label for="busca">Buscar</label>
+      <input
+        id="busca"
+        type="search"
+        placeholder="Negócio, proponente ou e-mail"
+        [formControl]="busca"
+      />
+    </div>
+
+    <div class="lista-barra">
+      <div class="filtros" role="group" aria-label="Situação">
+        <button type="button" class="filtro filtro--ativo" aria-pressed="true">
+          Próximas ({{ total() }})
+        </button>
+        @for (s of situacoesBloqueadas; track s.rotulo) {
+          <button
+            type="button"
+            class="filtro consultorias-filtro-bloqueado"
+            disabled
+            [attr.title]="'Em breve: ' + s.motivo"
+          >
+            <app-icone nome="cadeado" />{{ s.rotulo }}
+          </button>
+        }
+      </div>
+    </div>
+
+    @if (carregando()) {
+      <p class="lista-aviso" role="status">Carregando as consultorias…</p>
+    } @else if (!dias().length) {
+      <p class="lista-aviso" role="status">
+        <app-icone nome="agenda" />
+        @if (total()) {
+          Nenhuma consultoria para essa busca.
+        } @else {
+          Nenhuma consultoria marcada. Os incubados reservam nos horários que você abre em
+          <a [routerLink]="meusHorarios">Meus horários</a>.
+        }
+      </p>
+    } @else {
+      @for (dia of dias(); track dia.data) {
+        <h2 class="consultorias-dia">{{ dia.rotulo }}</h2>
+        <ul class="lista">
+          @for (linha of dia.linhas; track linha.id) {
+            <li>
+              <button type="button" class="lista-item" (click)="abrir(linha)">
+                <span class="lista-identidade">
+                  <span class="lista-titulo">{{ linha.negocio }}</span>
+                  <span class="lista-secundaria">
+                    <app-icone nome="relogio" />{{ linha.hora }} · {{ linha.email }}
+                  </span>
+                </span>
+                <span class="lista-meta">
+                  <span class="selo selo--aguardando_aprovacao">Marcada</span>
+                  @if (linha.reservadoEm) {
+                    <span class="lista-detalhe">reservada em {{ linha.reservadoEm }}</span>
+                  }
+                </span>
+                <app-icone nome="seta-direita" />
+              </button>
+            </li>
+          }
+        </ul>
+      }
+    }
+  </app-painel>
+} @else {
+  <main id="conteudo" tabindex="-1">
+    <p class="painel-carregando">Carregando...</p>
+  </main>
+}
+
+@if (aberta(); as c) {
+  <div class="overlay">
+    <div
+      class="modal consultorias-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="detalhe-titulo"
+    >
+      <header class="modal-header">
+        <h2 id="detalhe-titulo">{{ c.negocio }}</h2>
+        <button type="button" class="close" aria-label="Fechar" (click)="fechar()">&times;</button>
+      </header>
+
+      <div class="modal-body">
+        @if (erroModal()) {
+          <div class="error-message" role="alert"><app-icone nome="erro" />{{ erroModal() }}</div>
+        }
+        @if (mensagemSucesso()) {
+          <div class="success-message" role="status">
+            <app-icone nome="sucesso" />{{ mensagemSucesso() }}
+          </div>
+        }
+
+        <dl class="consultorias-dados">
+          @if (c.proponente) {
+            <dt>Proponente</dt>
+            <dd>{{ c.proponente }}</dd>
+          }
+          <dt>E-mail</dt>
+          <dd>{{ c.email }}</dd>
+          <dt>Quando</dt>
+          <dd>{{ c.dia }}, {{ c.hora }}</dd>
+          <dt>Faixa</dt>
+          <dd>{{ c.faixa }}, de {{ c.marcada.janela.duracao_minutos }} min</dd>
+        </dl>
+
+        @if (remarcando()) {
+          <div class="consultorias-remarcar" [formGroup]="formHorario">
+            <p>
+              O novo horário tem de caber na faixa, num espaço vago. O incubado é avisado por
+              e-mail.
+            </p>
+            <div class="consultorias-campos">
+              <div class="form-group">
+                <label for="re-ini">Início</label>
+                <input
+                  id="re-ini"
+                  type="time"
+                  formControlName="hora_inicio"
+                  [class.campo-invalido]="!!errosRemarcar().inicio"
+                />
+                <span class="field-error">{{ errosRemarcar().inicio }}</span>
+              </div>
+              <div class="form-group">
+                <label for="re-fim">Fim</label>
+                <input
+                  id="re-fim"
+                  type="time"
+                  formControlName="hora_fim"
+                  [class.campo-invalido]="!!errosRemarcar().fim"
+                />
+                <span class="field-error">{{ errosRemarcar().fim }}</span>
+              </div>
+            </div>
+          </div>
+        } @else {
+          <div class="consultorias-acoes">
+            <a class="btn btn--secundario" [routerLink]="c.planoRota">
+              <app-icone nome="documento" /> Ver plano de negócio
+            </a>
+            <button
+              type="button"
+              class="btn btn--secundario"
+              disabled
+              title="Em breve: cancelar um horário avulso responde erro no servidor"
+            >
+              <app-icone nome="cadeado" /> Cancelar consultoria
+            </button>
+          </div>
+
+          <ul class="consultorias-bloqueados" aria-label="Ainda não disponível">
+            @for (b of bloqueados; track b.rotulo) {
+              <li>
+                <app-icone nome="cadeado" /><strong>{{ b.rotulo }}</strong> — {{ b.motivo }}
+              </li>
+            }
+          </ul>
+        }
+      </div>
+
+      <footer class="modal-footer">
+        @if (remarcando()) {
+          <button type="button" class="btn btn--secundario" (click)="remarcando.set(false)">
+            Voltar
+          </button>
+          <button type="button" class="btn btn--azul" [disabled]="salvando()" (click)="remarcar()">
+            {{ salvando() ? 'Salvando...' : 'Remarcar' }}
+          </button>
+        } @else {
+          <button type="button" class="btn btn--secundario" (click)="fechar()">Fechar</button>
+          <button type="button" class="btn btn--azul" (click)="iniciarRemarcacao()">
+            <app-icone nome="relogio" /> Remarcar
+          </button>
+        }
+      </footer>
+    </div>
+  </div>
+}

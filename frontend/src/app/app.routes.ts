@@ -6,6 +6,8 @@ import { authGuard } from './core/guards/auth-guard';
 import { guestGuard } from './core/guards/guest-guard';
 import { adminGuard } from './core/guards/admin-guard';
 import { avaliadorGuard } from './core/guards/avaliador-guard';
+import { consultorGuard } from './core/guards/consultor-guard';
+import { incubadoGuard } from './core/guards/incubado-guard';
 import {
   aguardandoAprovacaoGuard,
   planoAprovadoGuard,
@@ -95,6 +97,32 @@ export const routes: Routes = [
     data: { modo: 'avaliacao' },
     canActivate: [authGuard, avaliadorGuard],
     loadComponent: () => import('./pages/questionario/questionario').then((m) => m.Questionario),
+  },
+  {
+    path: 'consultorias',
+    title: 'TecCampos - Consultorias',
+    canActivate: [authGuard, consultorGuard],
+    loadComponent: () => import('./pages/consultorias/consultorias').then((m) => m.Consultorias),
+  },
+  {
+    // Vive no painel do incubado, logo segue a regra do plano aprovado.
+    path: 'agendar-consultoria',
+    title: 'TecCampos - Consultorias',
+    canActivate: [authGuard, incubadoGuard, planoAprovadoGuard],
+    loadComponent: () =>
+      import('./pages/agendar-consultoria/agendar-consultoria').then((m) => m.AgendarConsultoria),
+  },
+  {
+    path: 'meus-horarios/abrir',
+    title: 'TecCampos - Abrir agenda',
+    canActivate: [authGuard, consultorGuard],
+    loadComponent: () => import('./pages/abrir-agenda/abrir-agenda').then((m) => m.AbrirAgenda),
+  },
+  {
+    path: 'meus-horarios',
+    title: 'TecCampos - Meus horários',
+    canActivate: [authGuard, consultorGuard],
+    loadComponent: () => import('./pages/meus-horarios/meus-horarios').then((m) => m.MeusHorarios),
   },
   {
     path: 'usuarios',

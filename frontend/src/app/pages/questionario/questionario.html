@@ -406,18 +406,26 @@
             }
           </div>
 
-          <label for="aval-comentario" class="aval-rotulo">{{ rotuloComentario() }}</label>
-          <!-- `readonly`, e não `disabled`: o texto continua selecionável e o
-               leitor de tela continua lendo. -->
-          <textarea
-            id="aval-comentario"
-            class="aval-comentario"
-            rows="5"
-            [value]="textoEmTela()"
-            [readOnly]="!formularioAberto()"
-            [placeholder]="placeholderComentario()"
-            (input)="escrever(numero(), $event)"
-          ></textarea>
+          <span id="aval-comentario-rotulo" class="aval-rotulo">{{ rotuloComentario() }}</span>
+          @if (formularioAberto()) {
+            <quill-editor
+              class="aval-comentario-editor"
+              [readOnly]="false"
+              [placeholder]="placeholderComentario()"
+              [valueGetter]="valorDoEditor"
+              (onEditorCreated)="aoCriarEditorAvaliacao($event)"
+              (onContentChanged)="escreverAvaliacao(numero(), $event)"
+            />
+          } @else {
+            <div
+              class="aval-comentario-leitura ql-editor"
+              [innerHTML]="textoEmTela()"
+              tabindex="0"
+              role="textbox"
+              aria-readonly="true"
+              aria-labelledby="aval-comentario-rotulo"
+            ></div>
+          }
 
           <div class="aval-acoes">
             @if (formularioAberto()) {

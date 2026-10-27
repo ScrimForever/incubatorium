@@ -1,0 +1,141 @@
+@if (user(); as u) {
+  <app-painel [user]="u" ativo="Consultorias">
+    <h1>Consultorias</h1>
+    <p class="painel-subtitulo">
+      Reserve uma conversa com um consultor nos horários que ele abriu. A reserva já confirma o
+      horário.
+    </p>
+
+    @if (mensagemErro()) {
+      <div class="error-message" role="alert"><app-icone nome="erro" />{{ mensagemErro() }}</div>
+    }
+    @if (mensagemSucesso()) {
+      <div class="success-message agendar-aviso" role="status">
+        <app-icone nome="sucesso" />{{ mensagemSucesso() }}
+      </div>
+    }
+
+    <h2 class="agendar-titulo">Minhas consultorias</h2>
+    @if (carregando()) {
+      <p class="lista-aviso" role="status">Carregando…</p>
+    } @else if (!minhas().length) {
+      <p class="lista-aviso"><app-icone nome="agenda" /> Você ainda não reservou nenhuma.</p>
+    } @else {
+      <ul class="lista">
+        @for (m of minhas(); track m.horario.id) {
+          <li class="lista-item agendar-reserva">
+            <span class="lista-identidade">
+              <span class="lista-titulo">{{ m.dia }}</span>
+              <span class="lista-secundaria">
+                <app-icone nome="relogio" />{{ m.hora }} · {{ m.consultor }}
+              </span>
+            </span>
+            <span class="lista-meta">
+              <span class="selo selo--aguardando_aprovacao">Marcada</span>
+              <button
+                type="button"
+                class="btn btn--secundario agendar-btn-p"
+                disabled
+                title="Em breve: cancelar reserva responde erro no servidor"
+              >
+                <app-icone nome="cadeado" /> Cancelar reserva
+              </button>
+            </span>
+          </li>
+        }
+      </ul>
+    }
+
+    <h2 class="agendar-titulo">Horários livres</h2>
+    @if (!carregando()) {
+      @if (consultores().length > 1) {
+        <div class="filtros" role="group" aria-label="Filtrar por consultor">
+          <button
+            type="button"
+            class="filtro"
+            [class.filtro--ativo]="filtro() === todos"
+            [attr.aria-pressed]="filtro() === todos"
+            (click)="filtro.set(todos)"
+          >
+            Todos ({{ totalLivres() }})
+          </button>
+          @for (c of consultores(); track c) {
+            <button
+              type="button"
+              class="filtro"
+              [class.filtro--ativo]="filtro() === c"
+              [attr.aria-pressed]="filtro() === c"
+              (click)="filtro.set(c)"
+            >
+              {{ c }}
+            </button>
+          }
+        </div>
+      }
+
+      @if (!dias().length) {
+        <p class="lista-aviso">
+          <app-icone nome="relogio" /> Nenhum horário livre agora. Os consultores avisam por e-mail
+          quando abrem agenda.
+        </p>
+      } @else {
+        <ul class="lista">
+          @for (dia of dias(); track dia.data) {
+            <li class="lista-item agendar-dia">
+              <span class="lista-titulo">{{ dia.rotulo }}</span>
+              <ul class="agendar-vagas" [attr.aria-label]="'Horários de ' + dia.rotulo">
+                @for (v of dia.vagas; track v.horario.id) {
+                  <li>
+                    <button
+                      type="button"
+                      class="agendar-vaga"
+                      [attr.title]="v.titulo"
+                      [attr.aria-label]="'Reservar ' + v.titulo"
+                      (click)="escolher(v.horario)"
+                    >
+                      {{ v.hora }}
+                    </button>
+                  </li>
+                }
+              </ul>
+            </li>
+          }
+        </ul>
+      }
+    }
+  </app-painel>
+} @else {
+  <main id="conteudo" tabindex="-1">
+    <p class="painel-carregando">Carregando...</p>
+  </main>
+}
+
+@if (escolhida(); as v) {
+  <div class="overlay">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="reservar-titulo">
+      <header class="modal-header">
+        <h2 id="reservar-titulo">Reservar consultoria</h2>
+        <button type="button" class="close" aria-label="Fechar" (click)="fechar()">&times;</button>
+      </header>
+      <div class="modal-body">
+        @if (erroModal()) {
+          <div class="error-message" role="alert"><app-icone nome="erro" />{{ erroModal() }}</div>
+        }
+        <dl class="agendar-dados">
+          <dt>Quando</dt>
+          <dd>{{ v.dia }}, {{ v.hora }}</dd>
+          <dt>Consultor</dt>
+          <dd>{{ v.consultor }}</dd>
+          <dt>Formato</dt>
+          <dd>a combinar com o consultor</dd>
+        </dl>
+      </div>
+      <footer class="modal-footer">
+        <button type="button" class="btn btn--secundario" (click)="fechar()">Voltar</button>
+        <button type="button" class="btn btn--verde" [disabled]="salvando()" (click)="reservar()">
+          {{ salvando() ? 'Reservando...' : 'Reservar' }}
+        </button>
+      </footer>
+    </div>
+  </div>
+}

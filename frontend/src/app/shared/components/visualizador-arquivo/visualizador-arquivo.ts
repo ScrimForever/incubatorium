@@ -15,14 +15,16 @@ import {
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
 import { Anexo } from '../../../core/models/questionario';
+import { lerCsv } from '../../csv';
 import { Icone } from '../icone/icone';
 
 /** Categorias que ganham uma pré-visualização própria. */
-type Categoria = 'imagem' | 'pdf' | 'planilha' | 'documento' | 'texto' | 'outro';
+type Categoria = 'imagem' | 'pdf' | 'csv' | 'planilha' | 'documento' | 'texto' | 'outro';
 
 const ROTULO: Record<Categoria, string> = {
   imagem: 'Imagem',
   pdf: 'Documento PDF',
+  csv: 'Planilha CSV',
   planilha: 'Planilha',
   documento: 'Documento de texto',
   texto: 'Arquivo de texto',
@@ -30,12 +32,15 @@ const ROTULO: Record<Categoria, string> = {
 };
 
 /** As categorias que o navegador desenha sozinho a partir de um `blob:`. */
-const RENDERIZAVEIS: readonly Categoria[] = ['imagem', 'pdf', 'texto'];
+const RENDERIZAVEIS: readonly Categoria[] = ['imagem', 'pdf', 'csv', 'texto'];
+
+/** Teto de linhas da tabela: a prévia é para conferir, o arquivo inteiro vem no "Baixar". */
+export const MAXIMO_LINHAS_CSV = 200;
 
 /**
  * Modal de pré-visualização de anexo. O conteúdo não é buscado aqui: a página,
  * que conhece a aba, baixa e entrega o `Blob` pronto. Tipo que o navegador não
- * desenha (planilha, .docx) fica só com o botão de baixar.
+ * desenha (.xlsx, .docx) fica só com o botão de baixar; CSV vira tabela.
  */
 @Component({
   selector: 'app-visualizador-arquivo',
@@ -73,6 +78,17 @@ export class VisualizadorArquivo {
   protected readonly url = signal<string | null>(null);
   /** O texto já lido, quando o anexo é um arquivo de texto. */
   protected readonly texto = signal<string | null>(null);
+  /** As linhas do CSV já lidas; a primeira é o cabeçalho. */
+  private readonly tabela = signal<string[][] | null>(null);
+
+  protected readonly cabecalhoCsv = computed(() => this.tabela()?.[0] ?? []);
+  protected readonly linhasCsv = computed(
+    () => this.tabela()?.slice(1, MAXIMO_LINHAS_CSV + 1) ?? [],
+  );
+  /** Quantas linhas ficaram fora da tabela, para a prévia não esconder isso. */
+  protected readonly linhasOcultasCsv = computed(() =>
+    Math.max(0, (this.tabela()?.length ?? 0) - 1 - MAXIMO_LINHAS_CSV),
+  );
 
   /** O `blob:` só aparece no `<iframe>` depois de marcado como confiável. */
   protected readonly urlRecurso = computed<SafeResourceUrl | null>(() => {
@@ -97,12 +113,18 @@ export class VisualizadorArquivo {
       untracked(() => {
         this.soltarUrl();
         this.texto.set(null);
+        this.tabela.set(null);
         if (!conteudo) {
           return;
         }
-        if (categoria === 'texto') {
+        if (categoria === 'texto' || categoria === 'csv') {
           void conteudo.text().then((lido) => {
-            if (this.conteudo() === conteudo) {
+            if (this.conteudo() !== conteudo) {
+              return;
+            }
+            if (categoria === 'csv') {
+              this.tabela.set(lerCsv(lido));
+            } else {
               this.texto.set(lido);
             }
           });
@@ -181,7 +203,11 @@ function categoriaDe(arquivo: Anexo | null): Categoria {
   if (tipo === 'application/pdf' || ext === 'pdf') {
     return 'pdf';
   }
-  if (tipo.includes('spreadsheet') || tipo === 'text/csv' || ['xlsx', 'xls', 'csv'].includes(ext)) {
+  // Antes de `text/`: o CSV é texto, mas é desenhado como tabela.
+  if (tipo === 'text/csv' || ext === 'csv') {
+    return 'csv';
+  }
+  if (tipo.includes('spreadsheet') || ['xlsx', 'xls'].includes(ext)) {
     return 'planilha';
   }
   if (tipo.includes('word') || ['doc', 'docx', 'odt', 'rtf'].includes(ext)) {

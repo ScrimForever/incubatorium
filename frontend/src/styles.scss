@@ -11,6 +11,8 @@
   --azul: #2469b3;
   /* Azul da marca rebaixado para fundo de menu; o gradiente vira só um detalhe. */
   --azul-escuro: #143c68;
+  /* Azul da marca bem diluído: o meio de um período escolhido no calendário. */
+  --azul-claro: #eaf1fa;
   --verde: #6fb643;
   --fundo-app: #f4f6f8;
   --texto: #333;
@@ -1793,21 +1795,29 @@ quill-view .ql-editor {
   margin-bottom: 20px;
 }
 
-/* Nota já dada: mesmo card, só que travado — a escala vira leitura e o campo
-   deixa de convidar a escrever. */
-/* Nota já dada: o comentário vira texto de leitura. Fica a borda fina de
-   repouso, mas o campo não reage ao mouse nem ao clique e não se redimensiona.
-   Só pelo teclado a borda escurece, para mostrar o foco. */
-.aval-card--travado .aval-comentario,
-.aval-card--travado .aval-comentario:focus {
-  border-color: var(--borda);
-  box-shadow: none;
+/* Nota já dada: o comentário vira texto de leitura num div com a mesma moldura
+   neutra, sem convite a escrever. */
+.aval-comentario-leitura {
+  width: 100%;
+  min-height: 5em;
+  padding: 12px 14px;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
   background: var(--fundo-app);
+  font: inherit;
+  font-size: 14px;
+  color: var(--texto);
   cursor: default;
-  resize: none;
 }
 
-.navegando-teclado .aval-card--travado .aval-comentario:focus {
+.aval-comentario-leitura:empty::before {
+  content: 'Sem observações.';
+  color: var(--placeholder);
+  font-style: italic;
+}
+
+.navegando-teclado .aval-comentario-leitura:focus {
+  outline: none;
   border-color: var(--borda-controle);
 }
 
@@ -1958,39 +1968,46 @@ quill-view .ql-editor {
   color: #fff;
 }
 
-.aval-comentario {
+/* Editor Quill no card de avaliação: mesma moldura que o textarea antigo. */
+.aval-comentario-editor {
+  display: block;
   width: 100%;
-  padding: 12px 14px;
-  /* Em repouso, a mesma borda das caixas de nota — o campo não grita antes de
-     ser usado. O hover esquenta um pouco, e o foco é que se destaca. */
   border: 1px solid var(--borda);
   border-radius: 8px;
   background: #fff;
-  font: inherit;
-  font-size: 14px;
-  color: var(--texto);
-  resize: vertical;
+  overflow: hidden;
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease;
 }
 
-/* Placeholder fraco: é dica, não conteúdo — não pode competir com o que foi
-   digitado. */
-.aval-comentario::placeholder {
-  color: var(--placeholder);
+.aval-comentario-editor .ql-toolbar.ql-snow {
+  border: none;
+  border-bottom: 1px solid var(--borda);
+  border-radius: 8px 8px 0 0;
+  background: var(--fundo-app);
+}
+
+.aval-comentario-editor .ql-container.ql-snow {
+  border: none;
+}
+
+.aval-comentario-editor .ql-editor {
+  min-height: 8em;
+  font: inherit;
+  font-size: 14px;
+  color: var(--texto);
+}
+
+.aval-comentario-editor:focus-within {
+  border-color: var(--azul);
+  box-shadow: 0 0 0 3px rgba(36, 105, 179, 0.15);
 }
 
 @media (hover: hover) {
-  .aval-comentario:not([readonly]):hover {
+  .aval-comentario-editor:hover {
     border-color: var(--texto-suave);
   }
-}
-
-.aval-comentario:focus {
-  outline: none;
-  border-color: var(--azul);
-  box-shadow: 0 0 0 3px rgba(36, 105, 179, 0.15);
 }
 
 .aval-acoes {
@@ -2120,4 +2137,223 @@ quill-view .ql-editor {
 
 .decisao-tomada {
   color: var(--texto);
+}
+
+/* ==========================================================================
+   Agenda de consultoria — peças comuns a Meus horários e Abrir agenda: os
+   chips de horário (verde livre, azul reservado), o botão pequeno, a ação
+   destrutiva secundária e a grade de campos de uma faixa.
+   ========================================================================== */
+
+/* Chips de horário: verde livre, azul reservado — cor é informação. */
+.horarios-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+}
+
+/* O <li> que só embrulha um botão-chip some do layout; o que é o chip, não. */
+.horarios-chips li:not(.horarios-chip) {
+  display: contents;
+}
+
+.horarios-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  border: 1px solid var(--borda);
+  border-radius: 999px;
+  background: var(--fundo-cartao);
+  color: var(--texto);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.horarios-chip button:not(.horarios-chip-acao) {
+  width: 22px;
+  height: 22px;
+  margin-right: -6px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.horarios-chip button:not(.horarios-chip-acao):hover {
+  opacity: 1;
+  background: var(--erro-fundo);
+  color: var(--erro-texto);
+}
+
+.horarios-chip--livre {
+  border-color: var(--nota-5-borda);
+  background: var(--nota-5-fundo);
+  color: var(--nota-5-forte);
+}
+
+.horarios-chip--reservado {
+  border-color: var(--azul);
+  background: var(--fundo-cartao);
+  color: var(--azul);
+}
+
+.horarios-chip--reservado:hover {
+  background: var(--fundo-app);
+}
+
+/* O texto do chip reservado é o botão de remarcar. */
+.horarios-chip-acao {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+
+/* O × de tirar o horário só aparece no hover ou no foco: a lista fica limpa. No
+   toque não há hover, então lá ele fica sempre visível. */
+.horarios-chip button.horarios-tirar {
+  width: 0;
+  margin-right: -6px;
+  overflow: hidden;
+  opacity: 0;
+  transition:
+    width 0.12s,
+    opacity 0.12s;
+}
+
+.horarios-chip:hover button.horarios-tirar,
+.horarios-chip:focus-within button.horarios-tirar {
+  width: 22px;
+  opacity: 0.7;
+}
+
+@media (hover: none) {
+  .horarios-chip button.horarios-tirar {
+    width: 22px;
+    opacity: 0.7;
+  }
+}
+
+.horarios-btn-p {
+  padding: 7px 14px;
+  font-size: 13px;
+}
+
+/* Ação destrutiva secundária: texto e contorno de erro (CLAUDE.md, Estilos). */
+.horarios-perigo {
+  color: var(--erro-texto);
+  border-color: var(--erro-texto);
+}
+
+.horarios-campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  align-items: start;
+  gap: 12px 16px;
+}
+
+.horarios-campos .form-group {
+  margin-bottom: 0;
+}
+
+/* Mensagem vazia não ocupa espaço: o elemento existe para o leitor de tela. */
+.horarios-campos .field-error:empty {
+  display: none;
+}
+
+/* ==========================================================================
+   Tour guiado (Driver.js) — o popover nasce no <body>, fora de qualquer tela,
+   por isso o tema mora aqui. A classe `tour` vem do `TourService`. O CSS base
+   da biblioteca entra antes deste arquivo, pelo `angular.json`.
+   ========================================================================== */
+
+.driver-popover.tour {
+  --driver-popover-font-family: 'Roboto', sans-serif;
+  min-width: 280px;
+  max-width: 340px;
+  padding: 18px 18px 14px;
+  border-radius: 12px;
+  color: var(--texto);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
+}
+
+/* A fita azul→verde da marca, a mesma do item ativo do menu. */
+.driver-popover.tour .driver-popover-title {
+  margin-right: 28px;
+  padding-top: 10px;
+  border-top: 3px solid transparent;
+  border-image: linear-gradient(90deg, var(--azul), var(--verde)) 1;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.driver-popover.tour .driver-popover-description {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--texto-suave);
+}
+
+.driver-popover.tour .driver-popover-close-btn {
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: var(--texto-suave);
+  font-size: 20px;
+}
+
+.driver-popover.tour .driver-popover-footer {
+  margin-top: 16px;
+  gap: 10px;
+}
+
+.driver-popover.tour .driver-popover-progress-text {
+  font-size: 12px;
+  color: var(--texto-suave);
+  font-variant-numeric: tabular-nums;
+}
+
+.driver-popover.tour .driver-popover-navigation-btns {
+  gap: 8px;
+}
+
+.driver-popover.tour .driver-popover-navigation-btns button + button {
+  margin-left: 0;
+}
+
+/* Os botões do tour seguem o .btn do sistema: Anterior secundário, Próximo azul. */
+.driver-popover.tour .driver-popover-footer-btn {
+  padding: 7px 14px;
+  border: 1px solid var(--borda-controle);
+  border-radius: 8px;
+  background: var(--fundo-cartao);
+  color: var(--texto);
+  font-family: 'Roboto', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  text-shadow: none;
+}
+
+.driver-popover.tour .driver-popover-next-btn {
+  border-color: var(--azul);
+  background: var(--azul);
+  color: white;
+}
+
+.driver-popover.tour .driver-popover-footer-btn:hover,
+.driver-popover.tour .driver-popover-footer-btn:focus-visible {
+  filter: brightness(0.95);
 }

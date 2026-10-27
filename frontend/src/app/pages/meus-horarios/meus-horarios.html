@@ -1,0 +1,325 @@
+@if (user(); as u) {
+  <app-painel [user]="u" ativo="Meus horários">
+    <div class="horarios-titulo">
+      <div class="horarios-titulo-texto">
+        <a
+          class="horarios-novo"
+          [routerLink]="abrirAgendaRota"
+          aria-label="Abrir agenda"
+          title="Abrir agenda"
+          data-tour="novo"
+        >
+          +
+        </a>
+        <h1>Meus horários</h1>
+      </div>
+      <button type="button" class="btn btn--secundario horarios-btn-p" (click)="abrirTour()">
+        <app-icone nome="ajuda" /> Como funciona
+      </button>
+    </div>
+    <p class="painel-subtitulo">
+      Os dias em que você atende, de hoje em diante. Abra um dia para ver as faixas e quem reservou.
+    </p>
+
+    @if (mensagemErro()) {
+      <div class="error-message horarios-aviso" role="alert">
+        <app-icone nome="erro" />{{ mensagemErro() }}
+      </div>
+    }
+    @if (mensagemSucesso()) {
+      <div class="success-message horarios-aviso" role="status">
+        <app-icone nome="sucesso" />{{ mensagemSucesso() }}
+      </div>
+    }
+
+    <div class="lista-barra">
+      <div class="filtros" role="group" aria-label="Filtrar os dias" data-tour="filtros">
+        @for (opcao of filtros; track opcao) {
+          <button
+            type="button"
+            class="filtro"
+            [class.filtro--ativo]="filtro() === opcao"
+            [attr.aria-pressed]="filtro() === opcao"
+            (click)="trocarFiltro(opcao)"
+          >
+            {{ rotuloFiltro[opcao] }} ({{ contagem()[opcao] }})
+          </button>
+        }
+      </div>
+    </div>
+
+    @if (carregando()) {
+      <p class="lista-aviso" role="status">Carregando a agenda…</p>
+    } @else if (!diasVisiveis().length) {
+      <p class="lista-aviso" role="status">
+        <app-icone nome="agenda" />
+        @if (dias().length) {
+          Nenhum dia neste filtro.
+        } @else {
+          Nenhum horário aberto de hoje em diante. Use o + para abrir agenda.
+        }
+      </p>
+    } @else {
+      <ul class="lista">
+        @for (dia of diasVisiveis(); track dia.data; let primeiro = $first) {
+          <li
+            class="lista-item horarios-dia"
+            [class.horarios-dia--aberto]="aberto() === dia.data"
+            [attr.data-tour]="primeiro ? 'dia' : null"
+          >
+            <!-- O botão da seta cobre a linha inteira (::after): mouse, toque e teclado num só alvo. -->
+            <div class="horarios-dia-linha">
+              <span class="lista-identidade">
+                <span class="horarios-dia-titulo">
+                  <span class="lista-titulo">{{ dia.rotulo }}</span>
+                  <button
+                    type="button"
+                    class="btn btn--secundario horarios-perigo horarios-btn-mini"
+                    (click)="abrirCancelarDia(dia)"
+                  >
+                    Cancelar dia
+                  </button>
+                </span>
+                <span class="lista-secundaria">
+                  <app-icone nome="relogio" />{{ dia.faixasResumo }}
+                </span>
+              </span>
+              <span class="lista-meta">
+                <span
+                  class="selo"
+                  [class.selo--aguardando_aprovacao]="dia.reservas > 0"
+                  [class.selo--pendente]="!dia.reservas"
+                  >{{ dia.selo }}</span
+                >
+                <span class="lista-detalhe">{{ dia.detalhe }}</span>
+              </span>
+              <button
+                type="button"
+                class="horarios-alternar"
+                [attr.aria-expanded]="aberto() === dia.data"
+                [attr.aria-label]="'Faixas de ' + dia.rotulo"
+                (click)="alternar(dia.data)"
+              >
+                <app-icone nome="seta-direita" />
+              </button>
+            </div>
+
+            @if (aberto() === dia.data) {
+              <div class="horarios-detalhe">
+                @for (f of dia.faixas; track f.janela.id) {
+                  <div class="horarios-faixa">
+                    <div class="horarios-faixa-cabeca">
+                      <span class="lista-secundaria">
+                        <app-icone nome="relogio" />{{ f.faixa }}, {{ f.duracao }}
+                      </span>
+                      <span class="horarios-faixa-acoes">
+                        <button
+                          type="button"
+                          class="btn btn--secundario horarios-btn-p"
+                          (click)="abrirEdicao(f.janela)"
+                        >
+                          <app-icone nome="lapis" /> Editar faixa
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn--secundario horarios-perigo horarios-btn-p"
+                          (click)="abrirCancelarJanela(f.janela)"
+                        >
+                          Cancelar faixa
+                        </button>
+                      </span>
+                    </div>
+                    <ul class="horarios-chips">
+                      @for (h of f.horarios; track h.horario.id) {
+                        @if (h.incubado) {
+                          <li class="horarios-chip horarios-chip--reservado">
+                            <button
+                              type="button"
+                              class="horarios-chip-acao"
+                              [attr.title]="
+                                'Reservado por ' + h.incubado + ' — clique para remarcar'
+                              "
+                              (click)="abrirRemarcar(h.horario, f.janela)"
+                            >
+                              {{ h.hora }} · {{ h.incubado }}
+                            </button>
+                            <button
+                              type="button"
+                              class="horarios-tirar"
+                              [attr.aria-label]="
+                                'Tirar ' + h.rotulo + ', reservado por ' + h.incubado
+                              "
+                              (click)="abrirTirarHorario(h.horario, h.rotulo)"
+                            >
+                              &times;
+                            </button>
+                          </li>
+                        } @else {
+                          <li class="horarios-chip horarios-chip--livre">
+                            {{ h.hora }}
+                            <button
+                              type="button"
+                              class="horarios-tirar"
+                              [attr.aria-label]="'Tirar ' + h.rotulo"
+                              (click)="abrirTirarHorario(h.horario, h.rotulo)"
+                            >
+                              &times;
+                            </button>
+                          </li>
+                        }
+                      }
+                    </ul>
+                  </div>
+                }
+              </div>
+            }
+          </li>
+        }
+      </ul>
+    }
+  </app-painel>
+} @else {
+  <main id="conteudo" tabindex="-1">
+    <p class="painel-carregando">Carregando...</p>
+  </main>
+}
+
+@if (modal(); as m) {
+  <div class="overlay">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
+      <header class="modal-header">
+        <h2 id="modal-titulo">
+          @switch (m.tipo) {
+            @case ('editar') {
+              Editar faixa
+            }
+            @case ('cancelar-janela') {
+              Cancelar faixa
+            }
+            @case ('cancelar-dia') {
+              Cancelar dia
+            }
+            @case ('remarcar') {
+              Remarcar consultoria
+            }
+            @case ('tirar-horario') {
+              Tirar horário
+            }
+          }
+        </h2>
+        <button type="button" class="close" aria-label="Fechar" (click)="fecharModal()">
+          &times;
+        </button>
+      </header>
+
+      <div class="modal-body">
+        @if (erroModal()) {
+          <div class="error-message" role="alert"><app-icone nome="erro" />{{ erroModal() }}</div>
+        }
+        @switch (m.tipo) {
+          @case ('editar') {
+            <p>Os horários livres são refeitos. Os reservados ficam onde estão.</p>
+            <div class="horarios-campos" [formGroup]="formJanela">
+              <div class="form-group">
+                <label for="ed-ini">Início</label>
+                <input id="ed-ini" type="time" formControlName="hora_inicio" />
+                <span class="field-error">{{ errosEdicao().inicio }}</span>
+              </div>
+              <div class="form-group">
+                <label for="ed-fim">Fim</label>
+                <input id="ed-fim" type="time" formControlName="hora_fim" />
+                <span class="field-error">{{ errosEdicao().fim }}</span>
+              </div>
+              <div class="form-group">
+                <label for="ed-dur">Duração (min)</label>
+                <input id="ed-dur" type="number" min="10" formControlName="duracao_minutos" />
+                <span class="field-error">{{ errosEdicao().duracao }}</span>
+              </div>
+            </div>
+          }
+          @case ('cancelar-janela') {
+            <p>
+              A faixa sai da agenda.
+              @if (m.reservas) {
+                <strong>{{ m.reservas }} reserva(s)</strong> são canceladas e os incubados recebem
+                e-mail.
+              } @else {
+                Nenhum horário dela está reservado.
+              }
+            </p>
+          }
+          @case ('cancelar-dia') {
+            <p>
+              Todas as {{ m.janelas }} faixa(s) de <strong>{{ m.rotulo }}</strong> saem da agenda.
+              @if (m.reservas) {
+                <strong>{{ m.reservas }} reserva(s)</strong> são canceladas e os incubados recebem
+                e-mail.
+              }
+            </p>
+          }
+          @case ('tirar-horario') {
+            <p>
+              <strong>{{ m.rotulo }}</strong> sai da agenda e ninguém mais consegue reservá-lo.
+              @if (m.incubado) {
+                A reserva de <strong>{{ m.incubado }}</strong> é cancelada, com aviso por e-mail.
+              }
+            </p>
+          }
+          @case ('remarcar') {
+            <p>
+              Consultoria de <strong>{{ m.incubado }}</strong
+              >. O novo horário tem de caber na faixa, e o incubado é avisado por e-mail.
+            </p>
+            <div class="horarios-campos" [formGroup]="formHorario">
+              <div class="form-group">
+                <label for="re-ini">Início</label>
+                <input
+                  id="re-ini"
+                  type="time"
+                  formControlName="hora_inicio"
+                  [class.campo-invalido]="!!errosRemarcar().inicio"
+                />
+                <span class="field-error">{{ errosRemarcar().inicio }}</span>
+              </div>
+              <div class="form-group">
+                <label for="re-fim">Fim</label>
+                <input
+                  id="re-fim"
+                  type="time"
+                  formControlName="hora_fim"
+                  [class.campo-invalido]="!!errosRemarcar().fim"
+                />
+                <span class="field-error">{{ errosRemarcar().fim }}</span>
+              </div>
+            </div>
+          }
+        }
+      </div>
+
+      <footer class="modal-footer">
+        <button type="button" class="btn btn--secundario" (click)="fecharModal()">Voltar</button>
+        <button
+          type="button"
+          class="btn btn--azul"
+          [disabled]="salvando()"
+          (click)="confirmarModal()"
+        >
+          @switch (m.tipo) {
+            @case ('editar') {
+              {{ salvando() ? 'Salvando...' : 'Salvar faixa' }}
+            }
+            @case ('remarcar') {
+              {{ salvando() ? 'Salvando...' : 'Remarcar' }}
+            }
+            @case ('tirar-horario') {
+              {{ salvando() ? 'Tirando...' : 'Tirar horário' }}
+            }
+            @default {
+              {{ salvando() ? 'Cancelando...' : 'Confirmar cancelamento' }}
+            }
+          }
+        </button>
+      </footer>
+    </div>
+  </div>
+}

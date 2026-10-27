@@ -56,9 +56,9 @@ describe('Painel', () => {
     montar(INCUBADO);
     const rotulos = itens().map((item) => item.textContent?.trim());
 
-    expect(rotulos).toEqual(['Visão geral', 'Meu plano', 'Equipe', 'Agenda', 'Minha conta']);
-    // Visão geral, Meu plano e Minha conta já têm endpoint; os demais, não.
-    expect(itens().filter((item) => item.tagName === 'A').length).toBe(3);
+    expect(rotulos).toEqual(['Visão geral', 'Meu plano', 'Equipe', 'Consultorias', 'Minha conta']);
+    // Visão geral, Meu plano, Consultorias e Minha conta têm endpoint; Equipe, não.
+    expect(itens().filter((item) => item.tagName === 'A').length).toBe(4);
   });
 
   it('mostra os módulos sem endpoint como botão desabilitado com o motivo', () => {

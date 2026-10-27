@@ -1,0 +1,44 @@
+<div class="cal">
+  <div class="cal-topo">
+    <button
+      type="button"
+      class="cal-nav"
+      aria-label="Mês anterior"
+      [disabled]="!podeVoltar()"
+      (click)="mudarMes(-1)"
+    >
+      &#8249;
+    </button>
+    <span class="cal-titulo" aria-live="polite">{{ titulo() }}</span>
+    <button type="button" class="cal-nav" aria-label="Próximo mês" (click)="mudarMes(1)">
+      &#8250;
+    </button>
+  </div>
+
+  <div class="cal-grade" role="grid" [attr.aria-label]="titulo()">
+    @for (nome of cabecalho; track nome) {
+      <span class="cal-semana" role="columnheader">{{ nome }}</span>
+    }
+    @for (casa of casas(); track $index) {
+      @if (casa.data) {
+        <button
+          type="button"
+          class="cal-dia"
+          role="gridcell"
+          [class.cal-dia--inicio]="casa.inicio"
+          [class.cal-dia--fim]="casa.fim"
+          [class.cal-dia--dentro]="casa.dentro"
+          [class.cal-dia--marcada]="casa.marcada"
+          [disabled]="casa.desabilitada"
+          [attr.aria-label]="casa.rotulo + (casa.marcada ? ', já adicionada' : '')"
+          [attr.aria-pressed]="casa.inicio || casa.fim || casa.dentro"
+          (click)="escolher(casa.data)"
+        >
+          {{ casa.dia }}
+        </button>
+      } @else {
+        <span aria-hidden="true"></span>
+      }
+    }
+  </div>
+</div>

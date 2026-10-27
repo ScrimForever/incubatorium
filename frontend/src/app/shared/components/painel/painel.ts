@@ -60,11 +60,25 @@ export function menuPara(role: Role): readonly ItemMenu[] {
     pendencia: '',
   };
 
+  const meusHorarios: ItemMenu = {
+    rotulo: 'Meus horários',
+    icone: 'relogio',
+    rota: APP_ROUTES.meusHorarios,
+    pendencia: '',
+  };
+
+  const consultorias: ItemMenu = {
+    rotulo: 'Consultorias',
+    icone: 'agenda',
+    rota: APP_ROUTES.consultorias,
+    pendencia: '',
+  };
+
   // Avaliador e consultor têm menu curto de propósito: o trabalho deles é ler
-  // planos e avaliar. Sem "Visão geral" (o painel não lhes diz nada) e sem
-  // item cadeado — módulo que não é deles não precisa nem aparecer negado.
+  // planos, avaliar e atender. Sem "Visão geral" (o painel não lhes diz nada) e
+  // sem item cadeado — módulo que não é deles não precisa nem aparecer negado.
   if (role === 'avaliador') {
-    return [planosDeNegocio, minhaConta];
+    return [planosDeNegocio, consultorias, meusHorarios, minhaConta];
   }
 
   const porPapel: Record<Role, readonly ItemMenu[]> = {
@@ -76,7 +90,7 @@ export function menuPara(role: Role): readonly ItemMenu[] {
     ],
     // Nunca usado: o `if` acima trata o avaliador antes. O `Record<Role, …>`
     // exige a chave, e deixá-la igual à lista curta evita divergência.
-    avaliador: [planosDeNegocio, minhaConta],
+    avaliador: [planosDeNegocio, consultorias, meusHorarios, minhaConta],
     colaborador: [
       bloqueado('Planos de negócio', 'documento', 'só avaliador e administrador avaliam planos'),
       bloqueado('Agenda', 'agenda', SEM_AGENDA),
@@ -84,7 +98,12 @@ export function menuPara(role: Role): readonly ItemMenu[] {
     incubado: [
       meuPlano,
       bloqueado('Equipe', 'equipe', 'aguarda os endpoints de membros'),
-      bloqueado('Agenda', 'agenda', SEM_AGENDA),
+      {
+        rotulo: 'Consultorias',
+        icone: 'agenda',
+        rota: APP_ROUTES.agendarConsultoria,
+        pendencia: '',
+      },
     ],
   };
 

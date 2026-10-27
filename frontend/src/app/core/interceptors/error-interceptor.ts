@@ -126,6 +126,20 @@ function ehRotaDeAtivacao(url: string): boolean {
  * objeto `{ code, reason }` (erros de senha) e `{ "mensagem": ... }` (regras de
  * negócio do backend, como o `409` dos anexos com o plano em análise).
  */
+/**
+ * O `422` do schema (FastAPI/Pydantic) traz `detail` como lista de erros. As regras
+ * do projeto chegam como "Value error, <frase em português>" e viram a frase; as
+ * regras do próprio Pydantic vêm em inglês, então a tela diz algo genérico.
+ */
+function motivoDaValidacao(erros: unknown[]): string {
+  const primeiro = erros[0] as { msg?: unknown } | undefined;
+  const msg = typeof primeiro?.msg === 'string' ? primeiro.msg : '';
+  const PREFIXO = 'Value error, ';
+  return msg.startsWith(PREFIXO)
+    ? msg.slice(PREFIXO.length)
+    : 'O servidor recusou um dos valores enviados. Confira os campos e tente de novo.';
+}
+
 function lerCorpo(corpo: unknown): { code?: string; reason?: string } {
   if (!corpo || typeof corpo !== 'object') {
     return {};
@@ -134,6 +148,9 @@ function lerCorpo(corpo: unknown): { code?: string; reason?: string } {
     const detail = (corpo as { detail: unknown }).detail;
     if (typeof detail === 'string') {
       return PARECE_CODIGO.test(detail) ? { code: detail } : { reason: detail };
+    }
+    if (Array.isArray(detail)) {
+      return { reason: motivoDaValidacao(detail) };
     }
     if (detail && typeof detail === 'object' && 'code' in detail) {
       const { code, reason } = detail as { code: unknown; reason?: unknown };

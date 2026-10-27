@@ -16,7 +16,8 @@ export type IconeNome =
   | 'cadeado'
   | 'relogio'
   | 'lapis'
-  | 'seta-direita';
+  | 'seta-direita'
+  | 'ajuda';
 
 /**
  * Ícones de sistema (traço fino, herdam a cor do texto via currentColor).
@@ -126,6 +127,11 @@ export type IconeNome =
         @case ('seta-direita') {
           <path d="M5 12h14" />
           <path d="m13 6 6 6-6 6" />
+        }
+        @case ('ajuda') {
+          <circle cx="12" cy="12" r="10" />
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
         }
       }
     </svg>
