@@ -46,10 +46,130 @@
           </button>
         }
       </div>
+      <div class="horarios-visoes" role="group" aria-label="Forma de ver a agenda">
+        <button
+          type="button"
+          class="horarios-visao"
+          [class.horarios-visao--ativa]="visao() === 'lista'"
+          [attr.aria-pressed]="visao() === 'lista'"
+          aria-label="Ver em lista"
+          title="Ver em lista"
+          (click)="trocarVisao('lista')"
+        >
+          <app-icone nome="lista" />
+        </button>
+        <button
+          type="button"
+          class="horarios-visao"
+          [class.horarios-visao--ativa]="visao() === 'calendario'"
+          [attr.aria-pressed]="visao() === 'calendario'"
+          aria-label="Ver em calendário"
+          title="Ver em calendário"
+          (click)="trocarVisao('calendario')"
+        >
+          <app-icone nome="agenda" />
+        </button>
+      </div>
     </div>
 
     @if (carregando()) {
       <p class="lista-aviso" role="status">Carregando a agenda…</p>
+    } @else if (visao() === 'calendario') {
+      <div class="cartao horarios-mes" data-tour="calendario">
+        <div class="horarios-mes-topo">
+          <button
+            type="button"
+            class="horarios-mes-nav"
+            aria-label="Mês anterior"
+            (click)="mudarMes(-1)"
+          >
+            &#8249;
+          </button>
+          <span class="horarios-mes-titulo" aria-live="polite">{{ mesTitulo() }}</span>
+          <button
+            type="button"
+            class="horarios-mes-nav"
+            aria-label="Próximo mês"
+            (click)="mudarMes(1)"
+          >
+            &#8250;
+          </button>
+        </div>
+        <div class="horarios-mes-grade">
+          @for (nome of cabecalhoSemana; track nome) {
+            <span class="horarios-mes-semana" aria-hidden="true">{{ nome }}</span>
+          }
+          @for (casa of casasDoMes(); track $index) {
+            @if (!casa.data) {
+              <span class="horarios-mes-casa horarios-mes-casa--vazia"></span>
+            } @else if (casa.dia) {
+              <button
+                type="button"
+                class="horarios-mes-casa horarios-mes-casa--agenda"
+                [class.horarios-mes-casa--hoje]="casa.hoje"
+                [class.horarios-mes-casa--fds]="casa.fds"
+                [class.horarios-mes-casa--reservas]="casa.dia.reservas > 0"
+                [class.horarios-mes-casa--aberta]="aberto() === casa.data"
+                [attr.aria-pressed]="aberto() === casa.data"
+                [attr.aria-label]="casa.dia.rotulo + ': ' + casa.dia.selo + ', ' + casa.dia.detalhe"
+                (click)="alternar(casa.data)"
+              >
+                <span class="horarios-mes-numero">{{ casa.numero }}</span>
+                <span class="horarios-mes-bloco">
+                  <span class="horarios-mes-periodo">{{ casa.dia.periodo }}</span>
+                  <span class="horarios-mes-ocupacao">
+                    @if (casa.dia.reservas) {
+                      {{ casa.dia.reservas }} de {{ casa.dia.total }} reservados
+                    } @else {
+                      {{ casa.dia.total }} livres
+                    }
+                  </span>
+                  <span class="horarios-mes-barra" aria-hidden="true">
+                    <span [style.width.%]="casa.dia.ocupacao"></span>
+                  </span>
+                </span>
+              </button>
+            } @else {
+              <span
+                class="horarios-mes-casa"
+                [class.horarios-mes-casa--hoje]="casa.hoje"
+                [class.horarios-mes-casa--fds]="casa.fds"
+                [class.horarios-mes-casa--passado]="casa.passado"
+              >
+                <span class="horarios-mes-numero">{{ casa.numero }}</span>
+              </span>
+            }
+          }
+        </div>
+        @if (!diasDoMes()) {
+          <p class="horarios-mes-vazio">
+            @if (diasVisiveis().length) {
+              Nenhum dia da agenda neste mês, neste filtro.
+            } @else {
+              Nenhum horário aberto de hoje em diante. Use o + para abrir agenda.
+            }
+          </p>
+        }
+      </div>
+
+      @if (diaAberto(); as dia) {
+        <div class="cartao horarios-dia-cartao">
+          <div class="horarios-dia-cabeca">
+            <span class="horarios-dia-titulo">
+              <span class="lista-titulo">{{ dia.rotulo }}</span>
+              <button
+                type="button"
+                class="btn btn--secundario horarios-perigo horarios-btn-mini"
+                (click)="abrirCancelarDia(dia)"
+              >
+                Cancelar dia
+              </button>
+            </span>
+            <span class="lista-detalhe">{{ dia.selo }} · {{ dia.detalhe }}</span>
+          </div>
+          <ng-container *ngTemplateOutlet="faixasDoDia; context: { $implicit: dia }" />
+        </div>
+      }
     } @else if (!diasVisiveis().length) {
       <p class="lista-aviso" role="status">
         <app-icone nome="agenda" />
@@ -106,71 +226,7 @@
 
             @if (aberto() === dia.data) {
               <div class="horarios-detalhe">
-                @for (f of dia.faixas; track f.janela.id) {
-                  <div class="horarios-faixa">
-                    <div class="horarios-faixa-cabeca">
-                      <span class="lista-secundaria">
-                        <app-icone nome="relogio" />{{ f.faixa }}, {{ f.duracao }}
-                      </span>
-                      <span class="horarios-faixa-acoes">
-                        <button
-                          type="button"
-                          class="btn btn--secundario horarios-btn-p"
-                          (click)="abrirEdicao(f.janela)"
-                        >
-                          <app-icone nome="lapis" /> Editar faixa
-                        </button>
-                        <button
-                          type="button"
-                          class="btn btn--secundario horarios-perigo horarios-btn-p"
-                          (click)="abrirCancelarJanela(f.janela)"
-                        >
-                          Cancelar faixa
-                        </button>
-                      </span>
-                    </div>
-                    <ul class="horarios-chips">
-                      @for (h of f.horarios; track h.horario.id) {
-                        @if (h.incubado) {
-                          <li class="horarios-chip horarios-chip--reservado">
-                            <button
-                              type="button"
-                              class="horarios-chip-acao"
-                              [attr.title]="
-                                'Reservado por ' + h.incubado + ' — clique para remarcar'
-                              "
-                              (click)="abrirRemarcar(h.horario, f.janela)"
-                            >
-                              {{ h.hora }} · {{ h.incubado }}
-                            </button>
-                            <button
-                              type="button"
-                              class="horarios-tirar"
-                              [attr.aria-label]="
-                                'Tirar ' + h.rotulo + ', reservado por ' + h.incubado
-                              "
-                              (click)="abrirTirarHorario(h.horario, h.rotulo)"
-                            >
-                              &times;
-                            </button>
-                          </li>
-                        } @else {
-                          <li class="horarios-chip horarios-chip--livre">
-                            {{ h.hora }}
-                            <button
-                              type="button"
-                              class="horarios-tirar"
-                              [attr.aria-label]="'Tirar ' + h.rotulo"
-                              (click)="abrirTirarHorario(h.horario, h.rotulo)"
-                            >
-                              &times;
-                            </button>
-                          </li>
-                        }
-                      }
-                    </ul>
-                  </div>
-                }
+                <ng-container *ngTemplateOutlet="faixasDoDia; context: { $implicit: dia }" />
               </div>
             }
           </li>
@@ -323,3 +379,68 @@
     </div>
   </div>
 }
+
+<!-- As faixas de um dia: dentro do cartão da lista ou abaixo do calendário. -->
+<ng-template #faixasDoDia let-dia>
+  @for (f of dia.faixas; track f.janela.id) {
+    <div class="horarios-faixa">
+      <div class="horarios-faixa-cabeca">
+        <span class="lista-secundaria">
+          <app-icone nome="relogio" />{{ f.faixa }}, {{ f.duracao }}
+        </span>
+        <span class="horarios-faixa-acoes">
+          <button
+            type="button"
+            class="btn btn--secundario horarios-btn-p"
+            (click)="abrirEdicao(f.janela)"
+          >
+            <app-icone nome="lapis" /> Editar faixa
+          </button>
+          <button
+            type="button"
+            class="btn btn--secundario horarios-perigo horarios-btn-p"
+            (click)="abrirCancelarJanela(f.janela)"
+          >
+            Cancelar faixa
+          </button>
+        </span>
+      </div>
+      <ul class="horarios-chips">
+        @for (h of f.horarios; track h.horario.id) {
+          @if (h.incubado) {
+            <li class="horarios-chip horarios-chip--reservado">
+              <button
+                type="button"
+                class="horarios-chip-acao"
+                [attr.title]="'Reservado por ' + h.incubado + ' — clique para remarcar'"
+                (click)="abrirRemarcar(h.horario, f.janela)"
+              >
+                {{ h.hora }} · {{ h.incubado }}
+              </button>
+              <button
+                type="button"
+                class="horarios-tirar"
+                [attr.aria-label]="'Tirar ' + h.rotulo + ', reservado por ' + h.incubado"
+                (click)="abrirTirarHorario(h.horario, h.rotulo)"
+              >
+                &times;
+              </button>
+            </li>
+          } @else {
+            <li class="horarios-chip horarios-chip--livre">
+              {{ h.hora }}
+              <button
+                type="button"
+                class="horarios-tirar"
+                [attr.aria-label]="'Tirar ' + h.rotulo"
+                (click)="abrirTirarHorario(h.horario, h.rotulo)"
+              >
+                &times;
+              </button>
+            </li>
+          }
+        }
+      </ul>
+    </div>
+  }
+</ng-template>

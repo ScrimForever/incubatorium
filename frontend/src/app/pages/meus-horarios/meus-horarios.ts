@@ -10,6 +10,7 @@ import {
   input,
   signal,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -69,6 +70,32 @@ const ROTULO_FILTRO: Record<Filtro, string> = {
   todos: 'Todos',
 };
 
+type Visao = 'lista' | 'calendario';
+/** A visão escolhida vale para a próxima visita, só neste navegador. */
+const CHAVE_VISAO = 'meus-horarios:visao';
+const MESES = [
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro',
+];
+
+function visaoGuardada(): Visao {
+  try {
+    return localStorage.getItem(CHAVE_VISAO) === 'calendario' ? 'calendario' : 'lista';
+  } catch {
+    return 'lista';
+  }
+}
+
 const plural = (n: number, um: string, varios: string): string => `${n} ${n === 1 ? um : varios}`;
 const hhmm = (hora: string): string => hora.slice(0, 5);
 
@@ -80,7 +107,7 @@ const hhmm = (hora: string): string => hora.slice(0, 5);
 @Component({
   selector: 'app-meus-horarios',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, Painel, Icone],
+  imports: [NgTemplateOutlet, ReactiveFormsModule, RouterLink, Painel, Icone],
   templateUrl: './meus-horarios.html',
   styleUrl: './meus-horarios.scss',
 })
@@ -134,6 +161,16 @@ export class MeusHorarios implements OnInit {
           rotulo: rotuloData(data),
           janelas: janelas.length,
           reservas,
+          total: horarios.length,
+          /** Do começo da primeira faixa ao fim da última — o resumo da casa do calendário. */
+          periodo: `${hhmm(janelas.map((j) => j.hora_inicio).sort()[0])} – ${hhmm(
+            janelas
+              .map((j) => j.hora_fim)
+              .sort()
+              .at(-1) ?? '',
+          )}`,
+          /** Quanto do dia já está reservado, em % — a barra da casa do calendário. */
+          ocupacao: horarios.length ? Math.round((reservas / horarios.length) * 100) : 0,
           faixasResumo: [...janelas]
             .sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio))
             .map((janela) => `${hhmm(janela.hora_inicio)} às ${hhmm(janela.hora_fim)}`)
@@ -170,6 +207,57 @@ export class MeusHorarios implements OnInit {
       (dia) => filtro === 'todos' || (filtro === 'reservas' ? dia.reservas > 0 : !dia.reservas),
     );
   });
+
+  // --- visão de calendário ---
+
+  protected readonly visao = signal<Visao>(visaoGuardada());
+  /** Semana começando na segunda, como o calendário de Abrir agenda. */
+  protected readonly cabecalhoSemana = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+  /** Primeiro dia do mês visto, AAAA-MM-01. */
+  protected readonly mes = signal(this.hoje.slice(0, 8) + '01');
+
+  protected readonly mesTitulo = computed(() => {
+    const [ano, mes] = this.mes().split('-').map(Number);
+    return `${MESES[mes - 1]} de ${ano}`;
+  });
+
+  /** A grade do mês: casas vazias antes do dia 1, e o dia da agenda quando há. */
+  protected readonly casasDoMes = computed(() => {
+    const [ano, mes] = this.mes().split('-').map(Number);
+    const porData = new Map(this.diasVisiveis().map((dia) => [dia.data, dia]));
+    const vazias = (new Date(Date.UTC(ano, mes - 1, 1)).getUTCDay() + 6) % 7;
+    const total = new Date(Date.UTC(ano, mes, 0)).getUTCDate();
+    const casas = Array.from({ length: vazias }, () => ({
+      data: '',
+      numero: 0,
+      hoje: false,
+      passado: false,
+      fds: false,
+      dia: porData.get(''),
+    }));
+    for (let numero = 1; numero <= total; numero++) {
+      const data = `${this.mes().slice(0, 8)}${String(numero).padStart(2, '0')}`;
+      casas.push({
+        data,
+        numero,
+        hoje: data === this.hoje,
+        passado: data < this.hoje,
+        // A casa vazia antes do dia 1 conta: sábado e domingo são as duas últimas colunas.
+        fds: (vazias + numero - 1) % 7 >= 5,
+        dia: porData.get(data),
+      });
+    }
+    return casas;
+  });
+
+  protected readonly diasDoMes = computed(
+    () => this.casasDoMes().filter((casa) => casa.dia).length,
+  );
+
+  /** O dia escolhido no calendário, com as faixas mostradas abaixo da grade. */
+  protected readonly diaAberto = computed(() =>
+    this.diasVisiveis().find((dia) => dia.data === this.aberto()),
+  );
 
   // --- modais de edição ---
 
@@ -239,8 +327,28 @@ export class MeusHorarios implements OnInit {
     }
   }
 
+  /**
+   * O tour começa na lista e termina no calendário: o último passo troca a visão
+   * sozinho para mostrar a outra forma de ver. A escolha guardada não muda.
+   */
+  private readonly passosDoTour: readonly PassoTour[] = [
+    // Os passos da lista voltam para ela: o tour pode começar no calendário, e o
+    // Anterior do último passo sai dele.
+    ...TOUR.map((passo) => ({ ...passo, antes: () => this.visao.set('lista') })),
+    {
+      alvo: 'calendario',
+      titulo: 'Ou veja o mês inteiro',
+      texto:
+        'Os dois ícones ao lado dos filtros trocam entre <b>lista</b> e <b>calendário</b>. No calendário, clique num dia para ver as faixas logo abaixo.',
+      antes: () => {
+        this.visao.set('calendario');
+        this.aberto.set('');
+      },
+    },
+  ];
+
   protected abrirTour(): void {
-    this.tour.iniciar(TOUR);
+    this.tour.iniciar(this.passosDoTour);
   }
 
   /**
@@ -252,15 +360,34 @@ export class MeusHorarios implements OnInit {
       return;
     }
     this.tourConferido = true;
-    afterNextRender(() => this.tour.iniciarNaPrimeiraVisita('meus-horarios-lista', TOUR), {
-      injector: this.injector,
-    });
+    afterNextRender(
+      () => this.tour.iniciarNaPrimeiraVisita('meus-horarios-lista', this.passosDoTour),
+      {
+        injector: this.injector,
+      },
+    );
   }
 
   // --- ações sobre a agenda publicada ---
 
   protected trocarFiltro(filtro: Filtro): void {
     this.filtro.set(filtro);
+    this.aberto.set('');
+  }
+
+  protected trocarVisao(visao: Visao): void {
+    this.visao.set(visao);
+    try {
+      localStorage.setItem(CHAVE_VISAO, visao);
+    } catch {
+      // Sem armazenamento, a escolha vale só nesta visita.
+    }
+  }
+
+  protected mudarMes(passo: number): void {
+    const [ano, mes] = this.mes().split('-').map(Number);
+    const novo = new Date(Date.UTC(ano, mes - 1 + passo, 1)).toISOString().slice(0, 10);
+    this.mes.set(novo);
     this.aberto.set('');
   }
 

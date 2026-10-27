@@ -143,6 +143,32 @@ describe('MeusHorarios', () => {
     );
   });
 
+  it('o ícone de calendário mostra o mês, e o dia clicado abre as faixas abaixo', () => {
+    carregar();
+    (el().querySelector('[aria-label="Ver em calendário"]') as HTMLButtonElement).click();
+    (fixture.componentInstance as unknown as { mes: { set(v: string): void } }).mes.set(
+      '2099-01-01',
+    );
+    fixture.detectChanges();
+
+    expect(el().querySelector('.lista')).toBeNull();
+    expect(el().querySelector('.horarios-mes-titulo')?.textContent).toContain('Janeiro de 2099');
+    const dias = el().querySelectorAll<HTMLButtonElement>('.horarios-mes-casa--agenda');
+    expect(dias.length).toBe(2);
+    expect(dias[0].classList).toContain('horarios-mes-casa--reservas');
+
+    dias[1].click();
+    fixture.detectChanges();
+    expect(el().querySelector('.horarios-dia-cartao')?.textContent).toContain('Cancelar dia');
+    expect(el().querySelectorAll('.horarios-dia-cartao .horarios-faixa').length).toBe(1);
+  });
+
+  it('lembra a visão escolhida na próxima visita', () => {
+    carregar();
+    (el().querySelector('[aria-label="Ver em calendário"]') as HTMLButtonElement).click();
+    expect(localStorage.getItem('meus-horarios:visao')).toBe('calendario');
+  });
+
   it('remarcar fora da faixa não chega ao servidor', () => {
     carregar();
     (el().querySelector('.horarios-alternar') as HTMLButtonElement).click();
