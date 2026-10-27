@@ -54,10 +54,9 @@ describe('TourService', () => {
 
     expect(drive).toHaveBeenCalled();
     const config = configs[0];
-    expect(config.steps?.map((passo) => passo.element)).toEqual([
-      '[data-tour="um"]',
-      '[data-tour="dois"]',
-    ]);
+    // O alvo é uma função, procurada na hora em que o passo aparece.
+    const alvos = config.steps?.map((passo) => (passo.element as () => Element)());
+    expect(alvos?.map((el) => el.getAttribute('data-tour'))).toEqual(['um', 'dois']);
     expect(config.nextBtnText).toBe('Próximo');
     expect(config.progressText).toBe('{{current}} de {{total}}');
   });
@@ -112,5 +111,21 @@ describe('TourService', () => {
     service.iniciar(PASSOS);
     service.encerrar();
     expect(destroy).toHaveBeenCalled();
+  });
+
+  it('passo com antes muda a tela e só então anda', () => {
+    let visao = 'lista';
+    service.iniciar([
+      PASSOS[0],
+      { alvo: 'tres', titulo: 'Três', texto: 'Outra visão', antes: () => (visao = 'calendario') },
+    ]);
+    const config = configs[0];
+    expect(config.steps?.length).toBe(2);
+
+    const moveNext = jasmine.createSpy('moveNext');
+    const tour = { moveNext } as unknown as Driver;
+    config.steps?.[0].popover?.onNextClick?.(undefined, {}, { driver: tour } as never);
+    expect(visao).toBe('calendario');
+    expect(moveNext).toHaveBeenCalled();
   });
 });

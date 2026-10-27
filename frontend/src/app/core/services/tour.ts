@@ -1,11 +1,16 @@
-import { Injectable, InjectionToken, inject } from '@angular/core';
-import { Config, Driver, driver } from 'driver.js';
+import { ApplicationRef, Injectable, InjectionToken, inject } from '@angular/core';
+import { Config, Driver, DriverHook, driver } from 'driver.js';
 
 /** Um passo do tour: o alvo é o valor do atributo `data-tour` na tela. */
 export interface PassoTour {
   readonly alvo: string;
   readonly titulo: string;
   readonly texto: string;
+  /**
+   * Muda a tela antes de o passo aparecer (ex.: trocar de visão). O alvo só
+   * existe depois disso, então o passo não é conferido na abertura do tour.
+   */
+  readonly antes?: () => void;
 }
 
 /** A fábrica do Driver.js — um token para o spec trocar a biblioteca por um dublê. */
@@ -25,11 +30,26 @@ const PREFIXO_VISTO = 'tour-visto:';
 @Injectable({ providedIn: 'root' })
 export class TourService {
   private readonly criar = inject(DRIVER);
+  private readonly app = inject(ApplicationRef);
   private ativo: Driver | null = null;
 
   /** Abre o tour. Passos cujo alvo não está na tela agora são pulados. */
   iniciar(passos: readonly PassoTour[]): void {
-    const visiveis = passos.filter((passo) => document.querySelector(seletor(passo.alvo)));
+    // O primeiro passo arruma a tela antes da conferência: o que ele mostra conta,
+    // e só existe depois de o Angular desenhar.
+    const antes = passos[0]?.antes;
+    if (antes) {
+      antes();
+      this.depoisDeDesenhar(() => this.abrir(passos));
+      return;
+    }
+    this.abrir(passos);
+  }
+
+  private abrir(passos: readonly PassoTour[]): void {
+    const visiveis = passos.filter(
+      (passo) => passo.antes || document.querySelector(seletor(passo.alvo)),
+    );
     if (!visiveis.length) {
       return;
     }
@@ -44,9 +64,15 @@ export class TourService {
       stagePadding: 6,
       stageRadius: 10,
       overlayOpacity: 0.55,
-      steps: visiveis.map((passo) => ({
-        element: seletor(passo.alvo),
-        popover: { title: passo.titulo, description: passo.texto },
+      steps: visiveis.map((passo, i) => ({
+        // Função, e não seletor: o alvo é procurado na hora, depois do antes.
+        element: () => document.querySelector(seletor(passo.alvo)) as Element,
+        popover: {
+          title: passo.titulo,
+          description: passo.texto,
+          onNextClick: this.comAntes(visiveis[i + 1], (tour) => tour.moveNext()),
+          onPrevClick: this.comAntes(visiveis[i - 1], (tour) => tour.movePrevious()),
+        },
       })),
       // Fecha só pelo ×, ou pelo "Concluir" do último passo: clique fora e Esc
       // largavam o tour no meio sem querer. As setas do teclado seguem navegando.
@@ -74,6 +100,33 @@ export class TourService {
   /** Fecha o tour aberto — a tela chama ao sair, para o véu não ficar no ar. */
   encerrar(): void {
     this.ativo?.destroy();
+  }
+
+  /**
+   * Clique de Próximo/Anterior: sem antes no passo de destino, só anda; com ele,
+   * muda a tela e espera o Angular desenhar antes de andar.
+   */
+  private comAntes(
+    destino: PassoTour | undefined,
+    andar: (tour: Driver) => void,
+  ): DriverHook | undefined {
+    return (_el, _passo, { driver: tour }) => {
+      if (!destino?.antes) {
+        andar(tour);
+        return;
+      }
+      destino.antes();
+      this.depoisDeDesenhar(() => andar(tour));
+    };
+  }
+
+  /**
+   * O antes muda signals, e o alvo novo só existe depois do desenho: desenha já,
+   * em vez de esperar — se nada mudou, não haveria próximo desenho para esperar.
+   */
+  private depoisDeDesenhar(fazer: () => void): void {
+    this.app.tick();
+    fazer();
   }
 
   jaViu(tela: string): boolean {
