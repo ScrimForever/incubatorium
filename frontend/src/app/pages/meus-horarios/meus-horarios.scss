@@ -1,0 +1,189 @@
+/* Layout local da listagem. Lista, selos, chips, botões e modal vêm do styles.scss. */
+
+.horarios-titulo {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px 16px;
+}
+
+.horarios-titulo-texto {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.horarios-titulo .btn {
+  flex: none;
+}
+
+/* O + redondo de abrir agenda, antes do título: a ação principal da tela. */
+.horarios-novo {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--azul);
+  color: white;
+  font-size: 26px;
+  font-weight: 300;
+  line-height: 1;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(36, 105, 179, 0.35);
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
+}
+
+.horarios-novo:hover {
+  transform: scale(1.06);
+  box-shadow: 0 6px 16px rgba(36, 105, 179, 0.45);
+}
+
+.horarios-aviso {
+  margin: 18px 0 0;
+}
+
+/* O dia é um cartão da lista; aberto, as faixas aparecem dentro dele. */
+.lista-item.horarios-dia {
+  display: block;
+  padding: 0;
+  cursor: default;
+}
+
+.lista-item.horarios-dia:hover {
+  background: var(--fundo-cartao);
+}
+
+.horarios-dia-linha {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px 18px;
+  padding: 16px 18px;
+  border-radius: 10px;
+  transition: background-color 0.15s ease;
+}
+
+.horarios-dia-linha:hover {
+  background: var(--fundo-app);
+}
+
+.horarios-dia--aberto .horarios-dia-linha {
+  border-radius: 10px 10px 0 0;
+}
+
+/* "Cancelar dia" na mesma linha do nome do dia, à esquerda. */
+.horarios-dia-titulo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.horarios-btn-mini {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.horarios-alternar {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--borda-controle);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+/* Botão esticado: a área de clique da seta é a linha inteira do dia. */
+.horarios-alternar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+}
+
+/* O "Cancelar dia" fica por cima da área esticada. */
+.horarios-dia-titulo .btn {
+  position: relative;
+  z-index: 1;
+}
+
+.horarios-alternar:hover {
+  background: var(--fundo-cartao);
+  color: var(--texto);
+}
+
+.horarios-alternar app-icone {
+  transition: transform 0.2s;
+}
+
+.horarios-dia--aberto .horarios-alternar app-icone {
+  transform: rotate(90deg);
+}
+
+.horarios-detalhe {
+  display: grid;
+  gap: 10px;
+  padding: 14px 18px 18px;
+  border-top: 1px solid var(--borda-input);
+}
+
+/* A faixa publicada tem a mesma caixa da faixa de Abrir agenda: é a mesma coisa. */
+.horarios-faixa {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--borda-input);
+  border-radius: 10px;
+  background: var(--fundo-app);
+}
+
+.horarios-faixa-cabeca {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.horarios-faixa-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .horarios-dia-linha {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .horarios-dia-linha .lista-meta {
+    grid-column: 1;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .horarios-alternar {
+    grid-row: 1;
+    grid-column: 2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .horarios-alternar app-icone,
+  .horarios-novo {
+    transition: none;
+  }
+}

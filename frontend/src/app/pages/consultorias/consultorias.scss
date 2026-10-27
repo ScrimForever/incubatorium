@@ -1,0 +1,88 @@
+/* Layout local. Lista, filtros, selos, botões e modal vêm do styles.scss. */
+
+.consultorias-filtro-bloqueado {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.consultorias-dia {
+  margin: 22px 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--texto-suave);
+}
+
+.consultorias-dia:first-of-type {
+  margin-top: 4px;
+}
+
+.lista-aviso a {
+  color: var(--azul);
+}
+
+.consultorias-modal {
+  max-width: 540px;
+}
+
+.consultorias-dados {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 18px;
+}
+
+.consultorias-dados dt {
+  color: var(--texto-suave);
+}
+
+.consultorias-dados dd {
+  overflow-wrap: anywhere;
+}
+
+.consultorias-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.consultorias-bloqueados {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 12px 14px;
+  border: 1px dashed var(--borda);
+  border-radius: 10px;
+  list-style: none;
+  font-size: 13px;
+  color: var(--texto-suave);
+}
+
+.consultorias-bloqueados li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.consultorias-remarcar {
+  display: grid;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.consultorias-campos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.consultorias-campos .form-group {
+  margin-bottom: 0;
+}
+
+/* Mensagem vazia não ocupa espaço: o elemento existe para o leitor de tela. */
+.consultorias-campos .field-error:empty {
+  display: none;
+}

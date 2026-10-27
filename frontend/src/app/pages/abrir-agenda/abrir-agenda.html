@@ -1,0 +1,225 @@
+@if (user(); as u) {
+  <app-painel [user]="u" ativo="Meus horários">
+    <a class="btn btn--secundario horarios-btn-p horarios-voltar" [routerLink]="voltar">
+      ← Meus horários
+    </a>
+
+    <div class="horarios-titulo">
+      <div>
+        <h1>Abrir agenda</h1>
+        <p class="painel-subtitulo">
+          Escolha as datas e as faixas em que vai atender. Ao publicar, os incubados recebem um
+          aviso por e-mail.
+        </p>
+      </div>
+      <button type="button" class="btn btn--secundario horarios-btn-p" (click)="abrirTour()">
+        <app-icone nome="ajuda" /> Como funciona
+      </button>
+    </div>
+
+    @if (mensagemErro()) {
+      <div class="error-message" role="alert"><app-icone nome="erro" />{{ mensagemErro() }}</div>
+    }
+
+    <section class="cartao horarios-abrir" aria-label="Datas e faixas da agenda">
+      <div class="horarios-passo">
+        <span class="rotulo">1. Datas</span>
+        <div class="horarios-datas-painel">
+          <app-calendario-periodo
+            data-tour="calendario"
+            [(de)]="de"
+            [(ate)]="ate"
+            [min]="hoje"
+            [marcadas]="marcadas()"
+          />
+
+          <div class="horarios-datas-lado">
+            <div class="horarios-selecao" data-tour="selecao">
+              <span class="horarios-mini-rotulo">Seleção</span>
+              <p class="horarios-escolhido" aria-live="polite">{{ escolhido() }}</p>
+              @if (ehPeriodo()) {
+                <div class="horarios-semana" role="group" aria-label="Dias da semana do período">
+                  @for (d of diasSemana; track d.dia) {
+                    <button
+                      type="button"
+                      class="horarios-dia-semana"
+                      [class.horarios-dia-semana--ativo]="diasMarcados().includes(d.dia)"
+                      [attr.aria-pressed]="diasMarcados().includes(d.dia)"
+                      (click)="alternarDia(d.dia)"
+                    >
+                      {{ d.rotulo }}
+                    </button>
+                  }
+                </div>
+              }
+              <p id="periodo-erro" class="field-error" role="alert">{{ erroPeriodo() }}</p>
+              <button
+                type="button"
+                class="btn btn--azul horarios-btn-p"
+                [disabled]="!de()"
+                (click)="adicionarDatas()"
+              >
+                {{ rotuloAdicionar() }}
+              </button>
+            </div>
+
+            <div class="horarios-escolhidas" data-tour="datas">
+              <div class="horarios-escolhidas-topo">
+                <span class="horarios-mini-rotulo">
+                  Datas da agenda
+                  @if (rotulosDatas().length) {
+                    <span class="horarios-contador">{{ rotulosDatas().length }}</span>
+                  }
+                </span>
+                @if (rotulosDatas().length > 1) {
+                  <button
+                    type="button"
+                    class="btn btn--secundario horarios-perigo horarios-btn-p"
+                    (click)="limparDatas()"
+                  >
+                    Tirar todas
+                  </button>
+                }
+              </div>
+              @if (rotulosDatas().length) {
+                <ul class="horarios-chips horarios-chips--datas" aria-label="Datas escolhidas">
+                  @for (item of rotulosDatas(); track item.data) {
+                    <li class="horarios-chip horarios-chip--data" [attr.title]="item.rotulo">
+                      {{ item.curto }}
+                      <button
+                        type="button"
+                        class="horarios-tirar"
+                        [attr.aria-label]="'Tirar ' + item.rotulo"
+                        (click)="tirarData(item.data)"
+                      >
+                        &times;
+                      </button>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="horarios-dica">
+                  Nenhuma data ainda. As faixas do passo 2 valem para todas as datas daqui.
+                </p>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="horarios-passo">
+        <span class="rotulo">2. Faixas de atendimento</span>
+        @for (bloco of blocos.controls; track bloco; let i = $index) {
+          <div
+            class="horarios-bloco"
+            [formGroup]="bloco"
+            [attr.data-tour]="i === 0 ? 'faixa' : null"
+          >
+            <div class="horarios-campos">
+              <div class="form-group">
+                <label [for]="'ini-' + i">Início</label>
+                <input
+                  [id]="'ini-' + i"
+                  type="time"
+                  formControlName="hora_inicio"
+                  [class.campo-invalido]="!!errosFaixas()[i].inicio"
+                />
+                <span class="field-error">{{ errosFaixas()[i].inicio }}</span>
+              </div>
+              <div class="form-group">
+                <label [for]="'fim-' + i">Fim</label>
+                <input
+                  [id]="'fim-' + i"
+                  type="time"
+                  formControlName="hora_fim"
+                  [class.campo-invalido]="!!errosFaixas()[i].fim"
+                />
+                <span class="field-error">{{ errosFaixas()[i].fim }}</span>
+              </div>
+              <div class="form-group">
+                <label [for]="'dur-' + i">Duração (min)</label>
+                <input
+                  [id]="'dur-' + i"
+                  type="number"
+                  min="10"
+                  step="5"
+                  formControlName="duracao_minutos"
+                  [class.campo-invalido]="!!errosFaixas()[i].duracao"
+                />
+                <span class="field-error">{{ errosFaixas()[i].duracao }}</span>
+              </div>
+              @if (blocos.length > 1) {
+                <button
+                  type="button"
+                  class="btn btn--secundario horarios-perigo horarios-tirar-bloco"
+                  (click)="tirarBloco(i)"
+                >
+                  Tirar faixa
+                </button>
+              }
+            </div>
+            @if (errosFaixas()[i].sobreposicao) {
+              <p class="field-error" role="alert">{{ errosFaixas()[i].sobreposicao }}</p>
+            }
+            @if (previa()[i]; as p) {
+              @if (p.inicios.length) {
+                <ul class="horarios-chips" aria-label="Prévia dos horários">
+                  @for (inicio of p.inicios; track inicio) {
+                    <li class="horarios-chip horarios-chip--livre">
+                      {{ inicio }}
+                      <button
+                        type="button"
+                        class="horarios-tirar"
+                        [attr.aria-label]="'Tirar ' + inicio + ' da prévia'"
+                        (click)="tirarDaPrevia(i, inicio)"
+                      >
+                        &times;
+                      </button>
+                    </li>
+                  }
+                </ul>
+              }
+              @if (p.tirados) {
+                <p class="horarios-dica">
+                  {{ p.tirados }} horário(s) tirado(s) desta faixa.
+                  <button
+                    type="button"
+                    class="btn btn--secundario horarios-btn-p"
+                    (click)="restaurarPrevia(i)"
+                  >
+                    Restaurar
+                  </button>
+                </p>
+              }
+            }
+          </div>
+        }
+        <button type="button" class="btn btn--secundario" (click)="adicionarBloco()">
+          Adicionar faixa
+        </button>
+      </div>
+
+      <div class="horarios-rodape" data-tour="publicar">
+        @if (pendencia(); as falta) {
+          <span class="lista-detalhe horarios-pendencia">{{ falta }}</span>
+        } @else {
+          <span class="lista-detalhe horarios-resumo">{{ resumoPrevia() }}</span>
+        }
+        <a class="btn btn--secundario" [routerLink]="voltar">Cancelar</a>
+        <button
+          type="button"
+          class="btn btn--azul"
+          [disabled]="!podePublicar()"
+          (click)="publicar()"
+        >
+          <app-icone nome="relogio" />
+          {{ salvando() ? 'Publicando...' : 'Publicar agenda' }}
+        </button>
+      </div>
+    </section>
+  </app-painel>
+} @else {
+  <main id="conteudo" tabindex="-1">
+    <p class="painel-carregando">Carregando...</p>
+  </main>
+}

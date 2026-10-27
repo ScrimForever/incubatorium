@@ -112,6 +112,21 @@ describe('errorInterceptor', () => {
     expect(erro.message).toBe(motivo);
   });
 
+  it('422 do schema (detail em lista) mostra a frase da regra do projeto', () => {
+    const erro = capturar(422, {
+      detail: [{ type: 'value_error', loc: ['body'], msg: 'Value error, Há datas repetidas.' }],
+    });
+    expect(erro.code).toBe('UNPROCESSABLE');
+    expect(erro.message).toBe('Há datas repetidas.');
+  });
+
+  it('422 do schema com regra do Pydantic (em inglês) vira aviso genérico', () => {
+    const erro = capturar(422, {
+      detail: [{ type: 'greater_than', msg: 'Input should be greater than 0' }],
+    });
+    expect(erro.message).toContain('recusou um dos valores');
+  });
+
   it('lê o { mensagem } das recusas de negócio do backend', () => {
     const erro = capturar(409, { mensagem: 'Não é possível alterar anexos no estado atual.' });
     expect(erro.code).toBe('CONFLICT');

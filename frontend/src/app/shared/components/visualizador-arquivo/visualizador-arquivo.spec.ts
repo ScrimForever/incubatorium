@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { Anexo } from '../../../core/models/questionario';
-import { VisualizadorArquivo } from './visualizador-arquivo';
+import { MAXIMO_LINHAS_CSV, VisualizadorArquivo } from './visualizador-arquivo';
 
 const anexo = (nome: string, tipo: string): Anexo => ({ nome, tipo, tamanho: 2048 });
 
@@ -54,6 +54,44 @@ describe('VisualizadorArquivo', () => {
     const pre: HTMLElement | null = fixture.nativeElement.querySelector('.visu-texto');
     expect(pre?.textContent).toBe('linha um');
     expect(fixture.nativeElement.querySelector('.visu-quadro')).toBeNull();
+  });
+
+  /** Espera o `Blob.text()` resolver e redesenha. */
+  async function depoisDeLer(): Promise<void> {
+    await new Promise((pronto) => setTimeout(pronto, 20));
+    await fixture.whenStable();
+    fixture.detectChanges();
+  }
+
+  it('csv vira tabela, com a primeira linha de cabecalho', async () => {
+    const csv = 'mes;receita\n1;8.000,50\n2;9.100,00\n';
+    abrir(anexo('fluxo.csv', 'text/csv'), new Blob([csv], { type: 'text/csv' }));
+    await depoisDeLer();
+
+    const raiz: HTMLElement = fixture.nativeElement;
+    const cabecalho = Array.from(raiz.querySelectorAll('.visu-tabela th')).map(
+      (th) => th.textContent,
+    );
+    const linhas = Array.from(raiz.querySelectorAll('.visu-tabela tbody tr')).map((tr) =>
+      Array.from(tr.querySelectorAll('td')).map((td) => td.textContent),
+    );
+    expect(cabecalho).toEqual(['mes', 'receita']);
+    expect(linhas).toEqual([
+      ['1', '8.000,50'],
+      ['2', '9.100,00'],
+    ]);
+    expect(texto(raiz.textContent ?? '')).toContain('Planilha CSV');
+    expect(raiz.querySelector('.visu-texto')).toBeNull();
+  });
+
+  it('csv grande mostra so o comeco e avisa quantas linhas ficaram de fora', async () => {
+    const linhas = Array.from({ length: MAXIMO_LINHAS_CSV + 5 }, (_, i) => `${i},x`).join('\n');
+    abrir(anexo('grande.csv', ''), new Blob([`n,v\n${linhas}`]));
+    await depoisDeLer();
+
+    const raiz: HTMLElement = fixture.nativeElement;
+    expect(raiz.querySelectorAll('.visu-tabela tbody tr').length).toBe(MAXIMO_LINHAS_CSV);
+    expect(texto(raiz.textContent ?? '')).toContain('Mais 5 linhas no arquivo');
   });
 
   it('tipo que o navegador nao desenha fica so com o recado e o botao', () => {

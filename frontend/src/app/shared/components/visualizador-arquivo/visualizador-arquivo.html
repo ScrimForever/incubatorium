@@ -40,6 +40,37 @@
               @case ('texto') {
                 <pre class="visu-texto">{{ texto() }}</pre>
               }
+              @case ('csv') {
+                <div class="visu-tabela-moldura">
+                  @if (cabecalhoCsv().length) {
+                    <table class="visu-tabela">
+                      <thead>
+                        <tr>
+                          @for (celula of cabecalhoCsv(); track $index) {
+                            <th scope="col">{{ celula }}</th>
+                          }
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (linha of linhasCsv(); track $index) {
+                          <tr>
+                            @for (celula of linha; track $index) {
+                              <td>{{ celula }}</td>
+                            }
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                    @if (linhasOcultasCsv(); as ocultas) {
+                      <p class="visu-tabela-aviso">
+                        Mais {{ ocultas }} linhas no arquivo. Baixe para ver tudo.
+                      </p>
+                    }
+                  } @else {
+                    <p class="visu-tabela-aviso">O arquivo está vazio.</p>
+                  }
+                </div>
+              }
               @default {
                 <!-- PDF: o leitor do próprio navegador. -->
                 <iframe class="visu-quadro" [src]="urlRecurso()" [title]="a.nome"></iframe>

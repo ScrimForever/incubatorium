@@ -20,6 +20,14 @@ export const APP_ROUTES = {
    *  vezes quebra o e-mail (`@` vira `%2540`). */
   planoDe: (email: string): string => `/planos-de-negocio/${email}`,
   usuarios: '/usuarios',
+  /** Agenda de consultoria do consultor: abrir, editar e cancelar horários. */
+  meusHorarios: '/meus-horarios',
+  /** O formulário de abrir agenda; publicar volta para Meus horários. */
+  abrirAgenda: '/meus-horarios/abrir',
+  /** As consultorias marcadas do consultor (horários que um incubado reservou). */
+  consultorias: '/consultorias',
+  /** Lado do incubado: horários livres para reservar e as reservas dele. */
+  agendarConsultoria: '/agendar-consultoria',
   dashboard: (role: Role): string => `/dashboard/${role}`,
 } as const;
 

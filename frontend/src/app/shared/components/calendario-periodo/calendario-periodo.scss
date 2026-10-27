@@ -1,0 +1,119 @@
+:host {
+  display: block;
+}
+
+.cal {
+  width: 100%;
+  max-width: 272px;
+  padding: 10px 10px 8px;
+  border: 1px solid var(--borda-input);
+  border-radius: 10px;
+  background: var(--fundo-cartao);
+}
+
+.cal-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.cal-titulo {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--texto);
+}
+
+.cal-nav {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--texto);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cal-nav:hover:not(:disabled) {
+  background: var(--fundo-app);
+}
+
+.cal-nav:disabled {
+  color: var(--borda);
+  cursor: not-allowed;
+}
+
+.cal-grade {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  row-gap: 2px;
+}
+
+.cal-semana {
+  padding: 2px 0 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--texto-suave);
+}
+
+/* Altura fixa: com `aspect-ratio` a célula crescia junto com a coluna. */
+.cal-dia {
+  position: relative;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--texto);
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.cal-dia:hover:not(:disabled) {
+  background: var(--fundo-app);
+}
+
+.cal-dia:disabled {
+  color: var(--borda);
+  cursor: not-allowed;
+}
+
+/* Data já na lista: um ponto verde embaixo, como o "livre" da agenda. */
+.cal-dia--marcada::after {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--nota-5-forte);
+}
+
+/* O meio do período é uma faixa contínua; as pontas, azul cheio. */
+.cal-dia--dentro {
+  border-radius: 0;
+  background: var(--azul-claro);
+  color: var(--azul);
+}
+
+.cal-dia--inicio,
+.cal-dia--fim,
+.cal-dia--inicio:hover:not(:disabled),
+.cal-dia--fim:hover:not(:disabled) {
+  background: var(--azul);
+  color: white;
+  font-weight: 600;
+}
+
+.cal-dia--inicio.cal-dia--marcada::after,
+.cal-dia--fim.cal-dia--marcada::after {
+  background: white;
+}

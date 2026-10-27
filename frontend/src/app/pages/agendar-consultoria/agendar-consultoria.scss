@@ -1,0 +1,76 @@
+/* Layout local. Lista, filtros, selos, botões e modal vêm do styles.scss. */
+
+.agendar-aviso {
+  margin-top: 16px;
+}
+
+.agendar-titulo {
+  margin: 28px 0 12px;
+  font-size: 17px;
+  color: var(--texto);
+}
+
+.agendar-reserva {
+  grid-template-columns: minmax(0, 1fr) auto;
+  cursor: default;
+}
+
+.agendar-reserva:hover,
+.agendar-dia:hover {
+  border-color: var(--borda-input);
+  background: var(--fundo-cartao);
+}
+
+.agendar-btn-p {
+  padding: 7px 14px;
+  font-size: 13px;
+}
+
+.agendar-dia {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  cursor: default;
+}
+
+.agendar-vagas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+}
+
+/* Horário livre: o verde é o mesmo da agenda do consultor. */
+.agendar-vaga {
+  padding: 7px 14px;
+  border: 1px solid var(--nota-5-borda);
+  border-radius: 999px;
+  background: var(--nota-5-fundo);
+  color: var(--nota-5-forte);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+
+.agendar-vaga:hover {
+  background: var(--nota-5-forte);
+  color: white;
+}
+
+.agendar-dados {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 18px;
+}
+
+.agendar-dados dt {
+  color: var(--texto-suave);
+}
+
+.agendar-dados dd {
+  overflow-wrap: anywhere;
+}

@@ -70,8 +70,8 @@ describe('Dashboard', () => {
       fixture.nativeElement.querySelectorAll('.dash-pendentes li'),
     );
 
-    // Meu plano não entra: o módulo já existe.
-    expect(itens.length).toBe(2);
+    // Meu plano e Consultorias não entram: os módulos já existem.
+    expect(itens.length).toBe(1);
     expect(itens.map((li) => li.textContent)).toContain(jasmine.stringContaining('Equipe'));
   });
 

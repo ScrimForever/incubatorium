@@ -1,0 +1,198 @@
+/* Layout local de Abrir agenda. Chips, campos e botões vêm do styles.scss. */
+
+.horarios-voltar {
+  margin-bottom: 14px;
+}
+
+.horarios-abrir {
+  margin-top: 20px;
+  display: grid;
+  gap: 22px;
+}
+
+.horarios-abrir h2 {
+  margin-bottom: 0;
+}
+
+.horarios-passo {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.horarios-passo .rotulo {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--texto);
+}
+
+.horarios-dica {
+  font-size: 13px;
+  color: var(--texto-suave);
+}
+
+.horarios-bloco {
+  width: 100%;
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--borda-input);
+  border-radius: 10px;
+  background: var(--fundo-app);
+}
+
+.horarios-tirar-bloco {
+  justify-self: start;
+  align-self: end;
+}
+
+.horarios-rodape {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  padding-top: 18px;
+  border-top: 1px solid var(--borda-input);
+}
+
+/* Passo 1: calendário à esquerda; seleção e datas escolhidas à direita. */
+.horarios-datas-painel {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 272px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 640px) {
+  .horarios-datas-painel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.horarios-datas-lado {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.horarios-selecao,
+.horarios-escolhidas {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--borda-input);
+  border-radius: 10px;
+}
+
+.horarios-selecao {
+  background: var(--fundo-app);
+}
+
+.horarios-mini-rotulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--texto-suave);
+}
+
+.horarios-contador {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--azul);
+  color: white;
+  font-size: 11px;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.horarios-escolhido {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--texto);
+}
+
+.horarios-escolhido::first-letter {
+  text-transform: uppercase;
+}
+
+.horarios-escolhidas-topo {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.horarios-chips--datas {
+  width: 100%;
+  max-height: 132px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 1px 4px 1px 1px;
+  gap: 6px;
+}
+
+.horarios-chip--data {
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.horarios-dia-semana {
+  min-width: 40px;
+  padding: 4px 8px;
+  border: 1px solid var(--borda);
+  border-radius: 6px;
+  background: var(--fundo-cartao);
+  color: var(--texto-suave);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.horarios-dia-semana--ativo {
+  border-color: var(--azul);
+  background: var(--azul);
+  color: white;
+}
+
+.horarios-semana {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Mensagem vazia não ocupa espaço: o parágrafo existe para o leitor de tela. */
+.horarios-passo .field-error:empty {
+  display: none;
+}
+
+.horarios-pendencia {
+  margin-right: auto;
+  color: var(--erro-texto);
+}
+
+.horarios-resumo {
+  margin-right: auto;
+}
+
+.horarios-titulo {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px 16px;
+}
+
+.horarios-titulo .btn {
+  flex: none;
+}
