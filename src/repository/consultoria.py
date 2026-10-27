@@ -138,7 +138,7 @@ class ConsultoriaRepository(Repositorio):
         return resultado.rowcount == 1
 
     async def excluir_horario(self, horario: ConsultoriaHorario) -> None:
-        horario.janela.horarios.remove(horario)
+        await self.db.delete(horario)
         await self.db.flush()
 
     async def listar_livres(
