@@ -104,32 +104,31 @@ describe('MeusHorarios', () => {
   const textos = (seletor: string): string[] =>
     Array.from(el().querySelectorAll(seletor)).map((e) => (e.textContent ?? '').trim());
 
-  it('lista um item por dia, com o selo de reservas e o detalhe', () => {
+  it('mostra os dias do mês na faixa e o primeiro já aberto, com as faixas', () => {
     carregar();
-    const dias = textos('.horarios-dia-linha');
+    const dias = textos('.faixa-dia');
     expect(dias.length).toBe(2);
-    expect(dias[0]).toContain('1 reservado');
-    expect(dias[0]).toContain('2 horários · 1 livre');
-    expect(dias[1]).toContain('Sem reserva');
-  });
+    expect(dias[0]).toContain('1 reserva');
+    expect(dias[1]).toContain('1 livre');
 
-  it('conta os dias em cada filtro e filtra os com reserva', () => {
-    carregar();
-    expect(textos('.filtro')).toEqual(['Com reserva (1)', 'Sem reserva (1)', 'Todos (2)']);
-
-    (el().querySelectorAll('.filtro')[0] as HTMLButtonElement).click();
-    fixture.detectChanges();
-    expect(textos('.horarios-dia-linha .lista-titulo').length).toBe(1);
-  });
-
-  it('a seta abre as faixas do dia dentro do cartão', () => {
-    carregar();
-    expect(el().querySelector('.horarios-detalhe')).toBeNull();
-
-    (el().querySelector('.horarios-alternar') as HTMLButtonElement).click();
-    fixture.detectChanges();
+    const cartao = textos('.horarios-dia-linha');
+    expect(cartao.length).toBe(1);
+    expect(cartao[0]).toContain('1 reservado');
+    expect(cartao[0]).toContain('2 horários · 1 livre');
     expect(el().querySelector('.horarios-detalhe')).not.toBeNull();
-    expect(el().querySelector('.horarios-alternar')?.getAttribute('aria-expanded')).toBe('true');
+    expect(el().querySelector('.horarios-alternar')).toBeNull();
+  });
+
+  it('o dia clicado na faixa troca o cartão', () => {
+    carregar();
+    (el().querySelectorAll('.faixa-dia')[1] as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(textos('.horarios-dia-linha')[0]).toContain('Sem reserva');
+  });
+
+  it('tem uma aba por mês da agenda, só com o nome', () => {
+    carregar();
+    expect(textos('.filtro')).toEqual(['jan/99']);
   });
 
   it('vindo de Abrir agenda, avisa o sucesso e tira o parâmetro da URL', () => {
@@ -159,8 +158,8 @@ describe('MeusHorarios', () => {
 
     dias[1].click();
     fixture.detectChanges();
-    expect(el().querySelector('.horarios-dia-cartao')?.textContent).toContain('Cancelar dia');
-    expect(el().querySelectorAll('.horarios-dia-cartao .horarios-faixa').length).toBe(1);
+    expect(el().querySelector('#horarios-dia-escolhido')?.textContent).toContain('Cancelar dia');
+    expect(el().querySelectorAll('#horarios-dia-escolhido .horarios-faixa').length).toBe(1);
   });
 
   it('lembra a visão escolhida na próxima visita', () => {
@@ -171,8 +170,7 @@ describe('MeusHorarios', () => {
 
   it('remarcar fora da faixa não chega ao servidor', () => {
     carregar();
-    (el().querySelector('.horarios-alternar') as HTMLButtonElement).click();
-    fixture.detectChanges();
+    // O primeiro dia do mês já vem aberto: o chip reservado está à vista.
     (el().querySelector('.horarios-chip-acao') as HTMLButtonElement).click();
     fixture.detectChanges();
 

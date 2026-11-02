@@ -1,0 +1,36 @@
+<div class="faixa">
+  <button
+    type="button"
+    class="faixa-seta faixa-seta--voltar"
+    aria-label="Dias anteriores"
+    (click)="rolar(trilho, -1)"
+  >
+    <app-icone nome="seta-direita" />
+  </button>
+  <ul
+    #trilho
+    class="faixa-trilho"
+    [attr.aria-label]="rotulo()"
+    (wheel)="rolarComRoda(trilho, $event)"
+  >
+    @for (dia of dias(); track dia.data) {
+      <li>
+        <button
+          type="button"
+          class="faixa-dia"
+          [class.faixa-dia--ativo]="selecionado() === dia.data"
+          [attr.aria-pressed]="selecionado() === dia.data"
+          [attr.aria-label]="dia.rotulo"
+          (click)="clicar(dia.data, $event)"
+        >
+          <span>{{ dia.semana }}</span>
+          <span class="faixa-numero">{{ dia.numero }}</span>
+          <span class="faixa-detalhe">{{ dia.detalhe }}</span>
+        </button>
+      </li>
+    }
+  </ul>
+  <button type="button" class="faixa-seta" aria-label="Próximos dias" (click)="rolar(trilho, 1)">
+    <app-icone nome="seta-direita" />
+  </button>
+</div>

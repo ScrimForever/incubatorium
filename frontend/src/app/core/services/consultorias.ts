@@ -423,3 +423,46 @@ export function rotuloData(data: string): string {
     timeZone: 'UTC',
   }).format(meioDia);
 }
+
+/** Uma aba de mês dos filtros de agenda: "out", com quantos dias tem. */
+export interface AbaMes {
+  readonly mes: string;
+  readonly rotulo: string;
+  readonly total: number;
+}
+
+const MESES_CURTOS = [
+  'jan',
+  'fev',
+  'mar',
+  'abr',
+  'mai',
+  'jun',
+  'jul',
+  'ago',
+  'set',
+  'out',
+  'nov',
+  'dez',
+];
+
+/**
+ * As abas de mês a partir das datas (AAAA-MM-DD) dos dias da agenda, em ordem.
+ * O ano só aparece quando não é o de hoje: "jan/27".
+ */
+export function abasDeMes(datas: readonly string[], hoje: string): AbaMes[] {
+  const porMes = new Map<string, Set<string>>();
+  for (const data of [...datas].sort()) {
+    const mes = data.slice(0, 7);
+    porMes.set(mes, (porMes.get(mes) ?? new Set()).add(data));
+  }
+  return [...porMes.entries()].map(([mes, dias]) => {
+    const [ano, numero] = mes.split('-');
+    const sufixo = ano === hoje.slice(0, 4) ? '' : `/${ano.slice(2)}`;
+    return {
+      mes,
+      rotulo: `${MESES_CURTOS[Number(numero) - 1]}${sufixo}`,
+      total: dias.size,
+    };
+  });
+}

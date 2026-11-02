@@ -96,11 +96,14 @@
   box-sizing: border-box;
 }
 
-html {
-  /* A barra de rolagem reserva lugar mesmo quando não aparece: com `auto`, a
-     largura do cartão do questionário muda entre uma aba alta e uma curta. */
+/* Só o questionário reserva o lugar da barra: com `auto`, a largura do cartão
+   muda entre uma aba alta e uma curta. No resto do sistema a reserva aparecia
+   como uma faixa fixa à direita em telas que nem rolam (login, onboarding). */
+html:has(.quest) {
   scrollbar-gutter: stable;
+}
 
+html {
   /* Sem isto, no celular o overscroll horizontal da trilha do questionário
      encadeia para a página e o fundo desliza. A trilha segue rolando, porque
      tem o próprio `overflow-x`. */
@@ -588,6 +591,17 @@ code {
   font-weight: 600;
 }
 
+/* A quantidade da aba sai em azul para separar do rótulo ("10 out 3"). */
+.filtro-qtd {
+  margin-left: 4px;
+  color: var(--azul);
+  font-weight: 600;
+}
+
+.filtro--ativo .filtro-qtd {
+  color: #fff;
+}
+
 .selo {
   display: inline-flex;
   align-items: center;
@@ -638,6 +652,43 @@ code {
 
 .lista-barra .filtros {
   margin: 0;
+}
+
+/* Os dois ícones de visão (lista e calendário), à direita da barra dos filtros —
+   Meus horários e Consultorias do incubado. */
+.horarios-visoes {
+  display: inline-flex;
+  margin-left: auto;
+  border: 1px solid var(--borda-input);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.horarios-visao {
+  width: 36px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: var(--fundo-cartao);
+  color: var(--texto-suave);
+  font-size: 17px;
+  cursor: pointer;
+}
+
+.horarios-visao + .horarios-visao {
+  border-left: 1px solid var(--borda-input);
+}
+
+.horarios-visao:hover {
+  background: var(--fundo-app);
+}
+
+.horarios-visao--ativa,
+.horarios-visao--ativa:hover {
+  background: var(--azul-claro);
+  color: var(--azul);
 }
 
 .lista {
@@ -1093,12 +1144,12 @@ quill-editor .ql-container.ql-snow {
 /* Plano aberto por quem só avalia (a coordenação corrige, então para ela nada
    disto vale): o editor fica só leitura, sem barra de ferramentas e sem o anel
    de foco azul — é conteúdo, não campo editável. */
-.quest--leitura quill-editor .ql-toolbar.ql-snow {
+.quest--leitura quill-editor:not(.aval-comentario-editor) .ql-toolbar.ql-snow {
   display: none;
 }
 
-.quest--leitura quill-editor,
-.quest--leitura quill-editor:focus-within {
+.quest--leitura quill-editor:not(.aval-comentario-editor),
+.quest--leitura quill-editor:not(.aval-comentario-editor):focus-within {
   border-color: var(--borda-input);
   box-shadow: none;
 }
@@ -1107,13 +1158,13 @@ quill-editor .ql-container.ql-snow {
    cursor de proibido. O texto fica esmaecido, mas legível (5,4:1 sobre o
    cinza), porque é justamente o que o avaliador lê. */
 .quest--leitura .form-group input[readonly],
-.quest--leitura quill-editor {
+.quest--leitura quill-editor:not(.aval-comentario-editor) {
   background-color: var(--fundo-bloqueado);
   cursor: not-allowed;
 }
 
 .quest--leitura .form-group input[readonly],
-.quest--leitura quill-editor .ql-editor {
+.quest--leitura quill-editor:not(.aval-comentario-editor) .ql-editor {
   color: var(--texto-suave);
   cursor: not-allowed;
 }
@@ -1130,7 +1181,7 @@ quill-editor .ql-container.ql-snow {
 }
 
 /* Link no texto do incubado continua clicável. */
-.quest--leitura quill-editor .ql-editor a {
+.quest--leitura quill-editor:not(.aval-comentario-editor) .ql-editor a {
   cursor: pointer;
 }
 

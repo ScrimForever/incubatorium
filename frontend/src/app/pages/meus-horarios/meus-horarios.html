@@ -33,16 +33,16 @@
     }
 
     <div class="lista-barra">
-      <div class="filtros" role="group" aria-label="Filtrar os dias" data-tour="filtros">
-        @for (opcao of filtros; track opcao) {
+      <div class="filtros" role="group" aria-label="Filtrar por mês" data-tour="filtros">
+        @for (opcao of filtros(); track opcao.mes) {
           <button
             type="button"
             class="filtro"
-            [class.filtro--ativo]="filtro() === opcao"
-            [attr.aria-pressed]="filtro() === opcao"
-            (click)="trocarFiltro(opcao)"
+            [class.filtro--ativo]="mesVisto().startsWith(opcao.mes)"
+            [attr.aria-pressed]="mesVisto().startsWith(opcao.mes)"
+            (click)="trocarMes(opcao.mes)"
           >
-            {{ rotuloFiltro[opcao] }} ({{ contagem()[opcao] }})
+            {{ opcao.rotulo }}
           </button>
         }
       </div>
@@ -112,7 +112,7 @@
                 [class.horarios-mes-casa--aberta]="aberto() === casa.data"
                 [attr.aria-pressed]="aberto() === casa.data"
                 [attr.aria-label]="casa.dia.rotulo + ': ' + casa.dia.selo + ', ' + casa.dia.detalhe"
-                (click)="alternar(casa.data)"
+                (click)="escolherNoCalendario(casa.data)"
               >
                 <span class="horarios-mes-numero">{{ casa.numero }}</span>
                 <span class="horarios-mes-bloco">
@@ -144,7 +144,7 @@
         @if (!diasDoMes()) {
           <p class="horarios-mes-vazio">
             @if (diasVisiveis().length) {
-              Nenhum dia da agenda neste mês, neste filtro.
+              Nenhum dia da agenda neste mês.
             } @else {
               Nenhum horário aberto de hoje em diante. Use o + para abrir agenda.
             }
@@ -153,85 +153,33 @@
       </div>
 
       @if (diaAberto(); as dia) {
-        <div class="cartao horarios-dia-cartao">
-          <div class="horarios-dia-cabeca">
-            <span class="horarios-dia-titulo">
-              <span class="lista-titulo">{{ dia.rotulo }}</span>
-              <button
-                type="button"
-                class="btn btn--secundario horarios-perigo horarios-btn-mini"
-                (click)="abrirCancelarDia(dia)"
-              >
-                Cancelar dia
-              </button>
-            </span>
-            <span class="lista-detalhe">{{ dia.selo }} · {{ dia.detalhe }}</span>
-          </div>
-          <ng-container *ngTemplateOutlet="faixasDoDia; context: { $implicit: dia }" />
-        </div>
+        <ul class="lista horarios-dia-escolhido" id="horarios-dia-escolhido">
+          <ng-container *ngTemplateOutlet="itemDoDia; context: { $implicit: dia, forcado: true }" />
+        </ul>
       }
     } @else if (!diasVisiveis().length) {
       <p class="lista-aviso" role="status">
         <app-icone nome="agenda" />
         @if (dias().length) {
-          Nenhum dia neste filtro.
+          Nenhum dia da agenda neste mês.
         } @else {
           Nenhum horário aberto de hoje em diante. Use o + para abrir agenda.
         }
       </p>
     } @else {
-      <ul class="lista">
-        @for (dia of diasVisiveis(); track dia.data; let primeiro = $first) {
-          <li
-            class="lista-item horarios-dia"
-            [class.horarios-dia--aberto]="aberto() === dia.data"
-            [attr.data-tour]="primeiro ? 'dia' : null"
-          >
-            <!-- O botão da seta cobre a linha inteira (::after): mouse, toque e teclado num só alvo. -->
-            <div class="horarios-dia-linha">
-              <span class="lista-identidade">
-                <span class="horarios-dia-titulo">
-                  <span class="lista-titulo">{{ dia.rotulo }}</span>
-                  <button
-                    type="button"
-                    class="btn btn--secundario horarios-perigo horarios-btn-mini"
-                    (click)="abrirCancelarDia(dia)"
-                  >
-                    Cancelar dia
-                  </button>
-                </span>
-                <span class="lista-secundaria">
-                  <app-icone nome="relogio" />{{ dia.faixasResumo }}
-                </span>
-              </span>
-              <span class="lista-meta">
-                <span
-                  class="selo"
-                  [class.selo--aguardando_aprovacao]="dia.reservas > 0"
-                  [class.selo--pendente]="!dia.reservas"
-                  >{{ dia.selo }}</span
-                >
-                <span class="lista-detalhe">{{ dia.detalhe }}</span>
-              </span>
-              <button
-                type="button"
-                class="horarios-alternar"
-                [attr.aria-expanded]="aberto() === dia.data"
-                [attr.aria-label]="'Faixas de ' + dia.rotulo"
-                (click)="alternar(dia.data)"
-              >
-                <app-icone nome="seta-direita" />
-              </button>
-            </div>
-
-            @if (aberto() === dia.data) {
-              <div class="horarios-detalhe">
-                <ng-container *ngTemplateOutlet="faixasDoDia; context: { $implicit: dia }" />
-              </div>
-            }
-          </li>
-        }
-      </ul>
+      <div data-tour="dia">
+        <app-faixa-dias
+          rotulo="Dias da agenda"
+          [dias]="faixa()"
+          [selecionado]="diaDaLista()?.data ?? ''"
+          (escolher)="aberto.set($event)"
+        />
+      </div>
+      @if (diaDaLista(); as dia) {
+        <ul class="lista">
+          <ng-container *ngTemplateOutlet="itemDoDia; context: { $implicit: dia, forcado: true }" />
+        </ul>
+      }
     }
   </app-painel>
 } @else {
@@ -443,4 +391,56 @@
       </ul>
     </div>
   }
+</ng-template>
+
+<!-- Um dia da agenda, o mesmo cartão na lista e abaixo do calendário. -->
+<!-- `forcado`: o cartão já vem aberto e sem a seta; é o dia escolhido na faixa ou no calendário. -->
+<ng-template #itemDoDia let-dia let-forcado="forcado">
+  <li
+    class="lista-item horarios-dia"
+    [class.horarios-dia--aberto]="forcado || aberto() === dia.data"
+  >
+    <!-- O botão da seta cobre a linha inteira (::after): mouse, toque e teclado num só alvo. -->
+    <div class="horarios-dia-linha">
+      <span class="lista-identidade">
+        <span class="horarios-dia-titulo">
+          <span class="lista-titulo">{{ dia.rotulo }}</span>
+          <button
+            type="button"
+            class="btn btn--secundario horarios-perigo horarios-btn-mini"
+            (click)="abrirCancelarDia(dia)"
+          >
+            Cancelar dia
+          </button>
+        </span>
+        <span class="lista-secundaria"> <app-icone nome="relogio" />{{ dia.faixasResumo }} </span>
+      </span>
+      <span class="lista-meta">
+        <span
+          class="selo"
+          [class.selo--aguardando_aprovacao]="dia.reservas > 0"
+          [class.selo--pendente]="!dia.reservas"
+          >{{ dia.selo }}</span
+        >
+        <span class="lista-detalhe">{{ dia.detalhe }}</span>
+      </span>
+      @if (!forcado) {
+        <button
+          type="button"
+          class="horarios-alternar"
+          [attr.aria-expanded]="aberto() === dia.data"
+          [attr.aria-label]="'Faixas de ' + dia.rotulo"
+          (click)="alternar(dia.data)"
+        >
+          <app-icone nome="seta-direita" />
+        </button>
+      }
+    </div>
+
+    @if (forcado || aberto() === dia.data) {
+      <div class="horarios-detalhe">
+        <ng-container *ngTemplateOutlet="faixasDoDia; context: { $implicit: dia }" />
+      </div>
+    }
+  </li>
 </ng-template>
