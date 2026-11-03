@@ -7,6 +7,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
 import { Observable, forkJoin, of, switchMap } from 'rxjs';
@@ -18,10 +19,13 @@ import { Auth } from '../../core/services/auth';
 import {
   ConsultoriasService,
   dataLocal,
+  hojeLocal,
   horaLocal,
   porDia,
   rotuloData,
+  rotuloDataCurto,
 } from '../../core/services/consultorias';
+import { DiaDaFaixa, FaixaDias } from '../../shared/components/faixa-dias/faixa-dias';
 import { Icone } from '../../shared/components/icone/icone';
 import { Painel } from '../../shared/components/painel/painel';
 
@@ -31,6 +35,13 @@ interface Vaga {
   readonly dia: string;
   readonly hora: string;
   readonly consultor: string;
+}
+
+/** Um horário livre como o botão de reservar mostra. */
+interface VagaLivre {
+  readonly horario: Horario;
+  readonly hora: string;
+  readonly titulo: string;
 }
 
 const vagaDe = (horario: Horario): Vaga => ({
@@ -43,6 +54,34 @@ const vagaDe = (horario: Horario): Vaga => ({
 /** "Todos" é o filtro sem consultor. */
 const TODOS = '';
 
+/** Lista (faixa de dias) ou calendário do mês; a escolha fica só neste navegador. */
+type Visao = 'lista' | 'calendario';
+const CHAVE_VISAO = 'agendar-consultoria:visao';
+const MESES = [
+  'Janeiro',
+  'Fevereiro',
+  'Março',
+  'Abril',
+  'Maio',
+  'Junho',
+  'Julho',
+  'Agosto',
+  'Setembro',
+  'Outubro',
+  'Novembro',
+  'Dezembro',
+];
+/** As abas mostram o mês corrente e os dois seguintes — a janela em que se agenda. */
+const MESES_NAS_ABAS = 3;
+
+function visaoGuardada(): Visao {
+  try {
+    return localStorage.getItem(CHAVE_VISAO) === 'calendario' ? 'calendario' : 'lista';
+  } catch {
+    return 'lista';
+  }
+}
+
 /**
  * Consultorias do incubado: as reservas dele e os horários livres para
  * reservar. Reservar é direto — sem aceite do consultor —, como a API faz.
@@ -50,7 +89,7 @@ const TODOS = '';
 @Component({
   selector: 'app-agendar-consultoria',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Painel, Icone],
+  imports: [NgTemplateOutlet, Painel, Icone, FaixaDias],
   templateUrl: './agendar-consultoria.html',
   styleUrl: './agendar-consultoria.scss',
 })
@@ -72,6 +111,8 @@ export class AgendarConsultoria implements OnInit {
 
   protected readonly filtro = signal(TODOS);
   protected readonly todos = TODOS;
+  /** O mês escolhido nas abas (AAAA-MM); vazio = o primeiro das abas com vaga. */
+  protected readonly mes = signal('');
 
   protected readonly minhas = computed(() => this.reservas().map(vagaDe));
 
@@ -80,22 +121,100 @@ export class AgendarConsultoria implements OnInit {
     [...new Set(this.livres().map((horario) => horario.consultor_email))].sort(),
   );
 
-  protected readonly dias = computed(() => {
+  /** Os livres do consultor escolhido, antes do recorte por mês. */
+  private readonly doConsultor = computed(() => {
     const filtro = this.filtro();
-    const visiveis = this.livres().filter(
+    return this.livres().filter(
       (horario) => filtro === TODOS || horario.consultor_email === filtro,
     );
-    return porDia(visiveis).map(({ data, horarios }) => ({
-      data,
-      rotulo: rotuloData(data),
-      vagas: horarios.map((horario) => ({
+  });
+
+  /** O mês corrente e os dois seguintes, só pelo nome: "out", "nov", "dez". */
+  protected readonly meses = computed(() => {
+    const [ano, mes] = hojeLocal().split('-').map(Number);
+    const datas = new Set(
+      this.doConsultor().map((horario) => dataLocal(horario.inicio).slice(0, 7)),
+    );
+    return Array.from({ length: MESES_NAS_ABAS }, (_, i) => {
+      const chave = new Date(Date.UTC(ano, mes - 1 + i, 1)).toISOString().slice(0, 7);
+      const numero = Number(chave.slice(5, 7));
+      return {
+        mes: chave,
+        rotulo: MESES[numero - 1].slice(0, 3).toLowerCase(),
+        temVaga: datas.has(chave),
+      };
+    });
+  });
+
+  /** O mês em tela: o escolhido, ou o primeiro das abas que tem vaga. */
+  protected readonly mesAtivo = computed(
+    () => this.mes() || (this.meses().find((aba) => aba.temVaga) ?? this.meses()[0]).mes,
+  );
+
+  protected readonly dias = computed(() => {
+    const mes = this.mesAtivo();
+    const visiveis = this.doConsultor().filter((horario) =>
+      dataLocal(horario.inicio).startsWith(mes),
+    );
+    return porDia(visiveis).map(({ data, horarios }) => {
+      const vagas = horarios.map((horario): VagaLivre => ({
         horario,
         hora: horaLocal(horario.inicio),
         titulo: `${horaLocal(horario.inicio)} às ${horaLocal(horario.fim)} com ${horario.consultor_email}`,
-      })),
-    }));
+      }));
+      const [semana, numero] = rotuloDataCurto(data).split(' ');
+      return {
+        data,
+        rotulo: rotuloData(data),
+        semana,
+        numero: numero.slice(0, 2),
+        vagas,
+        // Antes do meio-dia é manhã; o resto, tarde — o corte da visão em lista.
+        manha: vagas.filter((vaga) => vaga.hora < '12:00'),
+        tarde: vagas.filter((vaga) => vaga.hora >= '12:00'),
+      };
+    });
   });
 
+  // --- visões: lista (faixa de dias) e calendário ---
+
+  protected readonly visao = signal<Visao>(visaoGuardada());
+  /** O dia aberto; vazio = o primeiro com vaga no mês. */
+  protected readonly diaEscolhido = signal('');
+  protected readonly diaAtual = computed(
+    () => this.dias().find((dia) => dia.data === this.diaEscolhido()) ?? this.dias()[0],
+  );
+
+  protected readonly faixa = computed(() =>
+    this.dias().map((dia): DiaDaFaixa => ({
+      data: dia.data,
+      rotulo: `${dia.rotulo}, ${dia.vagas.length} livres`,
+      semana: dia.semana,
+      numero: dia.numero,
+      detalhe: `${dia.vagas.length} livres`,
+    })),
+  );
+
+  protected readonly tituloCalendario = computed(() => {
+    const [ano, mes] = this.mesAtivo().split('-').map(Number);
+    return `${MESES[mes - 1]} de ${ano}`;
+  });
+  protected readonly cabecalhoSemana = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+  protected readonly casasCalendario = computed(() => {
+    const [ano, mes] = this.mesAtivo().split('-').map(Number);
+    const porData = new Map(this.dias().map((dia) => [dia.data, dia]));
+    const vazias = (new Date(Date.UTC(ano, mes - 1, 1)).getUTCDay() + 6) % 7;
+    const total = new Date(Date.UTC(ano, mes, 0)).getUTCDate();
+    const casas: { data: string; numero: number; livres: number }[] = Array.from(
+      { length: vazias },
+      () => ({ data: '', numero: 0, livres: 0 }),
+    );
+    for (let numero = 1; numero <= total; numero++) {
+      const data = `${this.mesAtivo()}-${String(numero).padStart(2, '0')}`;
+      casas.push({ data, numero, livres: porData.get(data)?.vagas.length ?? 0 });
+    }
+    return casas;
+  });
   protected readonly totalLivres = computed(() => this.livres().length);
 
   /** O horário que o incubado escolheu e ainda não confirmou. */
@@ -114,6 +233,20 @@ export class AgendarConsultoria implements OnInit {
       });
 
     this.executar(of(null), '');
+  }
+
+  protected trocarVisao(visao: Visao): void {
+    this.visao.set(visao);
+    try {
+      localStorage.setItem(CHAVE_VISAO, visao);
+    } catch {
+      // Sem armazenamento, a escolha vale só nesta visita.
+    }
+  }
+
+  protected trocarMes(mes: string): void {
+    this.mes.set(mes);
+    this.diaEscolhido.set('');
   }
 
   protected escolher(horario: Horario): void {

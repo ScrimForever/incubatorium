@@ -48,6 +48,46 @@
 
     <h2 class="agendar-titulo">Horários livres</h2>
     @if (!carregando()) {
+      <div class="lista-barra">
+        <div class="filtros" role="group" aria-label="Filtrar por mês">
+          @for (aba of meses(); track aba.mes) {
+            <button
+              type="button"
+              class="filtro"
+              [class.filtro--ativo]="mesAtivo() === aba.mes"
+              [attr.aria-pressed]="mesAtivo() === aba.mes"
+              (click)="trocarMes(aba.mes)"
+            >
+              {{ aba.rotulo }}
+            </button>
+          }
+        </div>
+        <div class="horarios-visoes" role="group" aria-label="Forma de ver os horários">
+          <button
+            type="button"
+            class="horarios-visao"
+            [class.horarios-visao--ativa]="visao() === 'lista'"
+            [attr.aria-pressed]="visao() === 'lista'"
+            aria-label="Ver em lista"
+            title="Ver em lista"
+            (click)="trocarVisao('lista')"
+          >
+            <app-icone nome="lista" />
+          </button>
+          <button
+            type="button"
+            class="horarios-visao"
+            [class.horarios-visao--ativa]="visao() === 'calendario'"
+            [attr.aria-pressed]="visao() === 'calendario'"
+            aria-label="Ver em calendário"
+            title="Ver em calendário"
+            (click)="trocarVisao('calendario')"
+          >
+            <app-icone nome="agenda" />
+          </button>
+        </div>
+      </div>
+
       @if (consultores().length > 1) {
         <div class="filtros" role="group" aria-label="Filtrar por consultor">
           <button
@@ -57,7 +97,7 @@
             [attr.aria-pressed]="filtro() === todos"
             (click)="filtro.set(todos)"
           >
-            Todos ({{ totalLivres() }})
+            Todos os consultores
           </button>
           @for (c of consultores(); track c) {
             <button
@@ -75,32 +115,75 @@
 
       @if (!dias().length) {
         <p class="lista-aviso">
-          <app-icone nome="relogio" /> Nenhum horário livre agora. Os consultores avisam por e-mail
-          quando abrem agenda.
+          <app-icone nome="relogio" /> Nenhum horário livre neste mês. Os consultores avisam por
+          e-mail quando abrem agenda.
         </p>
       } @else {
-        <ul class="lista">
-          @for (dia of dias(); track dia.data) {
-            <li class="lista-item agendar-dia">
-              <span class="lista-titulo">{{ dia.rotulo }}</span>
-              <ul class="agendar-vagas" [attr.aria-label]="'Horários de ' + dia.rotulo">
-                @for (v of dia.vagas; track v.horario.id) {
-                  <li>
-                    <button
-                      type="button"
-                      class="agendar-vaga"
-                      [attr.title]="v.titulo"
-                      [attr.aria-label]="'Reservar ' + v.titulo"
-                      (click)="escolher(v.horario)"
-                    >
-                      {{ v.hora }}
-                    </button>
-                  </li>
+        @switch (visao()) {
+          @case ('lista') {
+            <div class="cartao agendar-cartao">
+              <app-faixa-dias
+                rotulo="Dias com horário livre"
+                [dias]="faixa()"
+                [selecionado]="diaAtual()?.data ?? ''"
+                (escolher)="diaEscolhido.set($event)"
+              />
+              @if (diaAtual(); as dia) {
+                <h3 class="agendar-dia-titulo">{{ dia.rotulo }}</h3>
+                @if (dia.manha.length) {
+                  <p class="agendar-periodo">Manhã</p>
+                  <ng-container *ngTemplateOutlet="vagasTpl; context: { $implicit: dia.manha }" />
                 }
-              </ul>
-            </li>
+                @if (dia.tarde.length) {
+                  <p class="agendar-periodo">Tarde</p>
+                  <ng-container *ngTemplateOutlet="vagasTpl; context: { $implicit: dia.tarde }" />
+                }
+              }
+            </div>
           }
-        </ul>
+          @case ('calendario') {
+            <div class="agendar-cal">
+              <div class="cartao agendar-cal-mes">
+                <div class="agendar-cal-topo">
+                  <span class="agendar-cal-titulo" aria-live="polite">{{
+                    tituloCalendario()
+                  }}</span>
+                </div>
+                <div class="agendar-cal-grade">
+                  @for (nome of cabecalhoSemana; track nome) {
+                    <span class="agendar-cal-semana" aria-hidden="true">{{ nome }}</span>
+                  }
+                  @for (casa of casasCalendario(); track $index) {
+                    @if (casa.livres) {
+                      <button
+                        type="button"
+                        class="agendar-cal-casa agendar-cal-casa--livre"
+                        [class.agendar-cal-casa--ativa]="diaAtual()?.data === casa.data"
+                        [attr.aria-pressed]="diaAtual()?.data === casa.data"
+                        [attr.aria-label]="casa.numero + ': ' + casa.livres + ' livres'"
+                        (click)="diaEscolhido.set(casa.data)"
+                      >
+                        {{ casa.numero }}
+                      </button>
+                    } @else {
+                      <span class="agendar-cal-casa">{{ casa.numero || '' }}</span>
+                    }
+                  }
+                </div>
+              </div>
+              <div class="cartao agendar-cartao">
+                @if (diaAtual(); as dia) {
+                  <h3 class="agendar-dia-titulo">
+                    {{ dia.rotulo }} · {{ dia.vagas.length }} livres
+                  </h3>
+                  <ng-container *ngTemplateOutlet="vagasTpl; context: { $implicit: dia.vagas }" />
+                } @else {
+                  <p class="lista-aviso">Nenhum horário livre neste mês.</p>
+                }
+              </div>
+            </div>
+          }
+        }
       }
     }
   </app-painel>
@@ -139,3 +222,22 @@
     </div>
   </div>
 }
+
+<!-- Os botões de horário livre, iguais nas três diagramações. -->
+<ng-template #vagasTpl let-vagas>
+  <ul class="agendar-vagas">
+    @for (v of vagas; track v.horario.id) {
+      <li>
+        <button
+          type="button"
+          class="agendar-vaga"
+          [attr.title]="v.titulo"
+          [attr.aria-label]="'Reservar ' + v.titulo"
+          (click)="escolher(v.horario)"
+        >
+          {{ v.hora }}
+        </button>
+      </li>
+    }
+  </ul>
+</ng-template>

@@ -23,12 +23,15 @@ import { Auth } from '../../core/services/auth';
 import { PassoTour, TourService } from '../../core/services/tour';
 import {
   ConsultoriasService,
+  abasDeMes,
   errosDaFaixa,
   errosRemarcacao,
   hojeLocal,
   horaLocal,
   rotuloData,
+  rotuloDataCurto,
 } from '../../core/services/consultorias';
+import { DiaDaFaixa, FaixaDias } from '../../shared/components/faixa-dias/faixa-dias';
 import { Icone } from '../../shared/components/icone/icone';
 import { Painel } from '../../shared/components/painel/painel';
 
@@ -50,25 +53,16 @@ const TOUR: readonly PassoTour[] = [
   },
   {
     alvo: 'filtros',
-    titulo: 'Filtre os dias',
-    texto: 'Veja todos os dias, só os que já têm reserva ou só os que ainda estão livres.',
+    titulo: 'Escolha o mês',
+    texto: 'Cada aba é um mês com horários abertos.',
   },
   {
     alvo: 'dia',
     titulo: 'Cada dia da agenda',
     texto:
-      'Clique no dia para ver as faixas e quem reservou. Ali você edita ou cancela uma faixa, remarca um horário reservado e, ao lado do nome do dia, cancela o dia inteiro.',
+      'Os dias do mês ficam nesta faixa: passe com as setas ou com a roda do mouse. Clique num dia para ver as faixas e quem reservou. Ali você edita ou cancela uma faixa, remarca um horário reservado e, ao lado do nome do dia, cancela o dia inteiro.',
   },
 ];
-
-/** "Todos" por último, como em Planos de negócio: primeiro os recortes. */
-const FILTROS = ['reservas', 'livres', 'todos'] as const;
-type Filtro = (typeof FILTROS)[number];
-const ROTULO_FILTRO: Record<Filtro, string> = {
-  reservas: 'Com reserva',
-  livres: 'Sem reserva',
-  todos: 'Todos',
-};
 
 type Visao = 'lista' | 'calendario';
 /** A visão escolhida vale para a próxima visita, só neste navegador. */
@@ -107,7 +101,7 @@ const hhmm = (hora: string): string => hora.slice(0, 5);
 @Component({
   selector: 'app-meus-horarios',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgTemplateOutlet, ReactiveFormsModule, RouterLink, Painel, Icone],
+  imports: [NgTemplateOutlet, ReactiveFormsModule, RouterLink, Painel, Icone, FaixaDias],
   templateUrl: './meus-horarios.html',
   styleUrl: './meus-horarios.scss',
 })
@@ -137,10 +131,7 @@ export class MeusHorarios implements OnInit {
   /** `?publicadas=N`, vindo de Abrir agenda: vira o aviso de sucesso e sai da URL. */
   readonly publicadas = input<string>();
 
-  protected readonly filtros = FILTROS;
-  protected readonly rotuloFiltro = ROTULO_FILTRO;
-  protected readonly filtro = signal<Filtro>('todos');
-  /** O dia aberto na lista; vazio = todos fechados. */
+  /** O dia aberto; na lista, vazio = o primeiro do mês. */
   protected readonly aberto = signal('');
 
   // --- agenda publicada ---
@@ -195,35 +186,59 @@ export class MeusHorarios implements OnInit {
       });
   });
 
-  protected readonly contagem = computed(() => {
-    const dias = this.dias();
-    const reservas = dias.filter((dia) => dia.reservas).length;
-    return { reservas, livres: dias.length - reservas, todos: dias.length };
+  /** Uma aba por mês que tem dia na agenda. */
+  protected readonly filtros = computed(() =>
+    abasDeMes(
+      this.dias().map((dia) => dia.data),
+      this.hoje,
+    ),
+  );
+
+  /** Os dias do mês em tela: a lista e o calendário mostram um mês por vez. */
+  protected readonly diasVisiveis = computed(() => {
+    const mes = this.mesVisto().slice(0, 7);
+    return this.dias().filter((dia) => dia.data.startsWith(mes));
   });
 
-  protected readonly diasVisiveis = computed(() => {
-    const filtro = this.filtro();
-    return this.dias().filter(
-      (dia) => filtro === 'todos' || (filtro === 'reservas' ? dia.reservas > 0 : !dia.reservas),
-    );
-  });
+  /** Na lista, o dia em tela: o escolhido na faixa, ou o primeiro do mês. */
+  protected readonly diaDaLista = computed(
+    () => this.diasVisiveis().find((dia) => dia.data === this.aberto()) ?? this.diasVisiveis()[0],
+  );
+
+  protected readonly faixa = computed(() =>
+    this.diasVisiveis().map((dia): DiaDaFaixa => {
+      const [semana, numero] = rotuloDataCurto(dia.data).split(' ');
+      return {
+        data: dia.data,
+        rotulo: `${dia.rotulo}: ${dia.selo}, ${dia.detalhe}`,
+        semana,
+        numero: numero.slice(0, 2),
+        detalhe: dia.reservas
+          ? plural(dia.reservas, 'reserva', 'reservas')
+          : plural(dia.total, 'livre', 'livres'),
+      };
+    }),
+  );
 
   // --- visão de calendário ---
 
   protected readonly visao = signal<Visao>(visaoGuardada());
   /** Semana começando na segunda, como o calendário de Abrir agenda. */
   protected readonly cabecalhoSemana = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
-  /** Primeiro dia do mês visto, AAAA-MM-01. */
-  protected readonly mes = signal(this.hoje.slice(0, 8) + '01');
+  /** O mês escolhido, AAAA-MM-01; vazio = o primeiro mês com agenda. */
+  protected readonly mes = signal('');
+  protected readonly mesVisto = computed(
+    () => this.mes() || `${this.filtros()[0]?.mes ?? this.hoje.slice(0, 7)}-01`,
+  );
 
   protected readonly mesTitulo = computed(() => {
-    const [ano, mes] = this.mes().split('-').map(Number);
+    const [ano, mes] = this.mesVisto().split('-').map(Number);
     return `${MESES[mes - 1]} de ${ano}`;
   });
 
   /** A grade do mês: casas vazias antes do dia 1, e o dia da agenda quando há. */
   protected readonly casasDoMes = computed(() => {
-    const [ano, mes] = this.mes().split('-').map(Number);
+    const [ano, mes] = this.mesVisto().split('-').map(Number);
     const porData = new Map(this.diasVisiveis().map((dia) => [dia.data, dia]));
     const vazias = (new Date(Date.UTC(ano, mes - 1, 1)).getUTCDay() + 6) % 7;
     const total = new Date(Date.UTC(ano, mes, 0)).getUTCDate();
@@ -236,7 +251,7 @@ export class MeusHorarios implements OnInit {
       dia: porData.get(''),
     }));
     for (let numero = 1; numero <= total; numero++) {
-      const data = `${this.mes().slice(0, 8)}${String(numero).padStart(2, '0')}`;
+      const data = `${this.mesVisto().slice(0, 8)}${String(numero).padStart(2, '0')}`;
       casas.push({
         data,
         numero,
@@ -370,8 +385,8 @@ export class MeusHorarios implements OnInit {
 
   // --- ações sobre a agenda publicada ---
 
-  protected trocarFiltro(filtro: Filtro): void {
-    this.filtro.set(filtro);
+  protected trocarMes(mes: string): void {
+    this.mes.set(`${mes}-01`);
     this.aberto.set('');
   }
 
@@ -385,7 +400,7 @@ export class MeusHorarios implements OnInit {
   }
 
   protected mudarMes(passo: number): void {
-    const [ano, mes] = this.mes().split('-').map(Number);
+    const [ano, mes] = this.mesVisto().split('-').map(Number);
     const novo = new Date(Date.UTC(ano, mes - 1 + passo, 1)).toISOString().slice(0, 10);
     this.mes.set(novo);
     this.aberto.set('');
@@ -393,6 +408,21 @@ export class MeusHorarios implements OnInit {
 
   protected alternar(data: string): void {
     this.aberto.set(this.aberto() === data ? '' : data);
+  }
+
+  /** No calendário, o dia escolhido abre abaixo da grade: a tela desce até ele. */
+  protected escolherNoCalendario(data: string): void {
+    this.alternar(data);
+    if (!this.aberto()) {
+      return;
+    }
+    afterNextRender(
+      () =>
+        document
+          .getElementById('horarios-dia-escolhido')
+          ?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }),
+      { injector: this.injector },
+    );
   }
 
   protected abrirEdicao(janela: Janela): void {

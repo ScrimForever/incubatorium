@@ -4,6 +4,7 @@ import { TestBed } from '@angular/core/testing';
 
 import { Janela } from '../models/consultoria';
 import {
+  abasDeMes,
   ConsultoriasService,
   conflitoComAgenda,
   consultoriasMarcadas,
@@ -419,5 +420,19 @@ describe('ConsultoriasService', () => {
 
     service.minhas().subscribe();
     backend.expectOne('/api/consultorias/minhas');
+  });
+});
+
+describe('abasDeMes', () => {
+  it('uma aba por mês, em ordem, contando dias distintos', () => {
+    const abas = abasDeMes(['2026-11-03', '2026-10-20', '2026-11-03', '2026-11-05'], '2026-10-27');
+    expect(abas).toEqual([
+      { mes: '2026-10', rotulo: 'out', total: 1 },
+      { mes: '2026-11', rotulo: 'nov', total: 2 },
+    ]);
+  });
+
+  it('mostra o ano só quando não é o de hoje', () => {
+    expect(abasDeMes(['2027-01-04'], '2026-10-27')[0].rotulo).toBe('jan/27');
   });
 });

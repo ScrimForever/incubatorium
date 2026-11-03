@@ -188,42 +188,6 @@
   }
 }
 
-/* Os dois ícones de visão, à direita da barra dos filtros. */
-.horarios-visoes {
-  display: inline-flex;
-  margin-left: auto;
-  border: 1px solid var(--borda-input);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.horarios-visao {
-  width: 36px;
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: var(--fundo-cartao);
-  color: var(--texto-suave);
-  font-size: 17px;
-  cursor: pointer;
-}
-
-.horarios-visao + .horarios-visao {
-  border-left: 1px solid var(--borda-input);
-}
-
-.horarios-visao:hover {
-  background: var(--fundo-app);
-}
-
-.horarios-visao--ativa,
-.horarios-visao--ativa:hover {
-  background: var(--azul-claro);
-  color: var(--azul);
-}
-
 /* Visão de calendário: o mês inteiro, e o dia escolhido abaixo. Grade limpa,
    e um bloco só por dia de agenda — a cor diz se já tem reserva. */
 .horarios-mes {
@@ -422,18 +386,11 @@
   text-align: center;
 }
 
-.horarios-dia-cartao {
+/* O dia escolhido no calendário: o mesmo cartão da lista, logo abaixo da grade.
+   A margem do scroll deixa um respiro quando a tela desce até ele. */
+.horarios-dia-escolhido {
   margin-top: 12px;
-  padding: 16px 18px;
-}
-
-.horarios-dia-cabeca {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px 16px;
-  margin-bottom: 12px;
+  scroll-margin-top: 16px;
 }
 
 /* No celular a casa só cabe o número e um ponto de cor. */
