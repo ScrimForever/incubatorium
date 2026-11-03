@@ -2,7 +2,7 @@ from src.domain.models.questionario import Questionario, StatusEnum
 from src.logger import logger
 from src.repository.questionario import QuestionarioRepository
 from src.repository.usuarios import UsuariosRepository
-from src.services.email.setup import EmailSetup
+from src.services.contratos import EmailDeCadastro
 
 
 class AtivacaoService:
@@ -12,7 +12,7 @@ class AtivacaoService:
         self,
         usuarios: UsuariosRepository,
         questionarios: QuestionarioRepository,
-        email: EmailSetup,
+        email: EmailDeCadastro,
     ):
         self.usuarios = usuarios
         self.questionarios = questionarios
@@ -44,4 +44,6 @@ class AtivacaoService:
         if usuario is None:
             return False
         await self.usuarios.gerar_novo_codigo(usuario)
-        return await self.email.enviar_email_cadastro(usuario.email)
+        return await self.email.enviar_email_cadastro(
+            usuario.email, usuario.codigo_ativacao
+        )

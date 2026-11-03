@@ -105,3 +105,9 @@ def test_routers_nao_constroem_services_nem_repositories():
     assert infratores == [], (
         "routers devem receber dependências via Depends:\n" + "\n".join(infratores)
     )
+
+
+def test_services_nao_dependem_da_infra_de_banco():
+    """Services recebem repositórios e contratos; não abrem sessão por conta própria."""
+    infratores = _varrer("services", re.compile(r"^\s*(?:from|import)\s+(?:src\.)?infra\.db\b"))
+    assert infratores == [], f"services importando infra.db: {infratores}"

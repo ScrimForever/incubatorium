@@ -72,11 +72,7 @@ class TestEnviarNotificacao:
 class TestEnviarEmailCadastro:
     @pytest.mark.asyncio
     async def test_sem_codigo_de_ativacao_nao_envia(self, enviados, monkeypatch):
-        async def _sem_codigo(self, email):
-            return None
-
-        monkeypatch.setattr(EmailSetup, "_verificar_codigo_usuario", _sem_codigo)
         monkeypatch.setattr(settings, "enviroment", "development")
 
-        assert await EmailSetup().enviar_email_cadastro("nao@existe.com") is False
+        assert await EmailSetup().enviar_email_cadastro("nao@existe.com", None) is False
         assert enviados == []

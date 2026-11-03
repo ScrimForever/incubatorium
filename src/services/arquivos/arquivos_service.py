@@ -2,10 +2,10 @@ import mimetypes
 from pathlib import Path
 
 from src.domain.models.questionario import Questionario, StatusEnum
-from src.infra.armazenamento import ArmazenamentoLocal
 from src.infra.config import settings
 from src.logger import logger
 from src.repository.questionario import QuestionarioRepository
+from src.services.contratos import Armazenamento
 from src.shared.exceptions import (
     ArquivoNaoEncontradoError,
     ConflitoError,
@@ -35,7 +35,7 @@ class ArquivosService:
     def __init__(
         self,
         questionarios: QuestionarioRepository,
-        armazenamento: ArmazenamentoLocal,
+        armazenamento: Armazenamento,
     ):
         self.questionarios = questionarios
         self.armazenamento = armazenamento
