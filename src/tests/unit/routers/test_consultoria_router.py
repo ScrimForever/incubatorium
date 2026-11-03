@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from src.domain.models.consultoria import ConsultoriaHorario, ConsultoriaJanela
 from src.routers.consultoria import router
-from src.services.consultoria.consultoria_service import ConsultoriaService
+from src.services.consultoria.avisos import EnviadorDeAvisos
 from src.shared.datas import FUSO
 
 
@@ -35,7 +35,7 @@ def enviados(monkeypatch):
     async def _enviar(self, lista):
         avisos.extend(lista)
 
-    monkeypatch.setattr(ConsultoriaService, "enviar_avisos", _enviar)
+    monkeypatch.setattr(EnviadorDeAvisos, "enviar", _enviar)
     return avisos
 
 

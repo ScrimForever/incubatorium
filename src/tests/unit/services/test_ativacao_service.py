@@ -96,7 +96,9 @@ class TestReenviarCodigo:
 
         assert await service.reenviar_codigo(sample_email) is True
         assert user_in_db.codigo_ativacao != anterior
-        email.enviar_email_cadastro.assert_awaited_once_with(sample_email)
+        email.enviar_email_cadastro.assert_awaited_once_with(
+            sample_email, user_in_db.codigo_ativacao
+        )
 
     @pytest.mark.asyncio
     async def test_falha_no_envio_devolve_false(

@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 
 from src.domain.models.consultoria import ConsultoriaHorario, ConsultoriaJanela
@@ -12,24 +11,13 @@ from src.domain.schemas.consultoria_schema import (
 from src.logger import logger
 from src.repository.consultoria import ConsultoriaRepository
 from src.repository.usuarios import UsuariosRepository
-from src.services.email.setup import EmailSetup
+from src.services.consultoria.avisos import Aviso, aviso_horario
 from src.shared.datas import agora, como_utc, formatar_local, hoje_local, para_utc
 from src.shared.exceptions import (
     ConflitoError,
     NaoEncontradoError,
     ValidacaoNegocioError,
 )
-
-
-@dataclass(frozen=True)
-class Aviso:
-    """E-mail já montado: pode ser enviado depois do commit, sem tocar no banco."""
-
-    email: str
-    assunto: str
-    titulo: str
-    mensagem: str
-    detalhe: str = ""
 
 
 def _minutos(inicio: time, fim: time) -> int:
@@ -51,49 +39,15 @@ def _fatiar(
     return fatias
 
 
-class ConsultoriaService:
+
+class AgendaService:
+    """Agenda do consultor: janelas (dias × faixas) e seus horários."""
+
     def __init__(
-        self,
-        consultoria: ConsultoriaRepository,
-        usuarios: UsuariosRepository,
-        email: EmailSetup,
+        self, consultoria: ConsultoriaRepository, usuarios: UsuariosRepository
     ):
         self.consultoria = consultoria
         self.usuarios = usuarios
-        self.email = email
-
-    # --- e-mail --------------------------------------------------------------------
-
-    async def enviar_avisos(self, avisos: list[Aviso]) -> None:
-        """Um destinatário com falha não impede os demais."""
-        for aviso in avisos:
-            try:
-                await self.email.enviar_notificacao(
-                    aviso.email,
-                    aviso.assunto,
-                    aviso.titulo,
-                    aviso.mensagem,
-                    aviso.detalhe,
-                )
-            except Exception as erro:  # noqa: BLE001
-                logger.error(f"Falha ao avisar {aviso.email}: {erro}")
-
-    @staticmethod
-    def _aviso_horario(
-        horario: ConsultoriaHorario, assunto: str, titulo: str, mensagem: str
-    ) -> Aviso:
-        return Aviso(
-            email=horario.incubado_email,
-            assunto=assunto,
-            titulo=titulo,
-            mensagem=mensagem,
-            detalhe=(
-                f"Consultor: {horario.consultor_email}. "
-                f"Horário: {formatar_local(horario.inicio)}."
-            ),
-        )
-
-    # --- consultor: janelas ----------------------------------------------------------
 
     async def abrir_agenda(
         self, consultor: User, entrada: AgendaInput
@@ -247,7 +201,7 @@ class ConsultoriaService:
         self, janelas: list[ConsultoriaJanela]
     ) -> tuple[int, int, list[Aviso]]:
         avisos = [
-            self._aviso_horario(
+            aviso_horario(
                 h,
                 "Consultoria cancelada",
                 "Sua consultoria foi cancelada",
@@ -310,7 +264,7 @@ class ConsultoriaService:
         horario.inicio, horario.fim = inicio, fim
         if horario.incubado_email:
             avisos.append(
-                self._aviso_horario(
+                aviso_horario(
                     horario,
                     "Consultoria remarcada",
                     "Sua consultoria mudou de horário",
@@ -325,7 +279,7 @@ class ConsultoriaService:
         horario = await self._horario_do_consultor(consultor, horario_id)
         avisos = (
             [
-                self._aviso_horario(
+                aviso_horario(
                     horario,
                     "Consultoria cancelada",
                     "Sua consultoria foi cancelada",
@@ -346,43 +300,3 @@ class ConsultoriaService:
         if horario is None or horario.consultor_email != consultor.email:
             raise NaoEncontradoError("Horário não encontrado.")
         return horario
-
-    # --- incubado --------------------------------------------------------------------
-
-    async def listar_livres(
-        self, consultor: str | None = None
-    ) -> list[ConsultoriaHorario]:
-        return await self.consultoria.listar_livres(agora(), consultor)
-
-    async def minhas(self, incubado: User) -> list[ConsultoriaHorario]:
-        return await self.consultoria.listar_do_incubado(incubado.email, agora())
-
-    async def reservar(self, incubado: User, horario_id: int) -> ConsultoriaHorario:
-        # Trava o incubado: duas reservas simultâneas dele passam uma de cada vez.
-        await self.consultoria.travar_usuario(incubado.email)
-        horario = await self.consultoria.buscar_horario(horario_id)
-        if horario is None:
-            raise NaoEncontradoError("Horário não encontrado.")
-        if como_utc(horario.inicio) <= agora():
-            raise ValidacaoNegocioError("Este horário já passou.")
-        if await self.consultoria.horario_do_incubado_sobreposto(
-            incubado.email, horario.inicio, horario.fim
-        ):
-            raise ConflitoError("Você já tem uma consultoria neste horário.")
-        if not await self.consultoria.reservar(horario_id, incubado.email, agora()):
-            raise ConflitoError("Este horário já foi reservado por outro incubado.")
-        await self.consultoria.salvar()
-        await self.consultoria.db.refresh(horario)
-        logger.info(f"{incubado.email} reservou o horário {horario_id}.")
-        return horario
-
-    async def cancelar_reserva(self, incubado: User, horario_id: int) -> None:
-        await self.consultoria.travar_usuario(incubado.email)
-        horario = await self.consultoria.buscar_horario(horario_id, para_atualizar=True)
-        if horario is None or horario.incubado_email != incubado.email:
-            raise NaoEncontradoError("Reserva não encontrada.")
-        if como_utc(horario.inicio) <= agora():
-            raise ValidacaoNegocioError("Esta consultoria já começou.")
-        horario.incubado_email = None
-        horario.reservado_em = None
-        await self.consultoria.salvar()

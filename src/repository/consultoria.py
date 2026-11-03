@@ -1,6 +1,6 @@
 from datetime import date, datetime, time
 
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from src.domain.models.consultoria import ConsultoriaHorario, ConsultoriaJanela
 from src.domain.models.usuario import User
 from src.repository.base import Repositorio
@@ -137,6 +137,10 @@ class ConsultoriaRepository(Repositorio):
         )
         return resultado.rowcount == 1
 
+    async def atualizar(self, entidade) -> None:
+        """Relê a entidade do banco (após um UPDATE em massa)."""
+        await self.db.refresh(entidade)
+
     async def excluir_horario(self, horario: ConsultoriaHorario) -> None:
         await self.db.delete(horario)
         await self.db.flush()
@@ -169,3 +173,41 @@ class ConsultoriaRepository(Repositorio):
             .order_by(ConsultoriaHorario.inicio)
         )
         return list(resultado.scalars().all())
+
+    # --- lembretes ---------------------------------------------------------------
+
+    async def fim_da_agenda_por_consultor(
+        self, primeiro_dia: date, ultimo_dia: date, a_partir_de: datetime
+    ) -> dict[str, date]:
+        """Último dia aberto de cada consultor no intervalo, só de quem ainda tem
+        horário livre depois de `a_partir_de` (sem vaga, não há o que lembrar)."""
+        com_vaga = select(ConsultoriaHorario.consultor_email).where(
+            ConsultoriaHorario.incubado_email.is_(None),
+            ConsultoriaHorario.inicio > a_partir_de,
+        )
+        resultado = await self.db.execute(
+            select(ConsultoriaJanela.consultor_email, func.max(ConsultoriaJanela.data))
+            .where(
+                ConsultoriaJanela.data.between(primeiro_dia, ultimo_dia),
+                ConsultoriaJanela.consultor_email.in_(com_vaga),
+            )
+            .group_by(ConsultoriaJanela.consultor_email)
+        )
+        return {email: dia for email, dia in resultado.all()}
+
+    async def reservas_no_periodo(
+        self, de: datetime, ate: datetime
+    ) -> set[tuple[str, str]]:
+        """Pares (consultor, incubado) com reserva iniciando em [de, ate)."""
+        resultado = await self.db.execute(
+            select(
+                ConsultoriaHorario.consultor_email, ConsultoriaHorario.incubado_email
+            )
+            .where(
+                ConsultoriaHorario.incubado_email.is_not(None),
+                ConsultoriaHorario.inicio >= de,
+                ConsultoriaHorario.inicio < ate,
+            )
+            .distinct()
+        )
+        return {(consultor, incubado) for consultor, incubado in resultado.all()}

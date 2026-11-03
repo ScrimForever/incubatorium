@@ -10,8 +10,14 @@ from src.domain.schemas.consultoria_schema import (
     JanelaOutput,
     JanelaUpdate,
 )
-from src.routers.dependencias import get_consultoria_service
-from src.services.consultoria.consultoria_service import ConsultoriaService
+from src.routers.dependencias import (
+    get_agenda_service,
+    get_enviador_de_avisos,
+    get_reserva_service,
+)
+from src.services.consultoria.agenda_service import AgendaService
+from src.services.consultoria.avisos import EnviadorDeAvisos
+from src.services.consultoria.reserva_service import ReservaService
 from src.shared.permissoes import agendador_consultoria, gestor_agenda
 
 router = APIRouter(prefix="/consultorias", tags=["consultorias"])
@@ -25,18 +31,19 @@ async def abrir_agenda(
     entrada: AgendaInput,
     tarefas: BackgroundTasks,
     consultor: User = Depends(gestor_agenda),
-    service: ConsultoriaService = Depends(get_consultoria_service),
+    service: AgendaService = Depends(get_agenda_service),
+    enviador: EnviadorDeAvisos = Depends(get_enviador_de_avisos),
 ):
     """Abre janelas (dias × blocos de horário) e avisa os incubados por e-mail."""
     janelas, avisos = await service.abrir_agenda(consultor, entrada)
-    tarefas.add_task(service.enviar_avisos, avisos)
+    tarefas.add_task(enviador.enviar, avisos)
     return janelas
 
 
 @router.get("/agenda/minha", response_model=list[JanelaOutput])
 async def minha_agenda(
     consultor: User = Depends(gestor_agenda),
-    service: ConsultoriaService = Depends(get_consultoria_service),
+    service: AgendaService = Depends(get_agenda_service),
 ):
     return await service.agenda_do_consultor(consultor)
 
@@ -46,7 +53,7 @@ async def editar_janela(
     janela_id: int,
     entrada: JanelaUpdate,
     consultor: User = Depends(gestor_agenda),
-    service: ConsultoriaService = Depends(get_consultoria_service),
+    service: AgendaService = Depends(get_agenda_service),
 ):
     return await service.editar_janela(consultor, janela_id, entrada)
 
@@ -56,11 +63,12 @@ async def cancelar_dias(
     entrada: CancelarDiasInput,
     tarefas: BackgroundTasks,
     consultor: User = Depends(gestor_agenda),
-    service: ConsultoriaService = Depends(get_consultoria_service),
+    service: AgendaService = Depends(get_agenda_service),
+    enviador: EnviadorDeAvisos = Depends(get_enviador_de_avisos),
 ):
     """Cancela todas as janelas do consultor em um ou vários dias."""
     janelas, reservas, avisos = await service.cancelar_dias(consultor, entrada.datas)
-    tarefas.add_task(service.enviar_avisos, avisos)
+    tarefas.add_task(enviador.enviar, avisos)
     return CancelamentoOutput(janelas_canceladas=janelas, reservas_canceladas=reservas)
 
 
@@ -69,10 +77,11 @@ async def cancelar_janela(
     janela_id: int,
     tarefas: BackgroundTasks,
     consultor: User = Depends(gestor_agenda),
-    service: ConsultoriaService = Depends(get_consultoria_service),
+    service: AgendaService = Depends(get_agenda_service),
+    enviador: EnviadorDeAvisos = Depends(get_enviador_de_avisos),
 ):
     janelas, reservas, avisos = await service.cancelar_janela(consultor, janela_id)
-    tarefas.add_task(service.enviar_avisos, avisos)
+    tarefas.add_task(enviador.enviar, avisos)
     return CancelamentoOutput(janelas_canceladas=janelas, reservas_canceladas=reservas)
 
 
@@ -82,10 +91,11 @@ async def editar_horario(
     entrada: HorarioUpdate,
     tarefas: BackgroundTasks,
     consultor: User = Depends(gestor_agenda),
-    service: ConsultoriaService = Depends(get_consultoria_service),
+    service: AgendaService = Depends(get_agenda_service),
+    enviador: EnviadorDeAvisos = Depends(get_enviador_de_avisos),
 ):
     horario, avisos = await service.editar_horario(consultor, horario_id, entrada)
-    tarefas.add_task(service.enviar_avisos, avisos)
+    tarefas.add_task(enviador.enviar, avisos)
     return horario
 
 
@@ -94,10 +104,11 @@ async def cancelar_horario(
     horario_id: int,
     tarefas: BackgroundTasks,
     consultor: User = Depends(gestor_agenda),
-    service: ConsultoriaService = Depends(get_consultoria_service),
+    service: AgendaService = Depends(get_agenda_service),
+    enviador: EnviadorDeAvisos = Depends(get_enviador_de_avisos),
 ):
     avisos = await service.cancelar_horario(consultor, horario_id)
-    tarefas.add_task(service.enviar_avisos, avisos)
+    tarefas.add_task(enviador.enviar, avisos)
     return Response(status_code=204)
 
 
@@ -108,7 +119,7 @@ async def cancelar_horario(
 async def horarios_livres(
     consultor: str | None = None,
     _: User = Depends(agendador_consultoria),
-    service: ConsultoriaService = Depends(get_consultoria_service),
+    service: ReservaService = Depends(get_reserva_service),
 ):
     return await service.listar_livres(consultor)
 
@@ -116,7 +127,7 @@ async def horarios_livres(
 @router.get("/minhas", response_model=list[HorarioOutput])
 async def minhas_consultorias(
     incubado: User = Depends(agendador_consultoria),
-    service: ConsultoriaService = Depends(get_consultoria_service),
+    service: ReservaService = Depends(get_reserva_service),
 ):
     return await service.minhas(incubado)
 
@@ -125,7 +136,7 @@ async def minhas_consultorias(
 async def reservar(
     horario_id: int,
     incubado: User = Depends(agendador_consultoria),
-    service: ConsultoriaService = Depends(get_consultoria_service),
+    service: ReservaService = Depends(get_reserva_service),
 ):
     return await service.reservar(incubado, horario_id)
 
@@ -134,7 +145,7 @@ async def reservar(
 async def cancelar_reserva(
     horario_id: int,
     incubado: User = Depends(agendador_consultoria),
-    service: ConsultoriaService = Depends(get_consultoria_service),
+    service: ReservaService = Depends(get_reserva_service),
 ):
     await service.cancelar_reserva(incubado, horario_id)
     return Response(status_code=204)
