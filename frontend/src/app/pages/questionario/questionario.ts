@@ -221,7 +221,9 @@ export class Questionario implements OnInit {
   protected editarNota(): void {
     this.editandoNota.set(this.numero());
     setTimeout(() => {
-      document.querySelector<HTMLElement>('.aval-card')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      document
+        .querySelector<HTMLElement>('.aval-card')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
   }
 
