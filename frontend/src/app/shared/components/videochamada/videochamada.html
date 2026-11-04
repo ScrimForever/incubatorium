@@ -1,0 +1,10 @@
+<div class="videochamada" role="dialog" aria-modal="true" aria-labelledby="videochamada-titulo">
+  <header class="videochamada-topo">
+    <h2 id="videochamada-titulo"><app-icone nome="video" />{{ titulo() }}</h2>
+    <button type="button" class="btn btn--secundario" (click)="fechar()">Sair da chamada</button>
+  </header>
+  @if (erro()) {
+    <div class="error-message" role="alert"><app-icone nome="erro" />{{ erro() }}</div>
+  }
+  <div #palco class="videochamada-palco"></div>
+</div>

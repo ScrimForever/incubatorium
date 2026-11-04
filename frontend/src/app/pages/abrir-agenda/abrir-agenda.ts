@@ -18,7 +18,7 @@ import { catchError, of } from 'rxjs';
 
 import { APP_ROUTES } from '../../core/constants/app-constants';
 import { ApiError, SessionUser } from '../../core/models/auth';
-import { Bloco, Janela } from '../../core/models/consultoria';
+import { Janela } from '../../core/models/consultoria';
 import { Auth } from '../../core/services/auth';
 import {
   ConsultoriasService,

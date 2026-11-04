@@ -10,7 +10,7 @@ import {
 import { NgTemplateOutlet } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
-import { Observable, of, switchMap } from 'rxjs';
+import { Observable, forkJoin, switchMap } from 'rxjs';
 
 import { APP_ROUTES } from '../../core/constants/app-constants';
 import { ApiError, SessionUser } from '../../core/models/auth';
@@ -26,6 +26,7 @@ import {
 } from '../../core/services/consultorias';
 import { Icone } from '../../shared/components/icone/icone';
 import { Painel } from '../../shared/components/painel/painel';
+import { Videochamada } from '../../shared/components/videochamada/videochamada';
 
 /** Um horário como o template e a modal mostram. */
 interface Vaga {
@@ -76,7 +77,7 @@ const MESES_NAS_ABAS = 3;
 @Component({
   selector: 'app-agendar-consultoria',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgTemplateOutlet, Painel, Icone],
+  imports: [NgTemplateOutlet, Painel, Icone, Videochamada],
   templateUrl: './agendar-consultoria.html',
   styleUrl: './agendar-consultoria.scss',
 })
@@ -98,6 +99,7 @@ export class AgendarConsultoria implements OnInit {
 
   /** A reserva confirmada; quando preenchido, esconde o calendário. */
   protected readonly reservada = signal<Vaga | null>(null);
+  protected readonly emChamada = signal(false);
 
   /** Texto compacto da consultoria reservada: "quinta-feira, dia 26/11 às 18:30". */
   protected readonly reservadaRotulo = computed(() => {
@@ -232,7 +234,23 @@ export class AgendarConsultoria implements OnInit {
         },
       });
 
-    this.executar(of(null), null);
+    forkJoin({ livres: this.service.livres(), minhas: this.service.minhas() })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: ({ livres, minhas }) => {
+          this.livres.set(livres);
+          this.carregando.set(false);
+          const agora = new Date().toISOString();
+          const reserva = minhas.find((h) => h.fim > agora);
+          if (reserva) {
+            this.reservada.set(vagaDe(reserva));
+          }
+        },
+        error: (err: ApiError) => {
+          this.carregando.set(false);
+          this.mensagemErro.set(err.message);
+        },
+      });
   }
 
   protected trocarMes(mes: string): void {
@@ -263,16 +281,6 @@ export class AgendarConsultoria implements OnInit {
       return;
     }
     this.executar(this.service.reservar(vaga.horario.id), vaga);
-  }
-
-  /** Volta para o calendário mantendo o dia reservado selecionado. */
-  protected alterar(): void {
-    const v = this.reservada();
-    if (v) {
-      this.diaEscolhido.set(dataLocal(v.horario.inicio));
-    }
-    this.reservada.set(null);
-    this.mensagemSucesso.set('');
   }
 
   /** Cancela a reserva e recomeça do zero. */

@@ -1,5 +1,9 @@
 /* Layout local. Filtros, botões e modal vêm do styles.scss. */
 
+.painel-subtitulo {
+  margin-bottom: 12px;
+}
+
 .agendar-aviso {
   margin-top: 16px;
 }
@@ -50,7 +54,6 @@
   font-size: 13px;
 }
 
-
 /* Alerta pós-reserva: linha com texto e dois botões à direita. */
 .agendar-reserva {
   display: flex;
@@ -68,14 +71,6 @@
   display: flex;
   gap: 8px;
   flex: none;
-}
-
-/* O × fica quadrado, do mesmo tamanho que a altura do botão Alterar. */
-.agendar-reserva-excluir {
-  padding-left: 10px;
-  padding-right: 10px;
-  font-size: 18px;
-  line-height: 1;
 }
 
 .agendar-dados {

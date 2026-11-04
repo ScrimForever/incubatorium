@@ -50,5 +50,11 @@ export const ROLE_LABEL: Record<Role, string> = {
 /** Regra de senha usada no cadastro, na redefinição e na troca. */
 export const MIN_PASSWORD_LENGTH = 8;
 
+/**
+ * Servidor da videochamada. O meet.jit.si público serve para desenvolver; para
+ * produção a escolha (JaaS ou Jitsi próprio) é do backend — trocar só aqui.
+ */
+export const JITSI_DOMINIO = 'meet.jit.si';
+
 /** Chave do bearer token no localStorage. */
 export const STORAGE_TOKEN_KEY = 'bearerToken';

@@ -15,16 +15,14 @@
     } @else if (reservada()) {
       <div class="success-message agendar-reserva" role="status">
         <app-icone nome="sucesso" />
-        <span>Consultoria agendada: {{ reservadaRotulo() }}</span>
+        <span>
+          Consultoria agendada: {{ reservadaRotulo() }}. Na hora, entre na videochamada: você espera
+          na sala de espera até o consultor liberar a sua entrada.
+        </span>
         <div class="agendar-reserva-acoes">
-          <button type="button" class="btn btn--secundario" (click)="alterar()">Alterar</button>
-          <button
-            type="button"
-            class="btn btn--secundario agendar-reserva-excluir"
-            [disabled]="cancelando()"
-            [attr.aria-label]="'Cancelar consultoria de ' + reservadaRotulo()"
-            (click)="cancelarReserva()"
-          >&times;</button>
+          <button type="button" class="btn btn--verde" (click)="emChamada.set(true)">
+            <app-icone nome="video" /> Entrar na videochamada
+          </button>
         </div>
       </div>
     } @else {
@@ -117,6 +115,19 @@
   <main id="conteudo" tabindex="-1">
     <p class="painel-carregando">Carregando...</p>
   </main>
+}
+
+@if (emChamada()) {
+  @if (reservada(); as v) {
+    @if (user(); as u) {
+      <app-videochamada
+        [horario]="v.horario"
+        [participante]="{ nome: u.email, email: u.email, papel: 'convidado' }"
+        [titulo]="'Consultoria com ' + v.consultor"
+        (encerrada)="emChamada.set(false)"
+      />
+    }
+  }
 }
 
 @if (escolhida(); as v) {

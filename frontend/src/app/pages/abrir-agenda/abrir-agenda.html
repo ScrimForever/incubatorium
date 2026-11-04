@@ -136,7 +136,10 @@
             <button
               type="button"
               class="btn btn--azul horarios-tirar-bloco"
-              [disabled]="!datas().length || !!(errosFaixas()[0].inicio || errosFaixas()[0].fim || errosFaixas()[0].duracao)"
+              [disabled]="
+                !datas().length ||
+                !!(errosFaixas()[0].inicio || errosFaixas()[0].fim || errosFaixas()[0].duracao)
+              "
               (click)="gerarHorarios()"
             >
               <app-icone nome="relogio" /> Gerar horários
@@ -156,7 +159,8 @@
             }
             @if (ug.conflitantes) {
               <span class="horarios-ger-linha">
-                <app-icone nome="alerta" /> {{ ug.conflitantes }} já ocupado(s) na sua agenda foram ignorado(s).
+                <app-icone nome="alerta" /> {{ ug.conflitantes }} já ocupado(s) na sua agenda foram
+                ignorado(s).
               </span>
             }
           </div>

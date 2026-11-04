@@ -1,0 +1,35 @@
+.videochamada {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  background: #1f1f1f;
+}
+
+.videochamada-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: white;
+  border-bottom: 1px solid #ddd;
+
+  h2 {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 1.05rem;
+  }
+}
+
+.error-message {
+  margin: 16px;
+}
+
+.videochamada-palco {
+  flex: 1;
+  min-height: 0;
+}
