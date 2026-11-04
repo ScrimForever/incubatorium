@@ -21,7 +21,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         logger.info(f"User {user.id} has registered.")
         logger.info(f"Enviando email para ativaçãoativaÃ§Ã£o de conta: {user.email}")
         email_service = EmailSetup()
-        await email_service.enviar_email_cadastro(user.email)
+        await email_service.enviar_email_cadastro(user.email, user.codigo_ativacao)
 
     async def on_after_login(
         self,

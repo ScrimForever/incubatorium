@@ -29,6 +29,29 @@ services:
       - app_network
       - observabilidade
 
+  # Lembretes de agendamento de consultoria: dispara todo dia às 13h (Brasília).
+  lembretes:
+    build: .
+    container_name: app_lembretes
+    restart: unless-stopped
+    user: "${APP_UID:-1000}:${APP_GID:-1000}"
+    command: uv run python -m src.scripts.lembrar_agendamentos --diario 13:00
+    volumes:
+      - .:/app
+      - /app/src/.venv
+    environment:
+      PYTHONPATH: /app
+      HOME: /tmp
+      UV_CACHE_DIR: /tmp/uv-cache
+      OTEL_HABILITADO: "false"
+    env_file:
+      - src/.env.development
+    depends_on:
+      web:
+        condition: service_started
+    networks:
+      - app_network
+
   frontend:
     build:
       context: ./frontend
