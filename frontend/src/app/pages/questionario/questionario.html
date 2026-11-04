@@ -479,9 +479,10 @@
         </section>
       }
 
-      @if (ehAvaliacao()) {
+      @if (ehAvaliacao() && !somenteLeitura()) {
         <!-- Nas pontas o botão some, em vez de ficar desabilitado: na avaliação
-             ele não vira outra coisa depois (não há "enviar"), então é ruído. -->
+             ele não vira outra coisa depois (não há "enviar"), então é ruído.
+             Consultor (somenteLeitura) navega pela trilha no topo; sem botões aqui. -->
         <div class="quest-acoes">
           @if (!ehPrimeira()) {
             <button type="button" class="btn btn--azul" [disabled]="salvando()" (click)="voltar()">
@@ -829,8 +830,8 @@
 
       <div class="modal-body">
         <p id="saida-texto">
-          Você escreveu uma avaliação nesta etapa e ainda <strong>não salvou</strong>. Se sair
-          agora, o que digitou será perdido.
+          A avaliação desta etapa ainda <strong>não foi salva</strong>. Se sair agora, nota e
+          observações serão descartadas.
         </p>
       </div>
 
@@ -1054,7 +1055,7 @@
               rows="6"
               [value]="mensagemAjuste()"
               (input)="escreverAjuste($event)"
-              placeholder="Ex.: incluir a comparação de preços dos concorrentes."
+              [placeholder]="placeholderAjuste()"
             ></textarea>
             @if (mexeuAjuste() && !ajusteValido()) {
               <span class="field-error">Escreva o pedido.</span>

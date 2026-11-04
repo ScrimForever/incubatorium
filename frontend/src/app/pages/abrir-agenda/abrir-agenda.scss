@@ -1,9 +1,5 @@
 /* Layout local de Abrir agenda. Chips, campos e botões vêm do styles.scss. */
 
-.horarios-voltar {
-  margin-bottom: 14px;
-}
-
 .horarios-abrir {
   margin-top: 20px;
   display: grid;
@@ -174,6 +170,23 @@
 /* Mensagem vazia não ocupa espaço: o parágrafo existe para o leitor de tela. */
 .horarios-passo .field-error:empty {
   display: none;
+}
+
+.horarios-ger {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.horarios-ger-linha {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--texto-suave);
+}
+
+.horarios-ger-linha--ok {
+  color: var(--nota-5-forte);
 }
 
 .horarios-pendencia {

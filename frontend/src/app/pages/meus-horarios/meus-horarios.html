@@ -13,9 +13,6 @@
         </a>
         <h1>Meus horários</h1>
       </div>
-      <button type="button" class="btn btn--secundario horarios-btn-p" (click)="abrirTour()">
-        <app-icone nome="ajuda" /> Como funciona
-      </button>
     </div>
     <p class="painel-subtitulo">
       Os dias em que você atende, de hoje em diante. Abra um dia para ver as faixas e quem reservou.
@@ -31,46 +28,6 @@
         <app-icone nome="sucesso" />{{ mensagemSucesso() }}
       </div>
     }
-
-    <div class="lista-barra">
-      <div class="filtros" role="group" aria-label="Filtrar por mês" data-tour="filtros">
-        @for (opcao of filtros(); track opcao.mes) {
-          <button
-            type="button"
-            class="filtro"
-            [class.filtro--ativo]="mesVisto().startsWith(opcao.mes)"
-            [attr.aria-pressed]="mesVisto().startsWith(opcao.mes)"
-            (click)="trocarMes(opcao.mes)"
-          >
-            {{ opcao.rotulo }}
-          </button>
-        }
-      </div>
-      <div class="horarios-visoes" role="group" aria-label="Forma de ver a agenda">
-        <button
-          type="button"
-          class="horarios-visao"
-          [class.horarios-visao--ativa]="visao() === 'lista'"
-          [attr.aria-pressed]="visao() === 'lista'"
-          aria-label="Ver em lista"
-          title="Ver em lista"
-          (click)="trocarVisao('lista')"
-        >
-          <app-icone nome="lista" />
-        </button>
-        <button
-          type="button"
-          class="horarios-visao"
-          [class.horarios-visao--ativa]="visao() === 'calendario'"
-          [attr.aria-pressed]="visao() === 'calendario'"
-          aria-label="Ver em calendário"
-          title="Ver em calendário"
-          (click)="trocarVisao('calendario')"
-        >
-          <app-icone nome="agenda" />
-        </button>
-      </div>
-    </div>
 
     @if (carregando()) {
       <p class="lista-aviso" role="status">Carregando a agenda…</p>

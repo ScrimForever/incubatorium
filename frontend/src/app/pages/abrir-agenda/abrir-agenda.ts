@@ -6,8 +6,10 @@ import {
   OnInit,
   afterNextRender,
   computed,
+  effect,
   inject,
   signal,
+  untracked,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
@@ -21,16 +23,16 @@ import { Auth } from '../../core/services/auth';
 import {
   ConsultoriasService,
   DIAS_SEMANA,
-  conflitoComAgenda,
   datasDoPeriodo,
   erroDoPeriodo,
   errosDaFaixa,
-  faixasSemTirados,
   fatiar,
   hojeLocal,
   horaLocal,
+  iniciaisConflitantes,
   rotuloData,
   rotuloDataCurto,
+  slotsParaBlocos,
   sobreposicoes,
 } from '../../core/services/consultorias';
 import { PassoTour, TourService } from '../../core/services/tour';
@@ -59,9 +61,9 @@ const TOUR: readonly PassoTour[] = [
   },
   {
     alvo: 'faixa',
-    titulo: '2. Defina as faixas',
+    titulo: '2. Defina a faixa',
     texto:
-      'Informe início, fim e a <b>duração</b> de cada consultoria. A prévia mostra os horários que serão criados; passe o mouse num deles para tirar pelo ×.',
+      'Informe início, fim e a <b>duração</b> de cada consultoria. Clique em <b>Gerar horários</b> para ver a prévia; passe o mouse num horário para tirar pelo ×.',
   },
   {
     alvo: 'publicar',
@@ -103,7 +105,8 @@ export class AbrirAgenda implements OnInit {
    * A agenda que já existe: o calendário marca os dias com o ponto verde, e a
    * tela avisa antes de publicar uma faixa que se sobreponha a ela.
    */
-  private readonly publicadas = signal<Janela[]>([]);
+  /** Visível para o computed `previa` poder filtrar conflitos. */
+  readonly publicadas = signal<Janela[]>([]);
   protected readonly datas = signal<string[]>([]);
   protected readonly marcadas = computed(() => [
     ...new Set([...this.publicadas().map((janela) => janela.data), ...this.datas()]),
@@ -161,7 +164,15 @@ export class AbrirAgenda implements OnInit {
     return `De ${rotuloData(de)} a ${rotuloData(ate)}`;
   });
 
-  protected readonly blocos = this.fb.array([this.novoBloco('09:00', '12:00', 45)]);
+  /** Slots acumulados ao longo de múltiplas gerações (início + duração por slot). */
+  private readonly slotsGerados = signal<{ inicio: string; duracao: number }[]>([]);
+  protected readonly horariosGerados = computed(() => this.slotsGerados().length > 0);
+  /** Feedback da última geração: quantos foram adicionados e quantos conflitaram. */
+  protected readonly ultimaGeracao = signal<{ adicionados: number; conflitantes: number } | null>(
+    null,
+  );
+
+  protected readonly blocos = this.fb.array([this.novoBloco('08:00', '18:00', 60)]);
   private readonly blocosValor = toSignal(this.blocos.valueChanges, {
     initialValue: this.blocos.getRawValue(),
   });
@@ -181,25 +192,17 @@ export class AbrirAgenda implements OnInit {
     }));
   });
 
-  /**
-   * Horários tirados da prévia, por faixa (a chave é o próprio FormGroup, que não
-   * muda de índice quando outra faixa sai). Ao publicar, a faixa vai partida.
-   */
-  private readonly tirados = signal(new Map<object, string[]>());
+  /** Horários que o consultor tirou manualmente da prévia acumulada. */
+  private readonly tiradosPeloConsultor = signal<string[]>([]);
 
-  /** A prévia de cada faixa válida: o que vai ser criado e quantos foram tirados. */
-  protected readonly previa = computed(() =>
-    this.blocosValor().map((bloco, i) => {
-      const erros = this.errosFaixas()[i];
-      const invalida = !!(erros.inicio || erros.fim || erros.duracao || erros.sobreposicao);
-      const todos = invalida
-        ? []
-        : fatiar(bloco.hora_inicio ?? '', bloco.hora_fim ?? '', Number(bloco.duracao_minutos));
-      const fora = this.tirados().get(this.blocos.at(i)) ?? [];
-      const inicios = todos.filter((inicio) => !fora.includes(inicio));
-      return { valida: !invalida, inicios, tirados: todos.length - inicios.length };
-    }),
-  );
+  /** Prévia: slots acumulados menos os tirados pelo consultor. */
+  protected readonly previa = computed(() => {
+    const fora = this.tiradosPeloConsultor();
+    const inicios = this.slotsGerados()
+      .map((s) => s.inicio)
+      .filter((ini) => !fora.includes(ini));
+    return { inicios, tirados: fora.length };
+  });
 
   /** Datas da lista que passaram com a tela aberta (de um dia para o outro). */
   private readonly datasVencidas = computed(() => this.datas().filter((data) => data < this.hoje));
@@ -212,17 +215,13 @@ export class AbrirAgenda implements OnInit {
     if (this.datasVencidas().length) {
       return 'Há data que já passou na lista: tire-a.';
     }
-    const ruim = this.errosFaixas().findIndex(
-      (e) => e.inicio || e.fim || e.duracao || e.sobreposicao,
-    );
-    if (ruim >= 0) {
-      return `Corrija a faixa ${ruim + 1}.`;
+    if (!this.horariosGerados()) {
+      return 'Gere os horários para publicar.';
     }
-    const vazia = this.previa().findIndex((faixa) => faixa.valida && !faixa.inicios.length);
-    if (vazia >= 0) {
-      return `A faixa ${vazia + 1} ficou sem horário: restaure algum ou tire a faixa.`;
+    if (!this.previa().inicios.length) {
+      return 'Todos os horários foram tirados: restaure algum.';
     }
-    return conflitoComAgenda(this.datas(), this.blocosValor(), this.publicadas());
+    return '';
   });
 
   protected readonly rotulosDatas = computed(() =>
@@ -234,7 +233,7 @@ export class AbrirAgenda implements OnInit {
   );
 
   protected readonly resumoPrevia = computed(() => {
-    const porDia = this.previa().reduce((soma, faixa) => soma + faixa.inicios.length, 0);
+    const porDia = this.previa().inicios.length;
     const dias = this.datas().length;
     return `${plural(porDia * dias, 'horário', 'horários')} em ${plural(dias, 'dia', 'dias')}.`;
   });
@@ -242,6 +241,32 @@ export class AbrirAgenda implements OnInit {
   protected readonly podePublicar = computed(() => !this.pendencia() && !this.salvando());
 
   ngOnInit(): void {
+    effect(
+      () => {
+        if (this.datas().length) {
+          this.blocos.enable({ emitEvent: false });
+        } else {
+          this.blocos.disable({ emitEvent: false });
+        }
+      },
+      { injector: this.injector },
+    );
+
+    effect(
+      () => {
+        this.blocosValor(); // rastreia mudanças nos campos de faixa
+        untracked(() => {
+          if (this.horariosGerados()) {
+            this.slotsGerados.set([]);
+            this.tiradosPeloConsultor.set([]);
+            this.ultimaGeracao.set(null);
+            this.gerarHorarios();
+          }
+        });
+      },
+      { injector: this.injector },
+    );
+
     this.auth
       .me()
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -266,7 +291,18 @@ export class AbrirAgenda implements OnInit {
         catchError(() => of([] as Janela[])),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((janelas) => this.publicadas.set(janelas));
+      .subscribe((janelas) => {
+        this.publicadas.set(janelas);
+        // Pré-preenche a faixa com o horário mais recente do consultor.
+        if (janelas.length) {
+          const j = janelas.at(-1)!;
+          this.blocos.at(0).patchValue({
+            hora_inicio: j.hora_inicio.slice(0, 5),
+            hora_fim: j.hora_fim.slice(0, 5),
+            duracao_minutos: j.duracao_minutos,
+          });
+        }
+      });
 
     this.destroyRef.onDestroy(() => this.tour.encerrar());
   }
@@ -303,27 +339,44 @@ export class AbrirAgenda implements OnInit {
     this.datas.set(this.datas().filter((outra) => outra !== data));
   }
 
-  // --- faixas ---
+  // --- faixa ---
 
-  protected adicionarBloco(): void {
-    this.blocos.push(this.novoBloco('14:00', '17:00', 45));
+  protected gerarHorarios(): void {
+    const erros = this.errosFaixas()[0];
+    if (erros.inicio || erros.fim || erros.duracao || !this.datas().length) {
+      return;
+    }
+    const bloco = this.blocos.at(0).getRawValue();
+    const dur = Number(bloco.duracao_minutos);
+    const conflitantes = iniciaisConflitantes(
+      bloco.hora_inicio,
+      bloco.hora_fim,
+      dur,
+      this.datas(),
+      this.publicadas(),
+    );
+    const jaGerados = new Set(this.slotsGerados().map((s) => s.inicio));
+    const candidatos = fatiar(bloco.hora_inicio, bloco.hora_fim, dur);
+    const novos = candidatos.filter((s) => !jaGerados.has(s) && !conflitantes.has(s));
+    const conflitantesNovos = candidatos.filter(
+      (s) => !jaGerados.has(s) && conflitantes.has(s),
+    ).length;
+    if (novos.length) {
+      const acumulados = [
+        ...this.slotsGerados(),
+        ...novos.map((inicio) => ({ inicio, duracao: dur })),
+      ].sort((a, b) => a.inicio.localeCompare(b.inicio));
+      this.slotsGerados.set(acumulados);
+    }
+    this.ultimaGeracao.set({ adicionados: novos.length, conflitantes: conflitantesNovos });
   }
 
-  protected tirarBloco(indice: number): void {
-    this.blocos.removeAt(indice);
+  protected tirarDaPrevia(inicio: string): void {
+    this.tiradosPeloConsultor.update((t) => [...t, inicio]);
   }
 
-  protected tirarDaPrevia(indice: number, inicio: string): void {
-    const chave = this.blocos.at(indice);
-    const mapa = new Map(this.tirados());
-    mapa.set(chave, [...(mapa.get(chave) ?? []), inicio]);
-    this.tirados.set(mapa);
-  }
-
-  protected restaurarPrevia(indice: number): void {
-    const mapa = new Map(this.tirados());
-    mapa.delete(this.blocos.at(indice));
-    this.tirados.set(mapa);
+  protected restaurarPrevia(): void {
+    this.tiradosPeloConsultor.set([]);
   }
 
   // --- publicar ---
@@ -332,13 +385,9 @@ export class AbrirAgenda implements OnInit {
     if (!this.podePublicar()) {
       return;
     }
-    const blocos: Bloco[] = this.blocos.controls.flatMap((controle) => {
-      const bloco = controle.getRawValue();
-      return faixasSemTirados(
-        { ...bloco, duracao_minutos: Number(bloco.duracao_minutos) },
-        this.tirados().get(controle) ?? [],
-      );
-    });
+    const tirados = this.tiradosPeloConsultor();
+    const mantidos = this.slotsGerados().filter((s) => !tirados.includes(s.inicio));
+    const blocos = slotsParaBlocos(mantidos);
     const dias = this.datas().length;
     this.salvando.set(true);
     this.mensagemErro.set('');

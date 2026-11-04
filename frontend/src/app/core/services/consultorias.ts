@@ -316,6 +316,34 @@ export function errosRemarcacao(
 }
 
 /**
+ * Inícios de slots que colidem com a agenda já publicada em ao menos uma das
+ * datas escolhidas. Usado pela prévia para mostrar só os horários livres.
+ */
+export function iniciaisConflitantes(
+  inicio: string,
+  fim: string,
+  duracao: number,
+  datas: readonly string[],
+  publicadas: readonly Pick<Janela, 'data' | 'hora_inicio' | 'hora_fim'>[],
+): Set<string> {
+  const conflitantes = new Set<string>();
+  for (const slot of fatiar(inicio, fim, duracao)) {
+    const slotIni = minutosDe(slot);
+    const slotFim = slotIni + duracao;
+    for (const data of datas) {
+      const choca = publicadas
+        .filter((j) => j.data === data)
+        .some((j) => slotIni < minutosDe(j.hora_fim) && minutosDe(j.hora_inicio) < slotFim);
+      if (choca) {
+        conflitantes.add(slot);
+        break;
+      }
+    }
+  }
+  return conflitantes;
+}
+
+/**
  * A primeira sobreposição entre as faixas novas e a agenda que já existe nas
  * mesmas datas — o servidor recusa o lote inteiro por uma só, então a tela
  * avisa antes. Vazio quando não há conflito.
@@ -368,6 +396,27 @@ export function faixasSemTirados(faixa: Bloco, tirados: readonly string[]): Bloc
     }
   }
   return faixas;
+}
+
+/**
+ * Converte uma lista ordenada de slots `{inicio, duracao}` em Bloco[],
+ * agrupando slots adjacentes de mesma duração em uma faixa contínua.
+ */
+export function slotsParaBlocos(slots: readonly { inicio: string; duracao: number }[]): Bloco[] {
+  const blocos: Bloco[] = [];
+  for (const slot of slots) {
+    const ultima = blocos.at(-1);
+    if (ultima && ultima.duracao_minutos === slot.duracao && ultima.hora_fim === slot.inicio) {
+      ultima.hora_fim = hhmm(minutosDe(slot.inicio) + slot.duracao);
+    } else {
+      blocos.push({
+        hora_inicio: slot.inicio,
+        hora_fim: hhmm(minutosDe(slot.inicio) + slot.duracao),
+        duracao_minutos: slot.duracao,
+      });
+    }
+  }
+  return blocos;
 }
 
 /** Hora de parede (`hh:mm`) de um instante UTC, no fuso da incubadora. */

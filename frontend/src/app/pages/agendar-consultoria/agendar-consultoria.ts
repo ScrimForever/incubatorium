@@ -10,7 +10,7 @@ import {
 import { NgTemplateOutlet } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
-import { Observable, forkJoin, of, switchMap } from 'rxjs';
+import { Observable, of, switchMap } from 'rxjs';
 
 import { APP_ROUTES } from '../../core/constants/app-constants';
 import { ApiError, SessionUser } from '../../core/models/auth';
@@ -23,13 +23,11 @@ import {
   horaLocal,
   porDia,
   rotuloData,
-  rotuloDataCurto,
 } from '../../core/services/consultorias';
-import { DiaDaFaixa, FaixaDias } from '../../shared/components/faixa-dias/faixa-dias';
 import { Icone } from '../../shared/components/icone/icone';
 import { Painel } from '../../shared/components/painel/painel';
 
-/** Um horário como o template mostra. */
+/** Um horário como o template e a modal mostram. */
 interface Vaga {
   readonly horario: Horario;
   readonly dia: string;
@@ -54,9 +52,6 @@ const vagaDe = (horario: Horario): Vaga => ({
 /** "Todos" é o filtro sem consultor. */
 const TODOS = '';
 
-/** Lista (faixa de dias) ou calendário do mês; a escolha fica só neste navegador. */
-type Visao = 'lista' | 'calendario';
-const CHAVE_VISAO = 'agendar-consultoria:visao';
 const MESES = [
   'Janeiro',
   'Fevereiro',
@@ -74,22 +69,14 @@ const MESES = [
 /** As abas mostram o mês corrente e os dois seguintes — a janela em que se agenda. */
 const MESES_NAS_ABAS = 3;
 
-function visaoGuardada(): Visao {
-  try {
-    return localStorage.getItem(CHAVE_VISAO) === 'calendario' ? 'calendario' : 'lista';
-  } catch {
-    return 'lista';
-  }
-}
-
 /**
- * Consultorias do incubado: as reservas dele e os horários livres para
- * reservar. Reservar é direto — sem aceite do consultor —, como a API faz.
+ * Consultorias do incubado: calendário com horários livres para reservar.
+ * Reservar é direto — sem aceite do consultor —, como a API faz.
  */
 @Component({
   selector: 'app-agendar-consultoria',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgTemplateOutlet, Painel, Icone, FaixaDias],
+  imports: [NgTemplateOutlet, Painel, Icone],
   templateUrl: './agendar-consultoria.html',
   styleUrl: './agendar-consultoria.scss',
 })
@@ -105,16 +92,30 @@ export class AgendarConsultoria implements OnInit {
   protected readonly mensagemErro = signal('');
   protected readonly mensagemSucesso = signal('');
   protected readonly erroModal = signal('');
+  protected readonly cancelando = signal(false);
 
   private readonly livres = signal<Horario[]>([]);
-  private readonly reservas = signal<Horario[]>([]);
+
+  /** A reserva confirmada; quando preenchido, esconde o calendário. */
+  protected readonly reservada = signal<Vaga | null>(null);
+
+  /** Texto compacto da consultoria reservada: "quinta-feira, dia 26/11 às 18:30". */
+  protected readonly reservadaRotulo = computed(() => {
+    const v = this.reservada();
+    if (!v) return '';
+    const data = dataLocal(v.horario.inicio);
+    const [ano, mes, dia] = data.split('-').map(Number);
+    const semana = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', timeZone: 'UTC' }).format(
+      new Date(Date.UTC(ano, mes - 1, dia, 12)),
+    );
+    const hora = horaLocal(v.horario.inicio);
+    return `${semana}, dia ${String(dia).padStart(2, '0')}/${String(mes).padStart(2, '0')} às ${hora}`;
+  });
 
   protected readonly filtro = signal(TODOS);
   protected readonly todos = TODOS;
   /** O mês escolhido nas abas (AAAA-MM); vazio = o primeiro das abas com vaga. */
   protected readonly mes = signal('');
-
-  protected readonly minhas = computed(() => this.reservas().map(vagaDe));
 
   /** Consultores com horário livre, para o filtro — só o e-mail: é o que a API dá. */
   protected readonly consultores = computed(() =>
@@ -162,61 +163,60 @@ export class AgendarConsultoria implements OnInit {
         hora: horaLocal(horario.inicio),
         titulo: `${horaLocal(horario.inicio)} às ${horaLocal(horario.fim)} com ${horario.consultor_email}`,
       }));
-      const [semana, numero] = rotuloDataCurto(data).split(' ');
       return {
         data,
         rotulo: rotuloData(data),
-        semana,
-        numero: numero.slice(0, 2),
         vagas,
-        // Antes do meio-dia é manhã; o resto, tarde — o corte da visão em lista.
-        manha: vagas.filter((vaga) => vaga.hora < '12:00'),
-        tarde: vagas.filter((vaga) => vaga.hora >= '12:00'),
       };
     });
   });
 
-  // --- visões: lista (faixa de dias) e calendário ---
-
-  protected readonly visao = signal<Visao>(visaoGuardada());
   /** O dia aberto; vazio = o primeiro com vaga no mês. */
   protected readonly diaEscolhido = signal('');
   protected readonly diaAtual = computed(
     () => this.dias().find((dia) => dia.data === this.diaEscolhido()) ?? this.dias()[0],
   );
 
-  protected readonly faixa = computed(() =>
-    this.dias().map((dia): DiaDaFaixa => ({
-      data: dia.data,
-      rotulo: `${dia.rotulo}, ${dia.vagas.length} livres`,
-      semana: dia.semana,
-      numero: dia.numero,
-      detalhe: `${dia.vagas.length} livres`,
-    })),
-  );
-
-  protected readonly tituloCalendario = computed(() => {
+  protected readonly mesTitulo = computed(() => {
     const [ano, mes] = this.mesAtivo().split('-').map(Number);
     return `${MESES[mes - 1]} de ${ano}`;
   });
   protected readonly cabecalhoSemana = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
   protected readonly casasCalendario = computed(() => {
     const [ano, mes] = this.mesAtivo().split('-').map(Number);
+    const hoje = hojeLocal();
     const porData = new Map(this.dias().map((dia) => [dia.data, dia]));
     const vazias = (new Date(Date.UTC(ano, mes - 1, 1)).getUTCDay() + 6) % 7;
     const total = new Date(Date.UTC(ano, mes, 0)).getUTCDate();
-    const casas: { data: string; numero: number; livres: number }[] = Array.from(
-      { length: vazias },
-      () => ({ data: '', numero: 0, livres: 0 }),
-    );
+    const casas: {
+      data: string;
+      numero: number;
+      livres: number;
+      hoje: boolean;
+      fds: boolean;
+      passado: boolean;
+    }[] = Array.from({ length: vazias }, () => ({
+      data: '',
+      numero: 0,
+      livres: 0,
+      hoje: false,
+      fds: false,
+      passado: false,
+    }));
     for (let numero = 1; numero <= total; numero++) {
       const data = `${this.mesAtivo()}-${String(numero).padStart(2, '0')}`;
-      casas.push({ data, numero, livres: porData.get(data)?.vagas.length ?? 0 });
+      const dow = new Date(Date.UTC(ano, mes - 1, numero)).getUTCDay();
+      casas.push({
+        data,
+        numero,
+        livres: porData.get(data)?.vagas.length ?? 0,
+        hoje: data === hoje,
+        fds: dow === 0 || dow === 6,
+        passado: data < hoje,
+      });
     }
     return casas;
   });
-  protected readonly totalLivres = computed(() => this.livres().length);
-
   /** O horário que o incubado escolheu e ainda não confirmou. */
   protected readonly escolhida = signal<Vaga | null>(null);
 
@@ -232,21 +232,19 @@ export class AgendarConsultoria implements OnInit {
         },
       });
 
-    this.executar(of(null), '');
-  }
-
-  protected trocarVisao(visao: Visao): void {
-    this.visao.set(visao);
-    try {
-      localStorage.setItem(CHAVE_VISAO, visao);
-    } catch {
-      // Sem armazenamento, a escolha vale só nesta visita.
-    }
+    this.executar(of(null), null);
   }
 
   protected trocarMes(mes: string): void {
     this.mes.set(mes);
     this.diaEscolhido.set('');
+  }
+
+  protected mudarMes(delta: number): void {
+    const lista = this.meses().map((m) => m.mes);
+    const idx = lista.indexOf(this.mesAtivo());
+    const proximo = lista[idx + delta];
+    if (proximo) this.trocarMes(proximo);
   }
 
   protected escolher(horario: Horario): void {
@@ -264,44 +262,78 @@ export class AgendarConsultoria implements OnInit {
     if (!vaga || this.salvando()) {
       return;
     }
-    this.executar(
-      this.service.reservar(vaga.horario.id),
-      `Consultoria reservada: ${vaga.dia}, ${vaga.hora}, com ${vaga.consultor}.`,
-    );
+    this.executar(this.service.reservar(vaga.horario.id), vaga);
   }
 
-  /** Só atualiza as listas, sem mexer em mensagem nem na confirmação aberta. */
-  private reler(): void {
-    forkJoin({ minhas: this.service.minhas(), livres: this.service.livres() })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(({ minhas, livres }) => {
-        this.reservas.set(minhas);
-        this.livres.set(livres);
+  /** Volta para o calendário mantendo o dia reservado selecionado. */
+  protected alterar(): void {
+    const v = this.reservada();
+    if (v) {
+      this.diaEscolhido.set(dataLocal(v.horario.inicio));
+    }
+    this.reservada.set(null);
+    this.mensagemSucesso.set('');
+  }
+
+  /** Cancela a reserva e recomeça do zero. */
+  protected cancelarReserva(): void {
+    const v = this.reservada();
+    if (!v || this.cancelando()) return;
+    this.cancelando.set(true);
+    this.mensagemErro.set('');
+    this.service
+      .cancelarReserva(v.horario.id)
+      .pipe(
+        switchMap(() => this.service.livres()),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: (livres) => {
+          this.livres.set(livres);
+          this.reservada.set(null);
+          this.mensagemSucesso.set('');
+          this.cancelando.set(false);
+          this.diaEscolhido.set('');
+        },
+        error: (err: ApiError) => {
+          this.cancelando.set(false);
+          this.mensagemErro.set(err.message);
+        },
       });
   }
 
+  /** Relê os livres sem mexer em mensagem nem na confirmação aberta. */
+  private reler(): void {
+    this.service
+      .livres()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((livres) => this.livres.set(livres));
+  }
+
   /**
-   * Relê reservas e livres depois de toda escrita: o horário reservado sai de
-   * uma lista e entra na outra. Erro com a confirmação aberta fica nela.
+   * Relê os livres depois de toda escrita: o horário reservado some da grade.
+   * Erro com a confirmação aberta fica nela. `vagaReservada` é definido na
+   * reserva; na carga inicial é null e apenas atualiza o estado de carregamento.
    */
-  private executar(acao: Observable<unknown>, sucesso: string): void {
+  private executar(acao: Observable<unknown>, vagaReservada: Vaga | null): void {
     this.salvando.set(true);
     this.mensagemErro.set('');
     this.mensagemSucesso.set('');
     this.erroModal.set('');
     acao
       .pipe(
-        switchMap(() => forkJoin({ minhas: this.service.minhas(), livres: this.service.livres() })),
+        switchMap(() => this.service.livres()),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
-        next: ({ minhas, livres }) => {
-          this.reservas.set(minhas);
+        next: (livres) => {
           this.livres.set(livres);
           this.carregando.set(false);
           this.salvando.set(false);
           this.escolhida.set(null);
-          this.mensagemSucesso.set(sucesso);
+          if (vagaReservada) {
+            this.reservada.set(vagaReservada);
+          }
           // O consultor filtrado pode ter ficado sem horário livre.
           if (!this.consultores().includes(this.filtro())) {
             this.filtro.set(TODOS);
