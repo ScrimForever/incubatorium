@@ -25,7 +25,7 @@ class EmailSetup:
         )
         params: resend.Emails.SendParams = {
             "from": "Acme <onboarding@resend.dev>",
-            "to": "maicon.kistemmacher@gmail.com",
+            "to": "thiago.salgado.monteiro@gmail.com",
             "subject": "Tec Campos - Reativação de senha.",
             "html": html_renderizado,
         }
