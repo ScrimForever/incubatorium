@@ -429,6 +429,20 @@ describe('QuestionarioService', () => {
     expect(recebido?.status_questionario).toBe('iniciado');
   });
 
+  it('cria o documento quando o GET responde 404', () => {
+    let recebido: Questionario | undefined;
+    service.meu().subscribe((plano) => (recebido = plano));
+
+    backend
+      .expectOne('/api/questionario')
+      .flush({ detail: 'Not Found' }, { status: 404, statusText: 'Not Found' });
+
+    const criacao = backend.expectOne('/api/questionario');
+    expect(criacao.request.method).toBe('POST');
+    criacao.flush({ status_questionario: 'iniciado', json_questionario: documentoVazio() });
+    expect(recebido?.status_questionario).toBe('iniciado');
+  });
+
   it('documento em branco continua iniciado, mesmo ao salvar', () => {
     service.salvar(documentoVazio()).subscribe();
 

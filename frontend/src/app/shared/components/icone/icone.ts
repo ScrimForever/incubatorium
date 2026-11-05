@@ -18,7 +18,8 @@ export type IconeNome =
   | 'lapis'
   | 'seta-direita'
   | 'ajuda'
-  | 'lista';
+  | 'lista'
+  | 'video';
 
 /**
  * Ícones de sistema (traço fino, herdam a cor do texto via currentColor).
@@ -120,6 +121,10 @@ export type IconeNome =
         @case ('relogio') {
           <circle cx="12" cy="12" r="10" />
           <polyline points="12 6 12 12 16 14" />
+        }
+        @case ('video') {
+          <path d="m16 13 5.2 3.5a.5.5 0 0 0 .8-.4V7.9a.5.5 0 0 0-.8-.4L16 11" />
+          <rect x="2" y="6" width="14" height="12" rx="2" />
         }
         @case ('lapis') {
           <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />

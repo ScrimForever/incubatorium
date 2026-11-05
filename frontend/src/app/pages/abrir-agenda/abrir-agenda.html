@@ -1,8 +1,6 @@
 @if (user(); as u) {
   <app-painel [user]="u" ativo="Meus horários">
-    <a class="btn btn--secundario horarios-btn-p horarios-voltar" [routerLink]="voltar">
-      ← Meus horários
-    </a>
+    <a class="aval-voltar" [routerLink]="voltar">← Meus horários</a>
 
     <div class="horarios-titulo">
       <div>
@@ -31,6 +29,7 @@
             [(ate)]="ate"
             [min]="hoje"
             [marcadas]="marcadas()"
+            [bloqueadas]="datas()"
           />
 
           <div class="horarios-datas-lado">
@@ -71,15 +70,6 @@
                     <span class="horarios-contador">{{ rotulosDatas().length }}</span>
                   }
                 </span>
-                @if (rotulosDatas().length > 1) {
-                  <button
-                    type="button"
-                    class="btn btn--secundario horarios-perigo horarios-btn-p"
-                    (click)="limparDatas()"
-                  >
-                    Tirar todas
-                  </button>
-                }
               </div>
               @if (rotulosDatas().length) {
                 <ul class="horarios-chips horarios-chips--datas" aria-label="Datas escolhidas">
@@ -107,96 +97,107 @@
         </div>
       </div>
 
-      <div class="horarios-passo">
-        <span class="rotulo">2. Faixas de atendimento</span>
-        @for (bloco of blocos.controls; track bloco; let i = $index) {
-          <div
-            class="horarios-bloco"
-            [formGroup]="bloco"
-            [attr.data-tour]="i === 0 ? 'faixa' : null"
-          >
-            <div class="horarios-campos">
-              <div class="form-group">
-                <label [for]="'ini-' + i">Início</label>
-                <input
-                  [id]="'ini-' + i"
-                  type="time"
-                  formControlName="hora_inicio"
-                  [class.campo-invalido]="!!errosFaixas()[i].inicio"
-                />
-                <span class="field-error">{{ errosFaixas()[i].inicio }}</span>
-              </div>
-              <div class="form-group">
-                <label [for]="'fim-' + i">Fim</label>
-                <input
-                  [id]="'fim-' + i"
-                  type="time"
-                  formControlName="hora_fim"
-                  [class.campo-invalido]="!!errosFaixas()[i].fim"
-                />
-                <span class="field-error">{{ errosFaixas()[i].fim }}</span>
-              </div>
-              <div class="form-group">
-                <label [for]="'dur-' + i">Duração (min)</label>
-                <input
-                  [id]="'dur-' + i"
-                  type="number"
-                  min="10"
-                  step="5"
-                  formControlName="duracao_minutos"
-                  [class.campo-invalido]="!!errosFaixas()[i].duracao"
-                />
-                <span class="field-error">{{ errosFaixas()[i].duracao }}</span>
-              </div>
-              @if (blocos.length > 1) {
-                <button
-                  type="button"
-                  class="btn btn--secundario horarios-perigo horarios-tirar-bloco"
-                  (click)="tirarBloco(i)"
-                >
-                  Tirar faixa
-                </button>
-              }
+      <div class="horarios-passo" data-tour="faixa">
+        <span class="rotulo">2. Faixa de atendimento</span>
+        <div class="horarios-bloco" [formGroup]="blocos.at(0)">
+          <div class="horarios-campos">
+            <div class="form-group">
+              <label for="ini-0">Início</label>
+              <input
+                id="ini-0"
+                type="time"
+                formControlName="hora_inicio"
+                [class.campo-invalido]="!!errosFaixas()[0].inicio"
+              />
+              <span class="field-error">{{ errosFaixas()[0].inicio }}</span>
             </div>
-            @if (errosFaixas()[i].sobreposicao) {
-              <p class="field-error" role="alert">{{ errosFaixas()[i].sobreposicao }}</p>
+            <div class="form-group">
+              <label for="fim-0">Fim</label>
+              <input
+                id="fim-0"
+                type="time"
+                formControlName="hora_fim"
+                [class.campo-invalido]="!!errosFaixas()[0].fim"
+              />
+              <span class="field-error">{{ errosFaixas()[0].fim }}</span>
+            </div>
+            <div class="form-group">
+              <label for="dur-0">Duração (min)</label>
+              <input
+                id="dur-0"
+                type="number"
+                min="10"
+                step="5"
+                formControlName="duracao_minutos"
+                [class.campo-invalido]="!!errosFaixas()[0].duracao"
+              />
+              <span class="field-error">{{ errosFaixas()[0].duracao }}</span>
+            </div>
+            <button
+              type="button"
+              class="btn btn--azul horarios-tirar-bloco"
+              [disabled]="
+                !datas().length ||
+                !!(errosFaixas()[0].inicio || errosFaixas()[0].fim || errosFaixas()[0].duracao)
+              "
+              (click)="gerarHorarios()"
+            >
+              <app-icone nome="relogio" /> Gerar horários
+            </button>
+          </div>
+        </div>
+        @if (ultimaGeracao(); as ug) {
+          <div class="horarios-ger" role="status">
+            @if (ug.adicionados) {
+              <span class="horarios-ger-linha horarios-ger-linha--ok">
+                <app-icone nome="sucesso" /> {{ ug.adicionados }} horário(s) adicionado(s).
+              </span>
+            } @else {
+              <span class="horarios-ger-linha">
+                <app-icone nome="alerta" /> Nenhum horário novo nessa faixa.
+              </span>
             }
-            @if (previa()[i]; as p) {
-              @if (p.inicios.length) {
-                <ul class="horarios-chips" aria-label="Prévia dos horários">
-                  @for (inicio of p.inicios; track inicio) {
-                    <li class="horarios-chip horarios-chip--livre">
-                      {{ inicio }}
-                      <button
-                        type="button"
-                        class="horarios-tirar"
-                        [attr.aria-label]="'Tirar ' + inicio + ' da prévia'"
-                        (click)="tirarDaPrevia(i, inicio)"
-                      >
-                        &times;
-                      </button>
-                    </li>
-                  }
-                </ul>
-              }
-              @if (p.tirados) {
-                <p class="horarios-dica">
-                  {{ p.tirados }} horário(s) tirado(s) desta faixa.
-                  <button
-                    type="button"
-                    class="btn btn--secundario horarios-btn-p"
-                    (click)="restaurarPrevia(i)"
-                  >
-                    Restaurar
-                  </button>
-                </p>
-              }
+            @if (ug.conflitantes) {
+              <span class="horarios-ger-linha">
+                <app-icone nome="alerta" /> {{ ug.conflitantes }} já ocupado(s) na sua agenda foram
+                ignorado(s).
+              </span>
             }
           </div>
         }
-        <button type="button" class="btn btn--secundario" (click)="adicionarBloco()">
-          Adicionar faixa
-        </button>
+        @if (horariosGerados()) {
+          @if (previa(); as p) {
+            @if (p.inicios.length) {
+              <ul class="horarios-chips" aria-label="Horários gerados">
+                @for (inicio of p.inicios; track inicio) {
+                  <li class="horarios-chip horarios-chip--livre">
+                    {{ inicio }}
+                    <button
+                      type="button"
+                      class="horarios-tirar"
+                      [attr.aria-label]="'Tirar ' + inicio"
+                      (click)="tirarDaPrevia(inicio)"
+                    >
+                      &times;
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+            @if (p.tirados) {
+              <p class="horarios-dica">
+                {{ p.tirados }} horário(s) tirado(s) por você.
+                <button
+                  type="button"
+                  class="btn btn--secundario horarios-btn-p"
+                  (click)="restaurarPrevia()"
+                >
+                  Restaurar
+                </button>
+              </p>
+            }
+          }
+        }
       </div>
 
       <div class="horarios-rodape" data-tour="publicar">

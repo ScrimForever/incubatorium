@@ -83,11 +83,7 @@ const MESES = [
 ];
 
 function visaoGuardada(): Visao {
-  try {
-    return localStorage.getItem(CHAVE_VISAO) === 'calendario' ? 'calendario' : 'lista';
-  } catch {
-    return 'lista';
-  }
+  return 'calendario';
 }
 
 const plural = (n: number, um: string, varios: string): string => `${n} ${n === 1 ? um : varios}`;

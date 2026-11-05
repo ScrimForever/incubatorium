@@ -220,6 +220,11 @@ export class Questionario implements OnInit {
   /** Reabre a própria nota para edição, já preenchida com o que foi gravado. */
   protected editarNota(): void {
     this.editandoNota.set(this.numero());
+    setTimeout(() => {
+      document
+        .querySelector<HTMLElement>('.aval-card')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
   }
 
   /** Desiste da edição: o rascunho vai fora e a nota gravada volta à leitura. */
@@ -506,6 +511,21 @@ export class Questionario implements OnInit {
   });
 
   protected readonly ajusteValido = computed(() => this.mensagemAjuste().trim().length > 0);
+
+  /** Sugestão de texto para o campo "O que corrigir", diferente por etapa. */
+  protected readonly placeholderAjuste = computed(() => {
+    const ph: Record<number, string> = {
+      2: 'Ex.: detalhe melhor o bloco de proposta de valor do Canvas.',
+      3: 'Ex.: inclua os pontos-chave de diferenciação no Sumário.',
+      4: 'Ex.: descreva a experiência do responsável pelo financeiro.',
+      5: 'Ex.: especifique o diferencial do Produto frente aos concorrentes.',
+      6: 'Ex.: adicione dados de tamanho e crescimento do mercado-alvo.',
+      7: 'Ex.: detalhe os canais de aquisição de clientes no plano de Marketing.',
+      8: 'Ex.: descreva a infraestrutura necessária nos primeiros 12 meses.',
+      9: 'Ex.: preencha as projeções de receita para os 3 primeiros anos.',
+    };
+    return ph[this.numero()] ?? 'Ex.: descreva o que precisa ser corrigido nesta etapa.';
+  });
 
   /** Abre a modal; com ajuste já pedido nesta etapa, ele vem para ser reescrito. */
   protected abrirAjuste(): void {

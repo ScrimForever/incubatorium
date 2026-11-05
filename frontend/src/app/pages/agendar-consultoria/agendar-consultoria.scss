@@ -1,28 +1,11 @@
-/* Layout local. Lista, filtros, selos, botões e modal vêm do styles.scss. */
+/* Layout local. Filtros, botões e modal vêm do styles.scss. */
+
+.painel-subtitulo {
+  margin-bottom: 12px;
+}
 
 .agendar-aviso {
   margin-top: 16px;
-}
-
-.agendar-titulo {
-  margin: 28px 0 12px;
-  font-size: 17px;
-  color: var(--texto);
-}
-
-.agendar-reserva {
-  grid-template-columns: minmax(0, 1fr) auto;
-  cursor: default;
-}
-
-.agendar-reserva:hover {
-  border-color: var(--borda-input);
-  background: var(--fundo-cartao);
-}
-
-.agendar-btn-p {
-  padding: 7px 14px;
-  font-size: 13px;
 }
 
 .agendar-vagas {
@@ -49,12 +32,11 @@
     color 0.15s;
 }
 
-.agendar-vaga:hover {
+.agendar-vaga:hover,
+.agendar-vaga--ativa {
   background: var(--nota-5-forte);
   color: white;
 }
-
-/* ----- horários livres: lista (faixa de dias) e calendário ----- */
 
 .agendar-cartao {
   padding: 16px 18px;
@@ -72,67 +54,23 @@
   font-size: 13px;
 }
 
-/* Calendário: mês e painel lado a lado; no celular, o painel desce. */
-.agendar-cal {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
-}
-
-@media (max-width: 760px) {
-  .agendar-cal {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.agendar-cal-mes {
-  padding: 12px 14px;
-}
-
-.agendar-cal-topo {
+/* Alerta pós-reserva: linha com texto e dois botões à direita. */
+.agendar-reserva {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  margin-bottom: 8px;
+  gap: 10px 16px;
+  margin-top: 16px;
 }
 
-.agendar-cal-titulo {
-  font-weight: 600;
+.agendar-reserva span {
+  flex: 1 1 200px;
 }
 
-.agendar-cal-grade {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 4px;
-  text-align: center;
-}
-
-.agendar-cal-semana {
-  color: var(--texto-suave);
-  font-size: 12px;
-}
-
-.agendar-cal-casa {
-  padding: 8px 0;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  color: var(--texto-suave);
-  font-size: 13px;
-}
-
-.agendar-cal-casa--livre {
-  border-color: var(--nota-5-borda);
-  background: var(--nota-5-fundo);
-  color: var(--nota-5-forte);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.agendar-cal-casa--ativa {
-  background: var(--nota-5-forte);
-  color: white;
+.agendar-reserva-acoes {
+  display: flex;
+  gap: 8px;
+  flex: none;
 }
 
 .agendar-dados {
