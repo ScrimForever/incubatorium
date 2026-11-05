@@ -5,7 +5,6 @@ from datetime import date, time, timedelta
 import pytest
 
 from src.domain.models.consultoria import ConsultoriaHorario, ConsultoriaJanela
-from src.domain.models.enums import SituacaoIncubacao
 from src.repository.consultoria import ConsultoriaRepository
 from src.repository.usuarios import UsuariosRepository
 from src.services.consultoria.lembrete_service import LembreteService
@@ -29,7 +28,6 @@ async def cenario(async_db, criar_usuario):
     ana = await criar_usuario("incubado", "ana@example.com")
     bia = await criar_usuario("incubado", "bia@example.com")
     admin = await criar_usuario("admin", "adm@example.com")
-    ana.situacao_incubacao = bia.situacao_incubacao = SituacaoIncubacao.ativo
     dia = _fim_da_agenda()
     janela = ConsultoriaJanela(
         consultor_email=consultor.email,
@@ -87,3 +85,18 @@ async def test_sem_pendentes_ninguem_e_avisado(async_db, service, cenario):
 
     # sem horário livre nem pendentes: nada a lembrar, nem para o admin
     assert await service.lembretes_de_agendamento(janela.data - timedelta(days=2)) == []
+
+
+@pytest.mark.asyncio
+async def test_consultor_e_lembrado_uma_vez_6h_antes(async_db, service, cenario):
+    janela, ana, *_ = cenario
+    await _reservar(async_db, janela, ana, 0)  # 10h do dia 20
+    inicio = janela.horarios[0].inicio
+
+    assert await service.lembretes_ao_consultor(inicio - timedelta(hours=7)) == []
+
+    avisos = await service.lembretes_ao_consultor(inicio - timedelta(hours=5, minutes=50))
+    assert [a.email for a in avisos] == ["cons@example.com"]
+    assert "ana@example.com" in avisos[0].detalhe
+
+    assert await service.lembretes_ao_consultor(inicio - timedelta(hours=5)) == []

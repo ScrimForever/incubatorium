@@ -15,6 +15,7 @@ class Aviso:
     titulo: str
     mensagem: str
     detalhe: str = ""
+    convite_ics: str = ""
 
 
 def aviso_horario(
@@ -49,6 +50,7 @@ class EnviadorDeAvisos:
                     aviso.titulo,
                     aviso.mensagem,
                     aviso.detalhe,
+                    aviso.convite_ics,
                 )
             except Exception as erro:  # noqa: BLE001
                 logger.error(f"Falha ao avisar {aviso.email}: {erro}")

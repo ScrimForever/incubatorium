@@ -74,13 +74,12 @@ class UsuariosRepository(Repositorio):
         return list(resultado.scalars().all())
 
     async def emails_incubados_ativos(self) -> list[str]:
-        """Contas ativas de incubados em incubação (destinatários dos avisos de agenda)."""
+        """Contas ativas de incubados (destinatários dos avisos de agenda)."""
         resultado = await self.db.execute(
             select(User.email)
             .where(
                 User.is_incubado.is_(True),
                 User.is_active.is_(True),
-                User.situacao_incubacao == SituacaoIncubacao.ativo,
             )
             .order_by(User.email)
         )

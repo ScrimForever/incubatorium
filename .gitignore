@@ -2,3 +2,5 @@
 .idea/*
 .claude
 CLAUDE.md
+# Segredos locais
+src/.env.*.local

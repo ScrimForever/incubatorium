@@ -211,3 +211,19 @@ class ConsultoriaRepository(Repositorio):
             .distinct()
         )
         return {(consultor, incubado) for consultor, incubado in resultado.all()}
+
+    async def reservas_a_lembrar(
+        self, agora: datetime, ate: datetime
+    ) -> list[ConsultoriaHorario]:
+        """Reservas que começam em (agora, ate] e cujo consultor ainda não foi lembrado."""
+        resultado = await self.db.execute(
+            select(ConsultoriaHorario)
+            .where(
+                ConsultoriaHorario.incubado_email.is_not(None),
+                ConsultoriaHorario.lembrete_consultor_em.is_(None),
+                ConsultoriaHorario.inicio > agora,
+                ConsultoriaHorario.inicio <= ate,
+            )
+            .order_by(ConsultoriaHorario.inicio)
+        )
+        return list(resultado.scalars().all())

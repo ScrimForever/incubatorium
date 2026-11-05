@@ -63,6 +63,7 @@ class HorarioOutput(BaseModel):
     fim: datetime
     incubado_email: str | None = None
     reservado_em: datetime | None = None
+    meet_link: str | None = None
 
 
 class JanelaOutput(BaseModel):

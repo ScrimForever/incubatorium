@@ -1,4 +1,5 @@
 import asyncio
+import base64
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -24,7 +25,7 @@ class EmailSetup:
         )
         params: resend.Emails.SendParams = {
             "from": "Acme <onboarding@resend.dev>",
-            "to": "maicon.kistemmacher@gmail.com",
+            "to": "thiago.salgado.monteiro@gmail.com",
             "subject": "Tec Campos - Reativação de senha.",
             "html": html_renderizado,
         }
@@ -51,7 +52,7 @@ class EmailSetup:
         )
         params: resend.Emails.SendParams = {
             "from": "Acme <onboarding@resend.dev>",
-            "to": "maicon.kistemmacher@gmail.com",
+            "to": "thiago.salgado.monteiro@gmail.com",
             "subject": "Tec Campos - Email de Ativação.",
             "html": html_renderizado,
         }
@@ -73,9 +74,16 @@ class EmailSetup:
         return settings.email_destino_override or email
 
     async def enviar_notificacao(
-        self, email: str, assunto: str, titulo: str, mensagem: str, detalhe: str = ""
+        self,
+        email: str,
+        assunto: str,
+        titulo: str,
+        mensagem: str,
+        detalhe: str = "",
+        convite_ics: str = "",
     ) -> bool:
-        """E-mail genérico de notificação."""
+        """E-mail genérico de notificação; com `convite_ics`, anexa o convite de calendário
+        (o `METHOD` do próprio .ics diz ao Gmail se é convite ou cancelamento)."""
         template = jinja_env.get_template("notificacao.html")
         html_renderizado = template.render(
             titulo=titulo, mensagem=mensagem, detalhe=detalhe
@@ -86,6 +94,15 @@ class EmailSetup:
             "subject": f"Tec Campos - {assunto}",
             "html": html_renderizado,
         }
+        if convite_ics:
+            metodo = "CANCEL" if "METHOD:CANCEL" in convite_ics else "REQUEST"
+            params["attachments"] = [
+                {
+                    "filename": "convite.ics",
+                    "content": base64.b64encode(convite_ics.encode()).decode(),
+                    "content_type": f"text/calendar; charset=utf-8; method={metodo}",
+                }
+            ]
         if not settings.email_envio_habilitado or not settings.resend_api_key:
             logger.warning(
                 f"Notificação '{assunto}' não enviada: envio de e-mail desabilitado "

@@ -33,7 +33,8 @@ def enviados(monkeypatch):
     avisos = []
 
     async def _enviar(self, lista):
-        avisos.extend(lista)
+        # convites .ics (Jitsi) têm testes próprios; aqui só os avisos comuns
+        avisos.extend(a for a in lista if not a.convite_ics)
 
     monkeypatch.setattr(EnviadorDeAvisos, "enviar", _enviar)
     return avisos
@@ -76,12 +77,9 @@ class TestAbrirAgenda:
     async def test_avisa_so_incubados_ativos(
         self, consultor_api, criar_usuario, async_db, enviados
     ):
-        from src.domain.models.enums import SituacaoIncubacao
-
-        ativo = await criar_usuario("incubado", "ativo@example.com")
-        ativo.situacao_incubacao = SituacaoIncubacao.ativo
-        desistente = await criar_usuario("incubado", "saiu@example.com")
-        desistente.situacao_incubacao = SituacaoIncubacao.desistente
+        await criar_usuario("incubado", "ativo@example.com")
+        inativo = await criar_usuario("incubado", "saiu@example.com")
+        inativo.is_active = False
         await async_db.commit()
 
         await abrir(consultor_api)
