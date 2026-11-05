@@ -88,3 +88,12 @@ class TestConviteIcs:
         anexo = enviados[0]["attachments"][0]
         assert anexo["filename"] == "convite.ics"
         assert anexo["content_type"].endswith("method=CANCEL")
+
+    async def test_um_envio_por_destinatario(self, enviados):
+        from src.services.consultoria.avisos import Aviso, EnviadorDeAvisos
+
+        avisos = [Aviso(e, "A", "T", "M") for e in ("a@x.com", "b@x.com", "c@x.com")]
+
+        await EnviadorDeAvisos(EmailSetup()).enviar(avisos)
+
+        assert [p["to"] for p in enviados] == ["a@x.com", "b@x.com", "c@x.com"]
