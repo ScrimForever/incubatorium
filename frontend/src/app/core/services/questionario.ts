@@ -45,6 +45,14 @@ export class QuestionarioService {
       tap((plano) => this.guardar(plano)),
       catchError((erro: unknown) => {
         this.emVoo = null;
+        // Backend retorna 404 quando o plano não existe ainda — mesmo semântica
+        // que o 200 false documentado: criar o plano agora. O error-interceptor
+        // converte para ApiError { code: 'NOT_FOUND' } em produção; nos testes
+        // unitários (sem o interceptor) chega como HttpErrorResponse { status: 404 }.
+        const e = erro as { code?: string; status?: number };
+        if (e?.code === 'NOT_FOUND' || e?.status === 404) {
+          return this.criar().pipe(tap((plano) => this.guardar(plano)));
+        }
         return throwError(() => erro);
       }),
       shareReplay({ bufferSize: 1, refCount: false }),

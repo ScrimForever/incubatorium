@@ -28,6 +28,7 @@ import {
 import { PlanosService } from '../../core/services/planos';
 import { Icone } from '../../shared/components/icone/icone';
 import { Painel } from '../../shared/components/painel/painel';
+import { Videochamada } from '../../shared/components/videochamada/videochamada';
 import { formatarQuando } from '../../shared/data-hora';
 
 /** Uma linha da lista, com tudo o que o template mostra já resolvido. */
@@ -51,7 +52,6 @@ interface Linha {
 const BLOQUEADOS: readonly { rotulo: string; motivo: string }[] = [
   { rotulo: 'Conversa', motivo: 'a API não tem chat de consultoria' },
   { rotulo: 'Anexos', motivo: 'a API não guarda arquivos da consultoria' },
-  { rotulo: 'Videochamada', motivo: 'a API não tem link de chamada' },
   { rotulo: 'Marcar como realizada', motivo: 'a API não guarda situação da consultoria' },
 ];
 
@@ -68,7 +68,7 @@ const SITUACOES_BLOQUEADAS: readonly { rotulo: string; motivo: string }[] = [
 @Component({
   selector: 'app-consultorias',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, Painel, Icone],
+  imports: [ReactiveFormsModule, RouterLink, Painel, Icone, Videochamada],
   templateUrl: './consultorias.html',
   styleUrl: './consultorias.scss',
 })
@@ -146,6 +146,8 @@ export class Consultorias implements OnInit {
     () => this.linhas().find((linha) => linha.id === this.abertaId()) ?? null,
   );
   protected readonly remarcando = signal(false);
+  /** A consultoria em chamada; a modal fecha para o vídeo ocupar a tela. */
+  protected readonly emChamada = signal<Linha | null>(null);
   protected readonly formHorario = this.fb.nonNullable.group({ hora_inicio: '', hora_fim: '' });
   private readonly formHorarioValor = toSignal(this.formHorario.valueChanges, {
     initialValue: this.formHorario.getRawValue(),
@@ -207,6 +209,11 @@ export class Consultorias implements OnInit {
     this.abertaId.set(null);
     this.remarcando.set(false);
     this.erroModal.set('');
+  }
+
+  protected entrarNaChamada(): void {
+    this.emChamada.set(this.aberta());
+    this.fechar();
   }
 
   protected iniciarRemarcacao(): void {

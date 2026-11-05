@@ -62,6 +62,8 @@ export class CalendarioPeriodo {
   readonly min = input('');
   /** Datas já escolhidas fora daqui, para aparecerem marcadas. */
   readonly marcadas = input<readonly string[]>([]);
+  /** Datas que não podem ser clicadas (além das anteriores ao mínimo). */
+  readonly bloqueadas = input<readonly string[]>([]);
 
   protected readonly cabecalho = CABECALHO;
 
@@ -87,6 +89,7 @@ export class CalendarioPeriodo {
     const ate = this.ate();
     const min = this.min();
     const marcadas = new Set(this.marcadas());
+    const bloqueadas = new Set(this.bloqueadas());
     const primeiro = new Date(Date.UTC(ano, mes, 1)).getUTCDay();
     // getUTCDay: 0 = domingo; a grade começa na segunda.
     const vazias = (primeiro + 6) % 7;
@@ -107,7 +110,7 @@ export class CalendarioPeriodo {
       casas.push({
         data,
         dia,
-        desabilitada: !!min && data < min,
+        desabilitada: (!!min && data < min) || bloqueadas.has(data),
         inicio: data === de,
         fim: data === ate,
         dentro: !!de && !!ate && data > de && data < ate,

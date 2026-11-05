@@ -9,85 +9,23 @@
     @if (mensagemErro()) {
       <div class="error-message" role="alert"><app-icone nome="erro" />{{ mensagemErro() }}</div>
     }
-    @if (mensagemSucesso()) {
-      <div class="success-message agendar-aviso" role="status">
-        <app-icone nome="sucesso" />{{ mensagemSucesso() }}
-      </div>
-    }
 
-    <h2 class="agendar-titulo">Minhas consultorias</h2>
     @if (carregando()) {
       <p class="lista-aviso" role="status">Carregando…</p>
-    } @else if (!minhas().length) {
-      <p class="lista-aviso"><app-icone nome="agenda" /> Você ainda não reservou nenhuma.</p>
-    } @else {
-      <ul class="lista">
-        @for (m of minhas(); track m.horario.id) {
-          <li class="lista-item agendar-reserva">
-            <span class="lista-identidade">
-              <span class="lista-titulo">{{ m.dia }}</span>
-              <span class="lista-secundaria">
-                <app-icone nome="relogio" />{{ m.hora }} · {{ m.consultor }}
-              </span>
-            </span>
-            <span class="lista-meta">
-              <span class="selo selo--aguardando_aprovacao">Marcada</span>
-              <button
-                type="button"
-                class="btn btn--secundario agendar-btn-p"
-                disabled
-                title="Em breve: cancelar reserva responde erro no servidor"
-              >
-                <app-icone nome="cadeado" /> Cancelar reserva
-              </button>
-            </span>
-          </li>
-        }
-      </ul>
-    }
-
-    <h2 class="agendar-titulo">Horários livres</h2>
-    @if (!carregando()) {
-      <div class="lista-barra">
-        <div class="filtros" role="group" aria-label="Filtrar por mês">
-          @for (aba of meses(); track aba.mes) {
-            <button
-              type="button"
-              class="filtro"
-              [class.filtro--ativo]="mesAtivo() === aba.mes"
-              [attr.aria-pressed]="mesAtivo() === aba.mes"
-              (click)="trocarMes(aba.mes)"
-            >
-              {{ aba.rotulo }}
-            </button>
-          }
-        </div>
-        <div class="horarios-visoes" role="group" aria-label="Forma de ver os horários">
-          <button
-            type="button"
-            class="horarios-visao"
-            [class.horarios-visao--ativa]="visao() === 'lista'"
-            [attr.aria-pressed]="visao() === 'lista'"
-            aria-label="Ver em lista"
-            title="Ver em lista"
-            (click)="trocarVisao('lista')"
-          >
-            <app-icone nome="lista" />
-          </button>
-          <button
-            type="button"
-            class="horarios-visao"
-            [class.horarios-visao--ativa]="visao() === 'calendario'"
-            [attr.aria-pressed]="visao() === 'calendario'"
-            aria-label="Ver em calendário"
-            title="Ver em calendário"
-            (click)="trocarVisao('calendario')"
-          >
-            <app-icone nome="agenda" />
+    } @else if (reservada()) {
+      <div class="success-message agendar-reserva" role="status">
+        <app-icone nome="sucesso" />
+        <span>
+          Consultoria agendada: {{ reservadaRotulo() }}. Na hora, entre na videochamada: você espera
+          na sala de espera até o consultor liberar a sua entrada.
+        </span>
+        <div class="agendar-reserva-acoes">
+          <button type="button" class="btn btn--verde" (click)="emChamada.set(true)">
+            <app-icone nome="video" /> Entrar na videochamada
           </button>
         </div>
       </div>
-
+    } @else {
       @if (consultores().length > 1) {
         <div class="filtros" role="group" aria-label="Filtrar por consultor">
           <button
@@ -119,70 +57,56 @@
           e-mail quando abrem agenda.
         </p>
       } @else {
-        @switch (visao()) {
-          @case ('lista') {
-            <div class="cartao agendar-cartao">
-              <app-faixa-dias
-                rotulo="Dias com horário livre"
-                [dias]="faixa()"
-                [selecionado]="diaAtual()?.data ?? ''"
-                (escolher)="diaEscolhido.set($event)"
-              />
-              @if (diaAtual(); as dia) {
-                <h3 class="agendar-dia-titulo">{{ dia.rotulo }}</h3>
-                @if (dia.manha.length) {
-                  <p class="agendar-periodo">Manhã</p>
-                  <ng-container *ngTemplateOutlet="vagasTpl; context: { $implicit: dia.manha }" />
-                }
-                @if (dia.tarde.length) {
-                  <p class="agendar-periodo">Tarde</p>
-                  <ng-container *ngTemplateOutlet="vagasTpl; context: { $implicit: dia.tarde }" />
-                }
+        <div class="cartao horarios-mes">
+          <div class="horarios-mes-topo">
+            <button class="horarios-mes-nav" (click)="mudarMes(-1)">&#8249;</button>
+            <span class="horarios-mes-titulo" aria-live="polite">{{ mesTitulo() }}</span>
+            <button class="horarios-mes-nav" (click)="mudarMes(1)">&#8250;</button>
+          </div>
+          <div class="horarios-mes-grade">
+            @for (nome of cabecalhoSemana; track nome) {
+              <span class="horarios-mes-semana" aria-hidden="true">{{ nome }}</span>
+            }
+            @for (casa of casasCalendario(); track $index) {
+              @if (!casa.data) {
+                <span class="horarios-mes-casa horarios-mes-casa--vazia"></span>
+              } @else if (casa.livres) {
+                <button
+                  type="button"
+                  class="horarios-mes-casa horarios-mes-casa--agenda"
+                  [class.horarios-mes-casa--hoje]="casa.hoje"
+                  [class.horarios-mes-casa--fds]="casa.fds"
+                  [class.horarios-mes-casa--aberta]="diaAtual()?.data === casa.data"
+                  [attr.aria-pressed]="diaAtual()?.data === casa.data"
+                  [attr.aria-label]="casa.numero + ': ' + casa.livres + ' livre(s)'"
+                  (click)="diaEscolhido.set(casa.data)"
+                >
+                  <span class="horarios-mes-numero">{{ casa.numero }}</span>
+                  <span class="horarios-mes-bloco">
+                    <span class="horarios-mes-ocupacao">{{ casa.livres }} livre(s)</span>
+                  </span>
+                </button>
+              } @else {
+                <span
+                  class="horarios-mes-casa"
+                  [class.horarios-mes-casa--hoje]="casa.hoje"
+                  [class.horarios-mes-casa--fds]="casa.fds"
+                  [class.horarios-mes-casa--passado]="casa.passado"
+                >
+                  <span class="horarios-mes-numero">{{ casa.numero }}</span>
+                </span>
               }
-            </div>
-          }
-          @case ('calendario') {
-            <div class="agendar-cal">
-              <div class="cartao agendar-cal-mes">
-                <div class="agendar-cal-topo">
-                  <span class="agendar-cal-titulo" aria-live="polite">{{
-                    tituloCalendario()
-                  }}</span>
-                </div>
-                <div class="agendar-cal-grade">
-                  @for (nome of cabecalhoSemana; track nome) {
-                    <span class="agendar-cal-semana" aria-hidden="true">{{ nome }}</span>
-                  }
-                  @for (casa of casasCalendario(); track $index) {
-                    @if (casa.livres) {
-                      <button
-                        type="button"
-                        class="agendar-cal-casa agendar-cal-casa--livre"
-                        [class.agendar-cal-casa--ativa]="diaAtual()?.data === casa.data"
-                        [attr.aria-pressed]="diaAtual()?.data === casa.data"
-                        [attr.aria-label]="casa.numero + ': ' + casa.livres + ' livres'"
-                        (click)="diaEscolhido.set(casa.data)"
-                      >
-                        {{ casa.numero }}
-                      </button>
-                    } @else {
-                      <span class="agendar-cal-casa">{{ casa.numero || '' }}</span>
-                    }
-                  }
-                </div>
-              </div>
-              <div class="cartao agendar-cartao">
-                @if (diaAtual(); as dia) {
-                  <h3 class="agendar-dia-titulo">
-                    {{ dia.rotulo }} · {{ dia.vagas.length }} livres
-                  </h3>
-                  <ng-container *ngTemplateOutlet="vagasTpl; context: { $implicit: dia.vagas }" />
-                } @else {
-                  <p class="lista-aviso">Nenhum horário livre neste mês.</p>
-                }
-              </div>
-            </div>
-          }
+            }
+          </div>
+        </div>
+
+        @if (diaAtual(); as dia) {
+          <div class="cartao agendar-cartao horarios-dia-escolhido">
+            <h3 class="agendar-dia-titulo">
+              {{ dia.rotulo }} · {{ dia.vagas.length }} horário(s) livre(s)
+            </h3>
+            <ng-container *ngTemplateOutlet="vagasTpl; context: { $implicit: dia.vagas }" />
+          </div>
         }
       }
     }
@@ -191,6 +115,19 @@
   <main id="conteudo" tabindex="-1">
     <p class="painel-carregando">Carregando...</p>
   </main>
+}
+
+@if (emChamada()) {
+  @if (reservada(); as v) {
+    @if (user(); as u) {
+      <app-videochamada
+        [horario]="v.horario"
+        [participante]="{ nome: u.email, email: u.email, papel: 'convidado' }"
+        [titulo]="'Consultoria com ' + v.consultor"
+        (encerrada)="emChamada.set(false)"
+      />
+    }
+  }
 }
 
 @if (escolhida(); as v) {
@@ -231,6 +168,7 @@
         <button
           type="button"
           class="agendar-vaga"
+          [class.agendar-vaga--ativa]="escolhida()?.horario?.id === v.horario.id"
           [attr.title]="v.titulo"
           [attr.aria-label]="'Reservar ' + v.titulo"
           (click)="escolher(v.horario)"

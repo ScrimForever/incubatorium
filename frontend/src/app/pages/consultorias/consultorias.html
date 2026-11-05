@@ -83,6 +83,17 @@
   </main>
 }
 
+@if (emChamada(); as c) {
+  @if (user(); as u) {
+    <app-videochamada
+      [horario]="c.marcada.horario"
+      [participante]="{ nome: u.email, email: u.email, papel: 'anfitriao' }"
+      [titulo]="'Consultoria com ' + c.negocio"
+      (encerrada)="emChamada.set(null)"
+    />
+  }
+}
+
 @if (aberta(); as c) {
   <div class="overlay">
     <div
@@ -150,6 +161,9 @@
           </div>
         } @else {
           <div class="consultorias-acoes">
+            <button type="button" class="btn btn--verde" (click)="entrarNaChamada()">
+              <app-icone nome="video" /> Entrar na videochamada
+            </button>
             <a class="btn btn--secundario" [routerLink]="c.planoRota">
               <app-icone nome="documento" /> Ver plano de negócio
             </a>
