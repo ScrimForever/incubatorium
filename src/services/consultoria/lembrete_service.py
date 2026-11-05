@@ -1,13 +1,15 @@
 import calendar
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta
 
 from src.repository.consultoria import ConsultoriaRepository
 from src.repository.usuarios import UsuariosRepository
 from src.services.consultoria.avisos import Aviso
-from src.shared.datas import agora, para_utc
+from src.shared.datas import agora, formatar_local, para_utc
 
 # Quantos dias antes do fim da agenda do consultor os lembretes começam.
 DIAS_DE_ANTECEDENCIA_LEMBRETE = 5
+# Quanto antes de uma consultoria reservada o consultor é lembrado por e-mail.
+HORAS_DE_ANTECEDENCIA_CONSULTOR = 6
 
 
 class LembreteService:
@@ -86,3 +88,29 @@ class LembreteService:
                 for admin in await self.usuarios.emails_admins_ativos()
             ]
         return avisos
+
+    async def lembretes_ao_consultor(self, agora_: datetime) -> list[Aviso]:
+        """Avisa cada consultor das consultorias reservadas que começam em até
+        `HORAS_DE_ANTECEDENCIA_CONSULTOR` horas. Cada reserva é lembrada uma só vez:
+        marca como lembrada e grava antes de devolver os avisos."""
+        horarios = await self.consultoria.reservas_a_lembrar(
+            agora_, agora_ + timedelta(hours=HORAS_DE_ANTECEDENCIA_CONSULTOR)
+        )
+        for horario in horarios:
+            horario.lembrete_consultor_em = agora_
+        await self.consultoria.salvar()
+        return [
+            Aviso(
+                email=h.consultor_email,
+                assunto="Consultoria em breve",
+                titulo="Você tem uma consultoria nas próximas horas",
+                mensagem=(
+                    f"Um incubado reservou horário com você e a consultoria começa "
+                    f"em até {HORAS_DE_ANTECEDENCIA_CONSULTOR} horas."
+                ),
+                detalhe=(
+                    f"Incubado: {h.incubado_email}. Horário: {formatar_local(h.inicio)}."
+                ),
+            )
+            for h in horarios
+        ]

@@ -10,6 +10,7 @@ from src.services.arquivos.arquivos_service import ArquivosService
 from src.services.consultoria.agenda_service import AgendaService
 from src.services.consultoria.avisos import EnviadorDeAvisos
 from src.services.consultoria.reserva_service import ReservaService
+from src.services.consultoria.convites import ConvitesPorEmail
 from src.services.email.setup import EmailSetup
 from src.services.questionario.questionario_service import QuestionarioService
 from src.services.usuarios.ativacao_service import AtivacaoService
@@ -50,14 +51,20 @@ def get_arquivos_service(
 def get_agenda_service(
     db: AsyncSession = Depends(get_async_session),
 ) -> AgendaService:
-    return AgendaService(ConsultoriaRepository(db), UsuariosRepository(db))
+    return AgendaService(
+        ConsultoriaRepository(db), UsuariosRepository(db), get_convites()
+    )
 
 
 def get_reserva_service(
     db: AsyncSession = Depends(get_async_session),
 ) -> ReservaService:
-    return ReservaService(ConsultoriaRepository(db))
+    return ReservaService(ConsultoriaRepository(db), get_convites())
 
 
 def get_enviador_de_avisos() -> EnviadorDeAvisos:
     return EnviadorDeAvisos(EmailSetup())
+
+
+def get_convites() -> ConvitesPorEmail:
+    return ConvitesPorEmail(get_enviador_de_avisos())

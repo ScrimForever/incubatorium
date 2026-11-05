@@ -19,7 +19,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
 
     async def on_after_register(self, user: User, request: Request | None = None):
         logger.info(f"User {user.id} has registered.")
-        logger.info(f"Enviando email para ativaçãoativaÃ§Ã£o de conta: {user.email}")
+        logger.info(f"Enviando email para ativação de conta: {user.email}")
         email_service = EmailSetup()
         await email_service.enviar_email_cadastro(user.email, user.codigo_ativacao)
 

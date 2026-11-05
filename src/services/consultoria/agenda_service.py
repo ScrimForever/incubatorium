@@ -12,6 +12,8 @@ from src.logger import logger
 from src.repository.consultoria import ConsultoriaRepository
 from src.repository.usuarios import UsuariosRepository
 from src.services.consultoria.avisos import Aviso, aviso_horario
+from src.services.consultoria.convites import reuniao_do_horario
+from src.services.contratos import Convites
 from src.shared.datas import agora, como_utc, formatar_local, hoje_local, para_utc
 from src.shared.exceptions import (
     ConflitoError,
@@ -44,10 +46,14 @@ class AgendaService:
     """Agenda do consultor: janelas (dias × faixas) e seus horários."""
 
     def __init__(
-        self, consultoria: ConsultoriaRepository, usuarios: UsuariosRepository
+        self,
+        consultoria: ConsultoriaRepository,
+        usuarios: UsuariosRepository,
+        convites: Convites,
     ):
         self.consultoria = consultoria
         self.usuarios = usuarios
+        self.convites = convites
 
     async def abrir_agenda(
         self, consultor: User, entrada: AgendaInput
@@ -211,8 +217,16 @@ class AgendaService:
             for h in janela.horarios
             if h.incubado_email
         ]
+        reunioes = [
+            r
+            for j in janelas
+            for h in j.horarios
+            if (r := reuniao_do_horario(h))
+        ]
         await self.consultoria.excluir_janelas(janelas)
         await self.consultoria.salvar()
+        for reuniao in reunioes:
+            await self.convites.cancelar(reuniao)
         return len(janelas), len(avisos), avisos
 
     async def _janela_do_consultor(
@@ -262,6 +276,7 @@ class AgendaService:
                     "O incubado já tem outra consultoria no novo horário."
                 )
         horario.inicio, horario.fim = inicio, fim
+        horario.lembrete_consultor_em = None  # novo horário, novo lembrete
         if horario.incubado_email:
             avisos.append(
                 aviso_horario(
@@ -272,6 +287,8 @@ class AgendaService:
                 )
             )
         await self.consultoria.salvar()
+        if reuniao := reuniao_do_horario(horario):
+            await self.convites.convidar(reuniao)  # mesmo UID: atualiza o evento
         return horario, avisos
 
     async def cancelar_horario(self, consultor: User, horario_id: int) -> list[Aviso]:
@@ -289,8 +306,11 @@ class AgendaService:
             if horario.incubado_email
             else []
         )
+        reuniao = reuniao_do_horario(horario)
         await self.consultoria.excluir_horario(horario)
         await self.consultoria.salvar()
+        if reuniao:
+            await self.convites.cancelar(reuniao)
         return avisos
 
     async def _horario_do_consultor(
