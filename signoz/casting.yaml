@@ -23,3 +23,17 @@ spec:
           value:
             aliases:
               - signoz-ingester
+        # Cria o admin no primeiro boot (sem tela de cadastro). Credenciais de
+        # desenvolvimento; sobrescreva com SIGNOZ_ADMIN_EMAIL / SIGNOZ_ADMIN_PASSWORD.
+        - op: add
+          path: /services/signoz-signoz-0/environment/-
+          value: SIGNOZ_USER_ROOT_ENABLED=true
+        - op: add
+          path: /services/signoz-signoz-0/environment/-
+          value: SIGNOZ_USER_ROOT_EMAIL=${SIGNOZ_ADMIN_EMAIL:-admin@incubatorium.local}
+        - op: add
+          path: /services/signoz-signoz-0/environment/-
+          value: SIGNOZ_USER_ROOT_PASSWORD=${SIGNOZ_ADMIN_PASSWORD:-Admin@Incubatorium1}
+        - op: add
+          path: /services/signoz-signoz-0/environment/-
+          value: SIGNOZ_USER_ROOT_ORG_NAME=incubatorium

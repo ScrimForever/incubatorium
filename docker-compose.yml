@@ -22,6 +22,8 @@ services:
       OTEL_RASTREAR_FUNCOES: ${OTEL_RASTREAR_FUNCOES:-true}
     env_file:
       - src/.env.development
+      - path: src/.env.development.local
+        required: false
     depends_on:
       db:
         condition: service_healthy
@@ -46,6 +48,32 @@ services:
       OTEL_HABILITADO: "false"
     env_file:
       - src/.env.development
+      - path: src/.env.development.local
+        required: false
+    depends_on:
+      web:
+        condition: service_started
+    networks:
+      - app_network
+
+  lembretes_consultor:
+    build: .
+    container_name: app_lembretes_consultor
+    restart: unless-stopped
+    user: "${APP_UID:-1000}:${APP_GID:-1000}"
+    command: uv run python -m src.scripts.lembrar_consultores --intervalo 10
+    volumes:
+      - .:/app
+      - /app/src/.venv
+    environment:
+      PYTHONPATH: /app
+      HOME: /tmp
+      UV_CACHE_DIR: /tmp/uv-cache
+      OTEL_HABILITADO: "false"
+    env_file:
+      - src/.env.development
+      - path: src/.env.development.local
+        required: false
     depends_on:
       web:
         condition: service_started

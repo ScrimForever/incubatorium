@@ -6,13 +6,30 @@ de anexos), não das classes concretas em `services.email` e `infra`.
 
 from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from src.services.consultoria.convites import Reuniao
 
 
 class Notificador(Protocol):
     async def enviar_notificacao(
-        self, email: str, assunto: str, titulo: str, mensagem: str, detalhe: str = ""
+        self,
+        email: str,
+        assunto: str,
+        titulo: str,
+        mensagem: str,
+        detalhe: str = "",
+        convite_ics: str = "",
     ) -> bool: ...
+
+
+class Convites(Protocol):
+    """Convites de calendário (.ics) das consultorias, enviados por e-mail."""
+
+    async def convidar(self, reuniao: "Reuniao") -> None: ...
+
+    async def cancelar(self, reuniao: "Reuniao") -> None: ...
 
 
 class EmailDeCadastro(Protocol):

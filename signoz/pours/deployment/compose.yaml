@@ -61,6 +61,10 @@ services:
     - SIGNOZ_SQLSTORE_PROVIDER=postgres
     - SIGNOZ_TELEMETRYSTORE_CLICKHOUSE_DSN=tcp://signoz-telemetrystore-clickhouse-0-0:9000
     - SIGNOZ_TELEMETRYSTORE_PROVIDER=clickhouse
+    - SIGNOZ_USER_ROOT_ENABLED=true
+    - SIGNOZ_USER_ROOT_EMAIL=${SIGNOZ_ADMIN_EMAIL:-admin@incubatorium.local}
+    - SIGNOZ_USER_ROOT_PASSWORD=${SIGNOZ_ADMIN_PASSWORD:-Admin@Incubatorium1}
+    - SIGNOZ_USER_ROOT_ORG_NAME=incubatorium
     healthcheck:
       interval: 30s
       retries: 3

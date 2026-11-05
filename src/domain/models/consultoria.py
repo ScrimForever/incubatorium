@@ -60,6 +60,13 @@ class ConsultoriaHorario(Base):
     reservado_em: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # Hash da sala Jitsi (também o UID do convite .ics) e o link da reunião.
+    evento_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    meet_link: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Quando o consultor foi lembrado desta reserva; nulo = ainda não (ou reserva/hora mudou).
+    lembrete_consultor_em: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     janela: Mapped[ConsultoriaJanela] = relationship(
         back_populates="horarios", lazy="joined"

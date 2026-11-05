@@ -76,3 +76,15 @@ class TestEnviarEmailCadastro:
 
         assert await EmailSetup().enviar_email_cadastro("nao@existe.com", None) is False
         assert enviados == []
+
+
+class TestConviteIcs:
+    @pytest.mark.asyncio
+    async def test_anexa_o_ics_com_o_metodo(self, enviados):
+        await EmailSetup().enviar_notificacao(
+            "a@x.com", "A", "T", "M", convite_ics="BEGIN:VCALENDAR\r\nMETHOD:CANCEL\r\n"
+        )
+
+        anexo = enviados[0]["attachments"][0]
+        assert anexo["filename"] == "convite.ics"
+        assert anexo["content_type"].endswith("method=CANCEL")
