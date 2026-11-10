@@ -70,6 +70,8 @@ async def test_seleciona_consultores_e_grava(criar_usuario, cliente_api, async_d
         "c1@example.com",
         "c2@example.com",
     ]
+    await async_db.refresh(questionario)
+    assert questionario.avaliado_admin is True
 
 
 @pytest.mark.asyncio

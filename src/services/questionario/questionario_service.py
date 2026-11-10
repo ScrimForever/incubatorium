@@ -27,8 +27,11 @@ class QuestionarioService:
             raise NaoEncontradoError("Questionário não encontrado.")
         return questionario
 
-    async def listar_todos(self) -> list[Questionario]:
-        return await self.repository.listar_todos()
+    async def listar_para(self, usuario: User) -> list[Questionario]:
+        """Admin vê todos. Os demais, só os avaliados pelo admin em que foram selecionados."""
+        if usuario.is_admin:
+            return await self.repository.listar_todos()
+        return await self.repository.listar_avaliados_por(usuario.email)
 
     async def criar(self, user: User, entrada: QuestionarioInputSchema) -> Questionario:
         """Grava o primeiro questionário do usuário (409 se ele já existir)."""
