@@ -1,6 +1,14 @@
 from fastapi import APIRouter
 
-from src.routers import arquivos, auth, avaliadores, consultoria, questionario, usuarios
+from src.routers import (
+    arquivos,
+    auth,
+    avaliadores,
+    consultoria,
+    questionario,
+    selecao_avaliadores,
+    usuarios,
+)
 
 ROUTERS: list[APIRouter] = [
     auth.router,
@@ -9,4 +17,5 @@ ROUTERS: list[APIRouter] = [
     arquivos.router,
     consultoria.router,
     avaliadores.router,
+    selecao_avaliadores.router,
 ]

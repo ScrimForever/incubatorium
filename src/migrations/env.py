@@ -13,6 +13,7 @@ from src.domain.models.consultoria import (  # noqa: F401
 )
 from src.domain.models.questionario import (  # noqa: F401
     Questionario,
+    QuestionarioAvaliador,
     QuestionarioHistorico,
 )
 

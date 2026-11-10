@@ -28,6 +28,7 @@ ROTAS_CONGELADAS = {
     ("/consultorias/janelas/{janela_id}", "PATCH"),
     ("/consultorias/minhas", "GET"),
     ("/questionario", "GET"),
+    ("/questionario-selecionado-avaliadores", "POST"),
     ("/questionario", "POST"),
     ("/questionario", "PUT"),
     ("/questionario/todos", "GET"),

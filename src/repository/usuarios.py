@@ -82,6 +82,15 @@ class UsuariosRepository(Repositorio):
         )
         return list(resultado.scalars().all())
 
+    async def emails_consultores(self, emails: list[str]) -> set[str]:
+        """Dentre `emails`, os que são contas de consultor (avaliadores)."""
+        resultado = await self.db.execute(
+            select(User.email).where(
+                User.email.in_(emails), User.is_consultor.is_(True)
+            )
+        )
+        return set(resultado.scalars().all())
+
     async def emails_admins_ativos(self) -> list[str]:
         resultado = await self.db.execute(
             select(User.email)
