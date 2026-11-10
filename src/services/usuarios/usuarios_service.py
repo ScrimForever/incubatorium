@@ -43,6 +43,9 @@ class UsuariosService:
             is_colaborador=corpo.is_colaborador,
             is_consultor=corpo.is_consultor,
             is_incubado=corpo.is_incubado,
+            nome=corpo.nome,
+            sobrenome=corpo.sobrenome,
+            telefone=corpo.telefone,
         )
         await self.usuarios.criar(usuario)
         if usuario.is_incubado:
