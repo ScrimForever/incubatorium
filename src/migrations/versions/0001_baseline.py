@@ -207,3 +207,6 @@ def downgrade() -> None:
     )
     op.drop_table("consultoria_janela")
     # ### end Alembic commands ###
+    # Os tipos enum não caem com as tabelas; sem isso o upgrade seguinte falha.
+    sa.Enum(name="statusenum").drop(op.get_bind(), checkfirst=True)
+    sa.Enum(name="situacaoincubacao").drop(op.get_bind(), checkfirst=True)
