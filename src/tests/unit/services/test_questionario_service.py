@@ -4,6 +4,7 @@ from sqlalchemy import select
 
 from src.domain.models.questionario import (
     Questionario,
+    QuestionarioAvaliador,
     QuestionarioHistorico,
     StatusEnum,
 )
@@ -113,21 +114,31 @@ class TestBuscar:
             await service.buscar(user_with_email)
 
     @pytest.mark.asyncio
-    async def test_listar_todos(self, async_db, service, criar_usuario):
-        for email in ("ana@x.com", "bia@x.com"):
-            async_db.add(
-                Questionario(
-                    usuario_email=email,
-                    status_questionario=StatusEnum.iniciado,
-                    json_questionario={},
-                    criado_por=email,
-                )
+    async def test_listar_avaliados_por_usa_o_usuario_da_requisicao(
+        self, async_db, service, criar_usuario
+    ):
+        avaliador = await criar_usuario("consultor", "av@x.com")
+        questionario = Questionario(
+            usuario_email="ana@x.com",
+            status_questionario=StatusEnum.iniciado,
+            json_questionario={},
+            criado_por="ana@x.com",
+            avaliado_admin=True,
+        )
+        async_db.add(questionario)
+        await async_db.commit()
+        async_db.add(
+            QuestionarioAvaliador(
+                questionario_id=questionario.id,
+                avaliador_email=avaliador.email,
+                criado_por="adm",
             )
+        )
         await async_db.commit()
 
-        todos = await service.listar_todos()
+        listados = await service.listar_para(avaliador)
 
-        assert sorted(q.usuario_email for q in todos) == ["ana@x.com", "bia@x.com"]
+        assert [q.usuario_email for q in listados] == ["ana@x.com"]
 
 
 class TestAtualizar:

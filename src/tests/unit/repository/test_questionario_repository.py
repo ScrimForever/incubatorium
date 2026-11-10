@@ -1,7 +1,11 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domain.models.questionario import Questionario, StatusEnum
+from src.domain.models.questionario import (
+    Questionario,
+    QuestionarioAvaliador,
+    StatusEnum,
+)
 from src.repository.questionario import QuestionarioRepository
 
 
@@ -50,17 +54,42 @@ class TestBuscar:
         assert await repo.buscar_para_atualizar("x@y") is None
 
     @pytest.mark.asyncio
-    async def test_listar_todos(self, async_db: AsyncSession, gravar):
-        await gravar("ana@x.com")
-        await gravar("bia@x.com")
+    async def test_listar_avaliados_so_com_flag_e_avaliador_selecionado(
+        self, async_db: AsyncSession, gravar
+    ):
+        avaliado = await gravar("ana@x.com")
+        avaliado.avaliado_admin = True
+        nao_avaliado = await gravar("bia@x.com")
+        async_db.add_all(
+            [
+                QuestionarioAvaliador(
+                    questionario_id=avaliado.id, avaliador_email="av@x.com", criado_por="adm"
+                ),
+                QuestionarioAvaliador(
+                    questionario_id=nao_avaliado.id, avaliador_email="av@x.com", criado_por="adm"
+                ),
+            ]
+        )
+        await async_db.commit()
 
-        todos = await QuestionarioRepository(async_db).listar_todos()
+        listados = await QuestionarioRepository(async_db).listar_avaliados_por("av@x.com")
 
-        assert sorted(q.usuario_email for q in todos) == ["ana@x.com", "bia@x.com"]
+        assert [q.usuario_email for q in listados] == ["ana@x.com"]
 
     @pytest.mark.asyncio
-    async def test_listar_todos_vazio(self, async_db: AsyncSession):
-        assert await QuestionarioRepository(async_db).listar_todos() == []
+    async def test_listar_avaliados_vazio_para_quem_nao_foi_selecionado(
+        self, async_db: AsyncSession, gravar
+    ):
+        avaliado = await gravar("ana@x.com")
+        avaliado.avaliado_admin = True
+        async_db.add(
+            QuestionarioAvaliador(
+                questionario_id=avaliado.id, avaliador_email="av@x.com", criado_por="adm"
+            )
+        )
+        await async_db.commit()
+
+        assert await QuestionarioRepository(async_db).listar_avaliados_por("outro@x.com") == []
 
 
 class TestCriar:

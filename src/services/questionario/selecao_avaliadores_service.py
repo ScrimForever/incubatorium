@@ -31,7 +31,7 @@ class SelecaoAvaliadoresService:
             )
 
         await self.questionarios.substituir_avaliadores(
-            questionario.id, emails, autor.email
+            questionario, emails, autor.email
         )
         logger.info(
             f"Avaliadores do questionário {questionario.id} definidos por {autor.email}."

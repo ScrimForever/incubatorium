@@ -2,7 +2,18 @@ import enum
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    false,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 from src.domain.models.base import Base
@@ -33,6 +44,9 @@ class Questionario(Base, MixinDate):
         DateTime(timezone=True), nullable=True
     )
     motivo_decisao: Mapped[str | None] = mapped_column(Text, nullable=True)
+    avaliado_admin: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
 
 
 class QuestionarioHistorico(Base):
