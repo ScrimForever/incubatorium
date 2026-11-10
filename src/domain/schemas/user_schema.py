@@ -9,6 +9,9 @@ class UserRead(schemas.BaseUser[uuid.UUID]):
     is_admin: bool | None = None
     is_consultor: bool | None = None
     is_colaborador: bool | None = None
+    nome: str | None = None
+    sobrenome: str | None = None
+    telefone: str | None = None
 
 
 class UsuarioCriar(BaseModel):
@@ -16,6 +19,9 @@ class UsuarioCriar(BaseModel):
 
     email: EmailStr
     password: str
+    nome: str
+    sobrenome: str
+    telefone: str
     is_admin: bool = False
     is_colaborador: bool = False
     is_consultor: bool = False
@@ -32,6 +38,9 @@ class UsuarioCriar(BaseModel):
 class UserCreate(schemas.BaseUserCreate):
     model_config = ConfigDict(extra="ignore")
     is_incubado: bool | None = True
+    nome: str | None = None
+    sobrenome: str | None = None
+    telefone: str | None = None
 
     @field_validator("is_incubado", mode="before")
     @classmethod

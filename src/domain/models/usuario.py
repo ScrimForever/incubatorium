@@ -27,6 +27,9 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     situacao_alterada_por: Mapped[str | None] = mapped_column(
         String(255), nullable=True
     )
+    nome: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    sobrenome: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    telefone: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
 
 @event.listens_for(User, "before_insert")

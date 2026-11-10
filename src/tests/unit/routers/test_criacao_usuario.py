@@ -9,7 +9,14 @@ PERFIS = ("is_admin", "is_colaborador", "is_consultor", "is_incubado")
 
 
 def _corpo(email="novo@example.com", perfil="is_colaborador", **extra):
-    corpo = {"email": email, "password": "senha-forte", **{p: False for p in PERFIS}}
+    corpo = {
+        "email": email,
+        "password": "senha-forte",
+        "nome": "Ana",
+        "sobrenome": "Silva",
+        "telefone": "+55 11 999999999",
+        **{p: False for p in PERFIS},
+    }
     corpo[perfil] = True
     corpo.update(extra)
     return corpo
@@ -49,6 +56,11 @@ async def test_admin_cria_conta_ativa_sem_codigo_em_cada_perfil(
     criado = await async_db.scalar(select(User).where(User.email == "novo@example.com"))
     assert criado.is_active is True
     assert criado.codigo_ativacao is None
+    assert (criado.nome, criado.sobrenome, criado.telefone) == (
+        "Ana",
+        "Silva",
+        "+55 11 999999999",
+    )
     assert criado.hashed_password != "senha-forte"
 
 
@@ -88,7 +100,14 @@ async def test_email_existente_retorna_409(criar_usuario, cliente_api):
 async def test_exige_exatamente_um_perfil(marcados, criar_usuario, cliente_api):
     admin = await criar_usuario("admin")
     cliente = await cliente_api([router], admin)
-    corpo = {"email": "novo@example.com", "password": "senha", **{p: False for p in PERFIS}}
+    corpo = {
+        "email": "novo@example.com",
+        "password": "senha",
+        "nome": "Ana",
+        "sobrenome": "Silva",
+        "telefone": "+55 11 999999999",
+        **{p: False for p in PERFIS},
+    }
     for p in marcados:
         corpo[p] = True
 
