@@ -1,4 +1,5 @@
 import asyncio
+import os
 import sys
 import uuid
 from pathlib import Path
@@ -43,11 +44,17 @@ def event_loop():
 
 @pytest_asyncio.fixture
 async def async_db():
-    patch_jsonb_for_sqlite()
-
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+    # Com DATABASE_URL (Postgres, como no docker-compose) usa esse banco; sem ele, SQLite em memória.
+    url = os.getenv("DATABASE_URL")
+    if url:
+        engine = create_async_engine(url, echo=False)
+    else:
+        patch_jsonb_for_sqlite()
+        engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
 
     async with engine.begin() as conn:
+        # Esquema limpo a cada teste: o Postgres de teste persiste entre execuções.
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
 
     async_session_maker = sessionmaker(

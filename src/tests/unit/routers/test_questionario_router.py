@@ -1,8 +1,8 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+import httpx
 from fastapi import FastAPI
-from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +15,11 @@ from src.domain.models.usuario import User
 from src.routers.dependencias import get_questionario_service
 from src.routers.questionario import router as questionario_router
 from src.shared.handlers import registrar_handlers
+
+
+def _cliente(app: FastAPI) -> httpx.AsyncClient:
+    """Cliente no mesmo event loop do teste: a sessão Postgres (asyncpg) não cruza loops."""
+    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test")
 
 
 @pytest.fixture
@@ -55,7 +60,7 @@ async def test_criar_questionario(setup_questionario_router, sample_email):
     """Teste para criar novo questionário"""
     app = setup_questionario_router
 
-    client = TestClient(app)
+    client = _cliente(app)
 
     payload = {
         "status_questionario": StatusEnum.iniciado,
@@ -74,7 +79,7 @@ async def test_criar_questionario(setup_questionario_router, sample_email):
 
     mock_repo.criar = AsyncMock(return_value=questionario)
 
-    response = client.post("/questionario", json=payload)
+    response = await client.post("/questionario", json=payload)
 
     assert response.status_code in [200, 422]
 
@@ -84,7 +89,7 @@ async def test_buscar_questionario(setup_questionario_router, sample_email):
     """Teste para buscar questionário"""
     app = setup_questionario_router
 
-    client = TestClient(app)
+    client = _cliente(app)
 
     mock_repo = MagicMock()
     app.dependency_overrides[get_questionario_service] = lambda: mock_repo
@@ -98,7 +103,7 @@ async def test_buscar_questionario(setup_questionario_router, sample_email):
 
     mock_repo.buscar = AsyncMock(return_value=questionario)
 
-    response = client.get("/questionario")
+    response = await client.get("/questionario")
 
     assert response.status_code in [200, 422]
 
@@ -119,13 +124,13 @@ async def test_atualizar_questionario(
     )
     await async_db.commit()
 
-    client = TestClient(app)
+    client = _cliente(app)
 
     payload = {
         "status_questionario": StatusEnum.pendente,
         "json_questionario": {"2": {"business_canvas": "Canvas"}},
     }
-    response = client.put("/questionario", json=payload)
+    response = await client.put("/questionario", json=payload)
 
     assert response.status_code == 200
     assert response.json()["status_questionario"] == "pendente"
@@ -145,7 +150,7 @@ async def test_buscar_sem_questionario_devolve_404(setup_questionario_router):
     """Contrato com o frontend: sem documento, GET devolve 404 (o `meu()` cria o plano)"""
     app = setup_questionario_router
 
-    response = TestClient(app).get("/questionario")
+    response = await _cliente(app).get("/questionario")
 
     assert response.status_code == 404
 
@@ -153,11 +158,11 @@ async def test_buscar_sem_questionario_devolve_404(setup_questionario_router):
 @pytest.mark.asyncio
 async def test_criar_duas_vezes_da_409(setup_questionario_router):
     app = setup_questionario_router
-    client = TestClient(app)
+    client = _cliente(app)
     payload = {"status_questionario": "pendente", "json_questionario": {}}
 
-    assert client.post("/questionario", json=payload).status_code == 200
-    response = client.post("/questionario", json=payload)
+    assert (await client.post("/questionario", json=payload)).status_code == 200
+    response = await client.post("/questionario", json=payload)
 
     assert response.status_code == 409
     assert response.json() == {
@@ -169,7 +174,7 @@ async def test_criar_duas_vezes_da_409(setup_questionario_router):
 async def test_atualizar_sem_questionario_da_404(setup_questionario_router):
     app = setup_questionario_router
 
-    response = TestClient(app).put(
+    response = await _cliente(app).put(
         "/questionario", json={"status_questionario": "pendente"}
     )
 

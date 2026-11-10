@@ -92,7 +92,9 @@ class ConsultoriaRepository(Repositorio):
     ) -> ConsultoriaHorario | None:
         consulta = select(ConsultoriaHorario).where(ConsultoriaHorario.id == horario_id)
         if para_atualizar:
-            consulta = consulta.with_for_update()
+            # `of=`: o relacionamento `janela` entra por outer join, e o Postgres não aceita
+            # lock no lado nulo desse join.
+            consulta = consulta.with_for_update(of=ConsultoriaHorario)
         return (await self.db.execute(consulta)).scalar_one_or_none()
 
     async def horario_do_consultor_sobreposto(
