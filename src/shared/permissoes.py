@@ -67,6 +67,7 @@ enviador_arquivos = exigir_perfil("incubado", "consultor")
 gestor_incubados = exigir_perfil("colaborador")
 editor_questionario_de_incubado = exigir_perfil("consultor")
 gestor_agenda = exigir_perfil("consultor")
+somente_admin = exigir_perfil()
 agendador_consultoria = exigir_apenas("incubado")
 
 

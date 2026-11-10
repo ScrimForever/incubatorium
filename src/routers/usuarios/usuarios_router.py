@@ -10,11 +10,22 @@ from src.domain.schemas.incubado_schema import (
     SituacaoUpdate,
 )
 from src.domain.schemas.plano_schema import PlanoOutput
+from src.domain.schemas.user_schema import UserRead, UsuarioCriar
 from src.routers.dependencias import get_usuarios_service
 from src.services.usuarios.usuarios_service import UsuariosService
-from src.shared.permissoes import exigir_acesso_incubado, gestor_incubados
+from src.shared.permissoes import exigir_acesso_incubado, gestor_incubados, somente_admin
 
 router = APIRouter(prefix="/usuarios", tags=["usuarios"])
+
+
+@router.post("", status_code=201, response_model=UserRead)
+async def criar_usuario(
+    corpo: UsuarioCriar,
+    admin: User = Depends(somente_admin),
+    service: UsuariosService = Depends(get_usuarios_service),
+):
+    """Cria conta ativa com um perfil. Restrito a admins."""
+    return await service.criar(admin, corpo)
 
 
 @router.get("", response_model=list[IncubadoResumo])

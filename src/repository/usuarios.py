@@ -35,6 +35,17 @@ class UsuariosRepository(Repositorio):
             return False
         return True
 
+    async def criar(self, usuario: User) -> None:
+        """Insere a conta já ativa, sem código de ativação. Não confirma: quem chama salva.
+
+        O listener `before_insert` de `User` força `is_active=False` no flush, então a
+        ativação acontece depois dele.
+        """
+        self.db.add(usuario)
+        await self.db.flush()
+        usuario.is_active = True
+        usuario.codigo_ativacao = None
+
     async def gerar_novo_codigo(self, usuario: User) -> None:
         usuario.codigo_ativacao = gerar_codigo_ativacao()
         await self.salvar()
