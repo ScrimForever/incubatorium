@@ -1,5 +1,9 @@
-from sqlalchemy import select
-from src.domain.models.questionario import Questionario, QuestionarioHistorico
+from sqlalchemy import delete, select
+from src.domain.models.questionario import (
+    Questionario,
+    QuestionarioAvaliador,
+    QuestionarioHistorico,
+)
 from src.repository.base import Repositorio
 
 
@@ -58,3 +62,23 @@ class QuestionarioRepository(Repositorio):
     def adicionar_historico(self, historico: QuestionarioHistorico) -> None:
         """Inclui o registro na transação corrente (gravado no próximo `salvar()`)."""
         self.db.add(historico)
+
+    async def substituir_avaliadores(
+        self, questionario_id: int, emails: list[str], autor: str
+    ) -> None:
+        """Troca a seleção de avaliadores do questionário pela lista informada."""
+        await self.db.execute(
+            delete(QuestionarioAvaliador).where(
+                QuestionarioAvaliador.questionario_id == questionario_id
+            )
+        )
+        self.db.add_all(
+            QuestionarioAvaliador(
+                questionario_id=questionario_id,
+                avaliador_email=email,
+                criado_por=autor,
+            )
+            for email in emails
+        )
+        await self.salvar()
+

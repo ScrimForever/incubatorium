@@ -13,6 +13,9 @@ from src.services.consultoria.reserva_service import ReservaService
 from src.services.consultoria.convites import ConvitesPorEmail
 from src.services.email.setup import EmailSetup
 from src.services.questionario.questionario_service import QuestionarioService
+from src.services.questionario.selecao_avaliadores_service import (
+    SelecaoAvaliadoresService,
+)
 from src.services.usuarios.ativacao_service import AtivacaoService
 from src.services.usuarios.usuarios_service import UsuariosService
 
@@ -21,6 +24,12 @@ def get_questionario_service(
     db: AsyncSession = Depends(get_async_session),
 ) -> QuestionarioService:
     return QuestionarioService(QuestionarioRepository(db))
+
+
+def get_selecao_avaliadores_service(
+    db: AsyncSession = Depends(get_async_session),
+) -> SelecaoAvaliadoresService:
+    return SelecaoAvaliadoresService(QuestionarioRepository(db), UsuariosRepository(db))
 
 
 def get_usuarios_service(

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from src.domain.models.questionario import StatusEnum
 from src.domain.schemas.mixindate_schema import MixinCriadoSchema
 
@@ -41,3 +41,13 @@ class QuestionarioInputSchema(QuestionarioBaseSchema):
 class QuestionarioOutputSchema(QuestionarioBaseSchema, MixinCriadoSchema):
     json_questionario: dict | None = None
     id: int
+
+
+class SelecaoAvaliadoresInput(BaseModel):
+    questionario_id: int
+    avaliadores: list[EmailStr] = Field(min_length=1)
+
+
+class SelecaoAvaliadoresOutput(BaseModel):
+    questionario_id: int
+    avaliadores: list[str]

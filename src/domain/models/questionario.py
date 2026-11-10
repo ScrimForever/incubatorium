@@ -2,7 +2,7 @@ import enum
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text, func
+from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 from src.domain.models.base import Base
@@ -48,3 +48,20 @@ class QuestionarioHistorico(Base):
     criado_em: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class QuestionarioAvaliador(Base, MixinDate):
+    """Avaliadores (consultores) selecionados para um questionário."""
+
+    __tablename__ = "questionario_avaliador"
+    __table_args__ = (
+        UniqueConstraint(
+            "questionario_id", "avaliador_email", name="uq_questionario_avaliador"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    questionario_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("questionario.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    avaliador_email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
