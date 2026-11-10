@@ -31,8 +31,8 @@ async def _avaliadores_gravados(async_db, questionario_id: int) -> list[str]:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("perfil", ["consultor", "incubado"])
-async def test_so_gestor_ou_admin_seleciona(perfil, criar_usuario, cliente_api, async_db):
+@pytest.mark.parametrize("perfil", ["consultor", "incubado", "colaborador"])
+async def test_so_admin_seleciona(perfil, criar_usuario, cliente_api, async_db):
     solicitante = await criar_usuario(perfil)
     questionario = await _questionario(async_db)
     cliente = await cliente_api([router], solicitante)
@@ -46,9 +46,8 @@ async def test_so_gestor_ou_admin_seleciona(perfil, criar_usuario, cliente_api, 
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("perfil", ["admin", "colaborador"])
-async def test_seleciona_consultores_e_grava(perfil, criar_usuario, cliente_api, async_db):
-    solicitante = await criar_usuario(perfil)
+async def test_seleciona_consultores_e_grava(criar_usuario, cliente_api, async_db):
+    solicitante = await criar_usuario("admin")
     await criar_usuario("consultor", "c1@example.com")
     await criar_usuario("consultor", "c2@example.com")
     questionario = await _questionario(async_db)

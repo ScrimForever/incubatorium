@@ -9,7 +9,7 @@ from src.routers.dependencias import get_selecao_avaliadores_service
 from src.services.questionario.selecao_avaliadores_service import (
     SelecaoAvaliadoresService,
 )
-from src.shared.permissoes import gestor_incubados
+from src.shared.permissoes import somente_admin
 
 router = APIRouter(tags=["questionario"])
 
@@ -21,7 +21,7 @@ router = APIRouter(tags=["questionario"])
 )
 async def selecionar_avaliadores(
     corpo: SelecaoAvaliadoresInput,
-    user: User = Depends(gestor_incubados),
+    user: User = Depends(somente_admin),
     service: SelecaoAvaliadoresService = Depends(get_selecao_avaliadores_service),
 ):
     """Define os avaliadores (consultores) do questionário, substituindo a seleção anterior."""
