@@ -15,6 +15,7 @@ ROTAS_CONGELADAS = {
     ("/auth/reset-password", "POST"),
     ("/auth/verify", "POST"),
     ("/authenticated-route", "GET"),
+    ("/avaliadores", "GET"),
     ("/consultorias/agenda", "POST"),
     ("/consultorias/agenda/minha", "GET"),
     ("/consultorias/horarios", "GET"),

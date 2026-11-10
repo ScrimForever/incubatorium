@@ -76,6 +76,12 @@ class UsuariosRepository(Repositorio):
             for email, sit, status in linhas
         ]
 
+    async def listar_consultores(self) -> list[User]:
+        resultado = await self.db.execute(
+            select(User).where(User.is_consultor.is_(True)).order_by(User.email)
+        )
+        return list(resultado.scalars().all())
+
     async def emails_admins_ativos(self) -> list[str]:
         resultado = await self.db.execute(
             select(User.email)

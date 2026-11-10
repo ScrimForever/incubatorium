@@ -29,6 +29,9 @@ class UsuariosService:
     async def painel(self, situacao: SituacaoIncubacao | None = None) -> list[dict]:
         return await self.usuarios.painel_incubados(situacao)
 
+    async def avaliadores(self) -> list[User]:
+        return await self.usuarios.listar_consultores()
+
     async def criar(self, administrador: User, corpo: UsuarioCriar) -> User:
         """Cria conta ativa com um perfil. Incubado também ganha o questionário inicial."""
         if await self.usuarios.buscar_por_email(corpo.email) is not None:
