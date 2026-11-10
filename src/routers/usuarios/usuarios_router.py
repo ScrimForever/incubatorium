@@ -13,7 +13,11 @@ from src.domain.schemas.plano_schema import PlanoOutput
 from src.domain.schemas.user_schema import UserRead, UsuarioCriar
 from src.routers.dependencias import get_usuarios_service
 from src.services.usuarios.usuarios_service import UsuariosService
-from src.shared.permissoes import exigir_acesso_incubado, gestor_incubados, somente_admin
+from src.shared.permissoes import (
+    exigir_acesso_incubado,
+    gestor_incubados,
+    somente_admin,
+)
 
 router = APIRouter(prefix="/usuarios", tags=["usuarios"])
 

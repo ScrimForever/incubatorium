@@ -13,9 +13,7 @@ class SelecaoAvaliadoresService:
         self.questionarios = questionarios
         self.usuarios = usuarios
 
-    async def selecionar(
-        self, autor: User, entrada: SelecaoAvaliadoresInput
-    ) -> dict:
+    async def selecionar(self, autor: User, entrada: SelecaoAvaliadoresInput) -> dict:
         """Substitui os avaliadores do questionário. Todos precisam ser consultores."""
         questionario = await self.questionarios.buscar_por_id(entrada.questionario_id)
         if questionario is None:

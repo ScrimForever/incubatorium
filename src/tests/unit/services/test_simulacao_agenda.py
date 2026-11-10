@@ -33,9 +33,7 @@ class Caixa:
         return True
 
     def para(self, email, assunto=None):
-        return [
-            e for e in self.emails if e[0] == email and assunto in (None, e[1])
-        ]
+        return [e for e in self.emails if e[0] == email and assunto in (None, e[1])]
 
     def limpar(self):
         self.emails.clear()
@@ -74,7 +72,9 @@ async def test_simulacao_agenda_reservas_e_lembretes(async_db, criar_usuario):
     dia1, dia2 = _dia(18), _dia(20)
     entrada = AgendaInput(
         datas=[dia1, dia2],
-        blocos=[BlocoInput(hora_inicio=time(10), hora_fim=time(12), duracao_minutos=60)],
+        blocos=[
+            BlocoInput(hora_inicio=time(10), hora_fim=time(12), duracao_minutos=60)
+        ],
     )
     janelas, avisos = await agenda.abrir_agenda(consultor, entrada)
     await enviador.enviar(avisos)
@@ -106,7 +106,9 @@ async def test_simulacao_agenda_reservas_e_lembretes(async_db, criar_usuario):
     inicio1 = para_utc(dia1, time(10))
     fora = await lembretes.lembretes_ao_consultor(inicio1 - timedelta(hours=7))
     assert fora == []  # 7h antes: ainda cedo
-    dentro = await lembretes.lembretes_ao_consultor(inicio1 - timedelta(hours=5, minutes=50))
+    dentro = await lembretes.lembretes_ao_consultor(
+        inicio1 - timedelta(hours=5, minutes=50)
+    )
     await enviador.enviar(dentro)
     caixa.imprimir("4) 'Faltam <6h' -> consultor lembrado da consulta da Ana")
     assert [a.email for a in dentro] == [consultor.email]

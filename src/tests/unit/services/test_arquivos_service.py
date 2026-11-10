@@ -68,7 +68,9 @@ class _Upload:
 
 
 def _service_disco(async_db, tmp_path) -> ArquivosService:
-    return ArquivosService(QuestionarioRepository(async_db), ArmazenamentoLocal(tmp_path))
+    return ArquivosService(
+        QuestionarioRepository(async_db), ArmazenamentoLocal(tmp_path)
+    )
 
 
 PDF = b"%PDF-1.7\n1 0 obj\n<<>>\nendobj\n"
@@ -77,7 +79,9 @@ PDF = b"%PDF-1.7\n1 0 obj\n<<>>\nendobj\n"
 @pytest.mark.asyncio
 async def test_receber_grava_pdf_valido(async_db, tmp_path):
     servico = _service_disco(async_db, tmp_path)
-    [recebido] = await servico.receber(EMAIL, 6, [_Upload("a.pdf", PDF, "application/pdf")])
+    [recebido] = await servico.receber(
+        EMAIL, 6, [_Upload("a.pdf", PDF, "application/pdf")]
+    )
     assert recebido["nome"] == "a.pdf"
     assert recebido["content_type"] == "application/pdf"
     assert recebido["tamanho"] == len(PDF)

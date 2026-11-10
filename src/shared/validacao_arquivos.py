@@ -66,4 +66,3 @@ def validar_tamanho(nome: str, tamanho: int, maximo: int) -> None:
         raise ArquivoInvalidoError(
             nome, f"tamanho acima do limite de {maximo // (1024 * 1024)} MB"
         )
-

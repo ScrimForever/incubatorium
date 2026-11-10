@@ -41,7 +41,6 @@ def _fatiar(
     return fatias
 
 
-
 class AgendaService:
     """Agenda do consultor: janelas (dias × faixas) e seus horários."""
 
@@ -218,10 +217,7 @@ class AgendaService:
             if h.incubado_email
         ]
         reunioes = [
-            r
-            for j in janelas
-            for h in j.horarios
-            if (r := reuniao_do_horario(h))
+            r for j in janelas for h in j.horarios if (r := reuniao_do_horario(h))
         ]
         await self.consultoria.excluir_janelas(janelas)
         await self.consultoria.salvar()

@@ -173,9 +173,11 @@ class TestSituacao:
         assert resposta.json()["situacao"] == "concluido"
         assert resposta.json()["alterada_por"] == colaborador.email
         assert ana.situacao_incubacao == SituacaoIncubacao.concluido
-        assert (await async_db.scalar(
-            select(Questionario).where(Questionario.usuario_email == ana.email)
-        )) is not None
+        assert (
+            await async_db.scalar(
+                select(Questionario).where(Questionario.usuario_email == ana.email)
+            )
+        ) is not None
 
     @pytest.mark.asyncio
     async def test_usuario_sem_aprovacao_da_409_e_inexistente_da_404(

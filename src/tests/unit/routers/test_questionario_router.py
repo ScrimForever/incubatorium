@@ -1,7 +1,7 @@
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 import httpx
+import pytest
 from fastapi import FastAPI
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,7 +19,9 @@ from src.shared.handlers import registrar_handlers
 
 def _cliente(app: FastAPI) -> httpx.AsyncClient:
     """Cliente no mesmo event loop do teste: a sessão Postgres (asyncpg) não cruza loops."""
-    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test")
+    return httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    )
 
 
 @pytest.fixture
@@ -136,9 +138,7 @@ async def test_atualizar_questionario(
     assert response.json()["status_questionario"] == "pendente"
     assert response.json()["json_questionario"]["2"]["business_canvas"] == "Canvas"
 
-    historico = (
-        (await async_db.execute(select(QuestionarioHistorico))).scalars().all()
-    )
+    historico = (await async_db.execute(select(QuestionarioHistorico))).scalars().all()
     assert len(historico) == 1
     assert historico[0].usuario_email == sample_email
     assert historico[0].status_questionario == StatusEnum.pendente

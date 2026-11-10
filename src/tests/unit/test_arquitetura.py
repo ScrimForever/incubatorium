@@ -76,32 +76,28 @@ def test_domain_nao_importa_de_infra_nem_de_camadas_superiores():
     infratores = _varrer(
         "domain", _importa("infra", "repository", "services", "routers", "auth")
     )
-    assert infratores == [], (
-        "domain importando camadas superiores:\n" + "\n".join(infratores)
+    assert infratores == [], "domain importando camadas superiores:\n" + "\n".join(
+        infratores
     )
 
 
 def test_repository_nao_importa_de_services_nem_routers():
     infratores = _varrer("repository", _importa("services", "routers"))
-    assert infratores == [], (
-        "repository importando camadas superiores:\n" + "\n".join(infratores)
+    assert infratores == [], "repository importando camadas superiores:\n" + "\n".join(
+        infratores
     )
 
 
 def test_services_nao_importam_de_routers():
     infratores = _varrer("services", _importa("routers"))
-    assert infratores == [], (
-        "services importando routers:\n" + "\n".join(infratores)
-    )
+    assert infratores == [], "services importando routers:\n" + "\n".join(infratores)
 
 
 PADRAO_CONSTRUTOR = re.compile(r"\b\w*(?:Service|Repository)\(")
 
 
 def test_routers_nao_constroem_services_nem_repositories():
-    infratores = _varrer(
-        "routers", PADRAO_CONSTRUTOR, excluir=("dependencias.py",)
-    )
+    infratores = _varrer("routers", PADRAO_CONSTRUTOR, excluir=("dependencias.py",))
     assert infratores == [], (
         "routers devem receber dependências via Depends:\n" + "\n".join(infratores)
     )
@@ -109,5 +105,7 @@ def test_routers_nao_constroem_services_nem_repositories():
 
 def test_services_nao_dependem_da_infra_de_banco():
     """Services recebem repositórios e contratos; não abrem sessão por conta própria."""
-    infratores = _varrer("services", re.compile(r"^\s*(?:from|import)\s+(?:src\.)?infra\.db\b"))
+    infratores = _varrer(
+        "services", re.compile(r"^\s*(?:from|import)\s+(?:src\.)?infra\.db\b")
+    )
     assert infratores == [], f"services importando infra.db: {infratores}"

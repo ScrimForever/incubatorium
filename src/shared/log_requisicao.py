@@ -42,7 +42,10 @@ class LogRequisicaoMiddleware:
         metodo, rota = scope["method"], scope["path"]
         nivel = "ERROR" if status >= 500 else "WARNING" if status >= 400 else "INFO"
         logger.bind(
-            usuario=usuario, trace_id=trace_id, http_status=status, duracao_ms=round(ms, 1)
+            usuario=usuario,
+            trace_id=trace_id,
+            http_status=status,
+            duracao_ms=round(ms, 1),
         ).log(
             nivel,
             f"{metodo} {rota} {status} {ms:.0f}ms usuario={usuario} trace_id={trace_id}",

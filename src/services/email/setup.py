@@ -41,7 +41,9 @@ class EmailSetup:
             logger.error(error)
             return False
 
-    async def enviar_email_cadastro(self, email: str, codigo_ativacao: str | None) -> bool:
+    async def enviar_email_cadastro(
+        self, email: str, codigo_ativacao: str | None
+    ) -> bool:
         logger.info("Montando corpo do email.")
         if codigo_ativacao is None:
             return False

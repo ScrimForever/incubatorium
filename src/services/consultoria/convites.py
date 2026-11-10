@@ -63,8 +63,10 @@ def montar_ics(reuniao: Reuniao, metodo: str) -> str:
         f"DTSTART:{_data(reuniao.inicio)}",
         f"DTEND:{_data(reuniao.fim)}",
         "SUMMARY:Tec Campos - Consultoria",
-        f"DESCRIPTION:Consultoria entre {reuniao.consultor} e {reuniao.incubado}.\\n"
-        f"Sala: {reuniao.link}",
+        (
+            f"DESCRIPTION:Consultoria entre {reuniao.consultor} e {reuniao.incubado}.\\n"
+            f"Sala: {reuniao.link}"
+        ),
         f"LOCATION:{reuniao.link}",
         f"URL:{reuniao.link}",
         f"ORGANIZER:mailto:{reuniao.consultor}",
