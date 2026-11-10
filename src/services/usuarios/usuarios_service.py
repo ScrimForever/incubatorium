@@ -1,5 +1,4 @@
 from fastapi_users.password import PasswordHelper
-
 from src.domain.models.enums import SituacaoIncubacao
 from src.domain.models.questionario import Questionario, StatusEnum
 from src.domain.models.usuario import User

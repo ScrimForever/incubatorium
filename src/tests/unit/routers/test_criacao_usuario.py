@@ -33,7 +33,10 @@ async def test_nao_admin_recebe_403(
     resposta = await cliente.post("/usuarios", json=_corpo())
 
     assert resposta.status_code == 403
-    assert await async_db.scalar(select(User).where(User.email == "novo@example.com")) is None
+    assert (
+        await async_db.scalar(select(User).where(User.email == "novo@example.com"))
+        is None
+    )
 
 
 @pytest.mark.asyncio

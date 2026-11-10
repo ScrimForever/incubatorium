@@ -32,8 +32,12 @@ async def _horario(async_db, criar_usuario):
     incubado = await criar_usuario("incubado", "ana@example.com")
     dia: date = hoje_local() + timedelta(days=3)
     janela = ConsultoriaJanela(
-        consultor_email=consultor.email, data=dia, hora_inicio=time(10),
-        hora_fim=time(11), duracao_minutos=60, criado_por=consultor.email,
+        consultor_email=consultor.email,
+        data=dia,
+        hora_inicio=time(10),
+        hora_fim=time(11),
+        duracao_minutos=60,
+        criado_por=consultor.email,
     )
     janela.horarios = [
         ConsultoriaHorario(
@@ -62,7 +66,10 @@ async def test_reservar_gera_sala_jitsi_e_convida_e_cancelar_remove(
     assert reservado.meet_link == f"https://meet.jit.si/tec-campos-{hash_sala}"
     acao, reuniao = convites.chamadas[0]
     assert acao == "convidar"
-    assert (reuniao.consultor, reuniao.incubado) == ("cons@example.com", "ana@example.com")
+    assert (reuniao.consultor, reuniao.incubado) == (
+        "cons@example.com",
+        "ana@example.com",
+    )
 
     await service.cancelar_reserva(incubado, horario.id)
     assert convites.chamadas[-1] == ("cancelar", reuniao)
@@ -71,8 +78,11 @@ async def test_reservar_gera_sala_jitsi_e_convida_e_cancelar_remove(
 
 def test_ics_traz_convite_para_os_dois_e_cancelamento():
     reuniao = Reuniao(
-        "abc", "cons@example.com", "ana@example.com",
-        datetime(2026, 11, 10, 13, 0, tzinfo=UTC), datetime(2026, 11, 10, 14, 0, tzinfo=UTC),
+        "abc",
+        "cons@example.com",
+        "ana@example.com",
+        datetime(2026, 11, 10, 13, 0, tzinfo=UTC),
+        datetime(2026, 11, 10, 14, 0, tzinfo=UTC),
     )
 
     convite = montar_ics(reuniao, "REQUEST")
@@ -89,13 +99,18 @@ async def test_convite_vai_por_email_para_consultor_e_incubado():
     enviados = []
 
     class Notificador:
-        async def enviar_notificacao(self, email, assunto, titulo, mensagem, detalhe="", convite_ics=""):
+        async def enviar_notificacao(
+            self, email, assunto, titulo, mensagem, detalhe="", convite_ics=""
+        ):
             enviados.append((email, convite_ics))
             return True
 
     reuniao = Reuniao(
-        "abc", "cons@example.com", "ana@example.com",
-        datetime(2026, 11, 10, 13, 0, tzinfo=UTC), datetime(2026, 11, 10, 14, 0, tzinfo=UTC),
+        "abc",
+        "cons@example.com",
+        "ana@example.com",
+        datetime(2026, 11, 10, 13, 0, tzinfo=UTC),
+        datetime(2026, 11, 10, 14, 0, tzinfo=UTC),
     )
     await ConvitesPorEmail(EnviadorDeAvisos(Notificador())).convidar(reuniao)
 

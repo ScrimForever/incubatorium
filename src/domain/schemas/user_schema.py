@@ -29,7 +29,12 @@ class UsuarioCriar(BaseModel):
 
     @model_validator(mode="after")
     def exatamente_um_perfil(self):
-        perfis = (self.is_admin, self.is_colaborador, self.is_consultor, self.is_incubado)
+        perfis = (
+            self.is_admin,
+            self.is_colaborador,
+            self.is_consultor,
+            self.is_incubado,
+        )
         if sum(perfis) != 1:
             raise ValueError("Informe exatamente um perfil verdadeiro.")
         return self

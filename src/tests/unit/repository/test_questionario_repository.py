@@ -63,16 +63,22 @@ class TestBuscar:
         async_db.add_all(
             [
                 QuestionarioAvaliador(
-                    questionario_id=avaliado.id, avaliador_email="av@x.com", criado_por="adm"
+                    questionario_id=avaliado.id,
+                    avaliador_email="av@x.com",
+                    criado_por="adm",
                 ),
                 QuestionarioAvaliador(
-                    questionario_id=nao_avaliado.id, avaliador_email="av@x.com", criado_por="adm"
+                    questionario_id=nao_avaliado.id,
+                    avaliador_email="av@x.com",
+                    criado_por="adm",
                 ),
             ]
         )
         await async_db.commit()
 
-        listados = await QuestionarioRepository(async_db).listar_avaliados_por("av@x.com")
+        listados = await QuestionarioRepository(async_db).listar_avaliados_por(
+            "av@x.com"
+        )
 
         assert [q.usuario_email for q in listados] == ["ana@x.com"]
 
@@ -84,12 +90,17 @@ class TestBuscar:
         avaliado.avaliado_admin = True
         async_db.add(
             QuestionarioAvaliador(
-                questionario_id=avaliado.id, avaliador_email="av@x.com", criado_por="adm"
+                questionario_id=avaliado.id,
+                avaliador_email="av@x.com",
+                criado_por="adm",
             )
         )
         await async_db.commit()
 
-        assert await QuestionarioRepository(async_db).listar_avaliados_por("outro@x.com") == []
+        assert (
+            await QuestionarioRepository(async_db).listar_avaliados_por("outro@x.com")
+            == []
+        )
 
 
 class TestCriar:
