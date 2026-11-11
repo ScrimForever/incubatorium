@@ -35,7 +35,9 @@ def get_selecao_avaliadores_service(
 def get_usuarios_service(
     db: AsyncSession = Depends(get_async_session),
 ) -> UsuariosService:
-    return UsuariosService(UsuariosRepository(db), QuestionarioRepository(db))
+    return UsuariosService(
+        UsuariosRepository(db), QuestionarioRepository(db), EmailSetup()
+    )
 
 
 def get_ativacao_service(

@@ -42,8 +42,9 @@ class EmailSetup:
             return False
 
     async def enviar_email_cadastro(
-        self, email: str, codigo_ativacao: str | None
+        self, email: str, codigo_ativacao: str | None, definir_senha: bool = False
     ) -> bool:
+        """`definir_senha`: conta criada sem senha; o e-mail orienta a definir uma."""
         logger.info("Montando corpo do email.")
         if codigo_ativacao is None:
             return False
@@ -51,6 +52,8 @@ class EmailSetup:
         html_renderizado = template.render(
             codigo_ativacao=codigo_ativacao,
             link_verificacao=f"http://127.0.0.1:8000/validar_email/{email}/{codigo_ativacao}",  # ajuste para a URL real
+            definir_senha=definir_senha,
+            link_definir_senha="http://localhost:3000/esqueci-senha",  # ajuste para a URL real
         )
         params: resend.Emails.SendParams = {
             "from": "Acme <onboarding@resend.dev>",
