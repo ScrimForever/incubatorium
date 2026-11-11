@@ -117,3 +117,69 @@ async def test_exige_exatamente_um_perfil(marcados, criar_usuario, cliente_api):
     resposta = await cliente.post("/usuarios", json=corpo)
 
     assert resposta.status_code == 422
+
+
+@pytest.fixture
+def email_cadastro(monkeypatch):
+    from unittest.mock import AsyncMock
+
+    from src.services.email.setup import EmailSetup
+
+    mock = AsyncMock(return_value=True)
+    monkeypatch.setattr(EmailSetup, "enviar_email_cadastro", mock)
+    return mock
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("sem_senha", [{"password": ""}, {"password": "   "}, None])
+@pytest.mark.parametrize("perfil", PERFIS)
+async def test_sem_senha_cria_conta_inativa_e_envia_codigo(
+    perfil, sem_senha, criar_usuario, cliente_api, async_db, email_cadastro
+):
+    admin = await criar_usuario("admin")
+    cliente = await cliente_api([router], admin)
+    corpo = _corpo(perfil=perfil, **(sem_senha or {}))
+    if sem_senha is None:
+        del corpo["password"]
+
+    resposta = await cliente.post("/usuarios", json=corpo)
+
+    assert resposta.status_code == 201
+    assert resposta.json()["is_active"] is False
+    criado = await async_db.scalar(select(User).where(User.email == "novo@example.com"))
+    assert criado.is_active is False
+    assert criado.codigo_ativacao and len(criado.codigo_ativacao) == 6
+    assert criado.hashed_password
+    email_cadastro.assert_awaited_once_with(
+        "novo@example.com", criado.codigo_ativacao, definir_senha=True
+    )
+    questionarios = await async_db.scalars(
+        select(Questionario).where(Questionario.usuario_email == "novo@example.com")
+    )
+    assert questionarios.all() == []
+
+
+@pytest.mark.asyncio
+async def test_com_senha_nao_envia_codigo(criar_usuario, cliente_api, email_cadastro):
+    admin = await criar_usuario("admin")
+    cliente = await cliente_api([router], admin)
+
+    resposta = await cliente.post("/usuarios", json=_corpo())
+
+    assert resposta.status_code == 201
+    email_cadastro.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_falha_no_envio_nao_impede_cadastro(
+    criar_usuario, cliente_api, async_db, email_cadastro
+):
+    email_cadastro.return_value = False
+    admin = await criar_usuario("admin")
+    cliente = await cliente_api([router], admin)
+
+    resposta = await cliente.post("/usuarios", json=_corpo(password=""))
+
+    assert resposta.status_code == 201
+    criado = await async_db.scalar(select(User).where(User.email == "novo@example.com"))
+    assert criado.is_active is False and criado.codigo_ativacao

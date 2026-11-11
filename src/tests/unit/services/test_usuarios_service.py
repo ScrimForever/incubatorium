@@ -1,3 +1,5 @@
+from unittest.mock import AsyncMock
+
 import pytest
 from sqlalchemy import select
 
@@ -11,7 +13,7 @@ from src.shared.exceptions import ConflitoError, NaoEncontradoError
 
 def _service(async_db) -> UsuariosService:
     return UsuariosService(
-        UsuariosRepository(async_db), QuestionarioRepository(async_db)
+        UsuariosRepository(async_db), QuestionarioRepository(async_db), AsyncMock()
     )
 
 

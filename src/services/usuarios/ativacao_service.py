@@ -19,10 +19,13 @@ class AtivacaoService:
         self.email = email
 
     async def ativar(self, email: str, codigo: str) -> bool:
-        """Ativa a conta e cria o questionário `iniciado` (vazio) do usuário."""
+        """Ativa a conta; incubado também ganha o questionário `iniciado` (vazio)."""
         logger.info(f"Ativando código para usuário: {email}")
         if not await self.usuarios.ativar_por_codigo(email, codigo):
             return False
+        usuario = await self.usuarios.buscar_por_email(email)
+        if not usuario.is_incubado:
+            return True
         if await self.questionarios.buscar(email) is not None:
             logger.warning(f"Usuário {email} já possui questionário.")
             return False

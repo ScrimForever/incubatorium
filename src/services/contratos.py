@@ -33,7 +33,9 @@ class Convites(Protocol):
 
 
 class EmailDeCadastro(Protocol):
-    async def enviar_email_cadastro(self, email: str, codigo: str | None) -> bool: ...
+    async def enviar_email_cadastro(
+        self, email: str, codigo: str | None, definir_senha: bool = False
+    ) -> bool: ...
 
 
 class Armazenamento(Protocol):

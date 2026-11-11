@@ -80,6 +80,20 @@ class TestAtivar:
         assert questionario.json_questionario == {"1": "a"}
 
     @pytest.mark.asyncio
+    async def test_nao_incubado_ativa_sem_questionario(
+        self, async_db, service, user_in_db, sample_email
+    ):
+        user_in_db.is_incubado = False
+        user_in_db.is_consultor = True
+        await async_db.commit()
+
+        resultado = await service.ativar(sample_email, user_in_db.codigo_ativacao)
+
+        assert resultado is True
+        assert user_in_db.is_active is True
+        assert await _questionarios(async_db, sample_email) == []
+
+    @pytest.mark.asyncio
     async def test_codigo_errado_devolve_false_sem_criar(
         self, async_db, service, user_in_db, sample_email
     ):

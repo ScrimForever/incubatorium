@@ -41,6 +41,8 @@ ROTAS_CONGELADAS = {
     ("/users/{id}", "GET"),
     ("/users/{id}", "PATCH"),
     ("/usuarios", "GET"),
+    ("/usuarios/todos", "GET"),
+    ("/usuarios/{email}", "PATCH"),
     ("/usuarios", "POST"),
     ("/usuarios/{email}/plano", "GET"),
     ("/usuarios/{email}/situacao", "PATCH"),
