@@ -1,0 +1,105 @@
+/* Layout local: o resto é do sistema (`.modal`, `.lista*`, `.filtros`, `.plano-item`).
+   Tamanho fixo: a modal não cresce nem encolhe conforme a escolha muda. */
+.modal {
+  width: min(760px, calc(100vw - 32px));
+  max-width: none;
+  height: min(860px, calc(100dvh - 40px));
+}
+
+/* Sem os botões, o cartão da lista só tem duas colunas. */
+.designar-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-bottom: 16px;
+}
+
+.designar-resumo {
+  margin-right: auto;
+  font-weight: 600;
+}
+
+.modal .filtros {
+  margin: 0 0 16px;
+}
+
+.designar-regras {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.designar-regras .lista-item {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.designar-regras .lista-item--ativo > app-icone {
+  color: var(--sucesso-texto);
+}
+
+.designar-regras .lista-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.designar-quantidade {
+  margin-bottom: 16px;
+}
+
+.designar-bolinhas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: 5px;
+}
+
+/* Uma bolinha por avaliador; pintadas até a escolhida. */
+.designar-bolinha {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 2px solid var(--azul);
+  border-radius: 50%;
+  background: var(--fundo-cartao);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.designar-bolinha--cheia {
+  background: var(--azul);
+}
+
+.designar-bolinha:focus-visible {
+  outline: 2px solid var(--azul);
+  outline-offset: 2px;
+}
+
+.designar-quantidade .rotulo {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.designar-colunas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.designar-colunas h3 {
+  margin-bottom: 10px;
+  font-size: 14px;
+  color: var(--texto-suave);
+}
+
+/* O item aqui só tem duas colunas (texto e ícone). */
+.designar-colunas .lista-item {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.designar-colunas .lista-item--ativo > app-icone {
+  color: var(--sucesso-texto);
+}
+
+@media (max-width: 760px) {
+  .designar-colunas {
+    grid-template-columns: 1fr;
+  }
+}

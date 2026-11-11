@@ -725,6 +725,41 @@ code {
   background: var(--fundo-app);
 }
 
+/* Cartão que só informa (não é link nem botão): a ação fica nos botões dele. */
+.plano-item {
+  cursor: default;
+}
+
+.plano-item:hover {
+  border-color: var(--borda-input);
+  background: var(--fundo-cartao);
+}
+
+.plano-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.plano-acoes .btn {
+  text-decoration: none;
+}
+
+@media (max-width: 720px) {
+  .plano-item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .plano-item .lista-meta {
+    align-items: flex-start;
+  }
+
+  .plano-acoes {
+    justify-content: flex-start;
+  }
+}
+
 .lista-item:focus-visible {
   outline: 2px solid var(--azul);
   outline-offset: 2px;
@@ -2657,5 +2692,113 @@ quill-view .ql-editor {
 
   .horarios-mes-bloco > * {
     display: none;
+  }
+}
+
+/* ----- Impressão do plano (`imprimir-plano`) -----
+   A folha das nove etapas vive no <body>, fora da tela. Na impressão ela é a
+   única coisa visível: o resto da página some. */
+.impressao {
+  display: none;
+}
+
+@media print {
+  body > :not(.impressao) {
+    display: none !important;
+  }
+
+  .impressao {
+    display: block;
+    color: #000;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .impressao-cabecalho {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--borda-input);
+  }
+
+  .impressao-cabecalho h1 {
+    font-size: 22px;
+  }
+
+  .impressao-cabecalho p {
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--texto-suave);
+  }
+
+  /* As respostas têm tamanho imprevisível, então a quebra de página não pode ser
+     fixa: a etapa flui de uma página para a outra, e só as peças pequenas
+     (membro, nota, arquivo) não se partem ao meio. Título nunca fica sozinho no
+     fim da página, e o texto longo não deixa linha órfã. */
+  .impressao .cartao {
+    margin-bottom: 20px;
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+    background: none;
+  }
+
+  .impressao h2,
+  .impressao h3,
+  .impressao dt {
+    break-after: avoid;
+  }
+
+  .impressao .plano-nota,
+  .impressao .plano-arquivos li,
+  .impressao .membro {
+    break-inside: avoid;
+  }
+
+  .impressao p,
+  .impressao li {
+    orphans: 3;
+    widows: 3;
+  }
+
+  /* Dois a dois não fragmenta de forma confiável; uma coluna sim. */
+  .impressao .membros {
+    display: block;
+  }
+
+  .impressao .membro {
+    margin-bottom: 12px;
+  }
+
+  /* Nada de rolagem interna: no papel o texto aparece inteiro. */
+  .impressao .membro-experiencia dd,
+  .impressao .ql-editor,
+  .impressao .plano-texto {
+    max-height: none !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* Margem zero tira o cabeçalho e o rodapé do navegador (URL, data); a margem
+     de verdade vem das laterais daqui e da tabela que repete o espaço em cima e
+     embaixo de cada página. */
+  @page {
+    margin: 0;
+  }
+
+  .impressao {
+    padding: 0 18mm;
+  }
+
+  .impressao-tabela {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .impressao-tabela td {
+    padding: 0;
+  }
+
+  .impressao-margem {
+    height: 16mm;
   }
 }

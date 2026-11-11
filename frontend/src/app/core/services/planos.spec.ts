@@ -104,6 +104,7 @@ describe('PlanosService', () => {
   });
 
   it('escapa o e-mail na URL do plano', () => {
+    eu = admin;
     service.plano('ana+teste@teccampos.com').subscribe();
     const pedido = http.expectOne((req) => req.url.startsWith('/api/usuarios/'));
     expect(pedido.request.url).toBe('/api/usuarios/ana%2Bteste%40teccampos.com/plano');
@@ -111,6 +112,7 @@ describe('PlanosService', () => {
   });
 
   it('normaliza o documento vindo do servidor, como no plano proprio', () => {
+    eu = admin;
     let json: unknown;
     service.plano('ana@teccampos.com').subscribe((plano) => (json = plano.json_questionario));
 
@@ -121,6 +123,26 @@ describe('PlanosService', () => {
 
     // As nove abas chegam completas e com `avaliacao`, mesmo faltando no JSONB.
     expect((json as Record<string, { avaliacao: unknown }>)['9'].avaliacao).toBeNull();
+  });
+
+  it('consultor designado abre o plano', () => {
+    eu = avaliador;
+    let aberto = false;
+    service.plano('ana@teccampos.com').subscribe(() => (aberto = true));
+    http.expectOne('/api/questionario/todos').flush(TODOS);
+    http
+      .expectOne('/api/usuarios/ana%40teccampos.com/plano')
+      .flush({ status_questionario: 'aprovado', json_questionario: {} });
+    expect(aberto).toBeTrue();
+  });
+
+  it('consultor não designado não abre o plano, mesmo que o backend deixe', () => {
+    eu = avaliador;
+    let erro: ApiError | undefined;
+    service.plano('outra@teccampos.com').subscribe({ error: (e: ApiError) => (erro = e) });
+    http.expectOne('/api/questionario/todos').flush(TODOS);
+    http.expectNone('/api/usuarios/outra%40teccampos.com/plano');
+    expect(erro?.code).toBe('NAO_DESIGNADO');
   });
 
   describe('escritas: relem o plano e gravam pelo id', () => {
@@ -349,6 +371,86 @@ describe('PlanosService', () => {
 
       http.expectNone('/api/questionario/7');
       expect(erro?.code).toBe('REABERTURA_RESTRITA_COORDENACAO');
+    });
+
+    it('aprovarComAvaliadores designa primeiro e aprova depois, sem exigir as nove notas', () => {
+      eu = admin;
+      let plano: Questionario | undefined;
+      service
+        .aprovarComAvaliadores('ana@teccampos.com', ['carla@teccampos.com'])
+        .subscribe((p) => (plano = p));
+      http.expectOne('/api/questionario/todos').flush(planoDaAna());
+
+      const designacao = http.expectOne('/api/questionario-selecionado-avaliadores');
+      expect(designacao.request.method).toBe('POST');
+      expect(designacao.request.body).toEqual({
+        questionario_id: 7,
+        avaliadores: ['carla@teccampos.com'],
+      });
+      http.expectNone('/api/questionario/7');
+      designacao.flush({});
+
+      const pedido = gravacao();
+      const corpo = pedido.request.body as QuestionarioEntrada;
+      expect(corpo.status_questionario).toBe('aprovado');
+      expect(corpo.json_questionario.decisao?.por).toBe('coordenacao@teccampos.com');
+      ecoar(pedido);
+      expect(plano?.status_questionario).toBe('aprovado');
+    });
+
+    it('aprovarComAvaliadores recusa lista vazia e quem nao e da coordenacao', () => {
+      const erros: string[] = [];
+      const guardar = { error: (e: ApiError) => erros.push(e.code) };
+      eu = admin;
+      service.aprovarComAvaliadores('ana@teccampos.com', []).subscribe(guardar);
+      http.expectOne('/api/questionario/todos').flush(planoDaAna());
+      eu = avaliador;
+      service.aprovarComAvaliadores('ana@teccampos.com', ['c@teccampos.com']).subscribe(guardar);
+      http.expectOne('/api/questionario/todos').flush(planoDaAna());
+
+      http.expectNone('/api/questionario-selecionado-avaliadores');
+      http.expectNone('/api/questionario/7');
+      expect(erros).toEqual(['AVALIADOR_OBRIGATORIO', 'DECISAO_RESTRITA_COORDENACAO']);
+    });
+
+    it('se a designacao falha, o plano nao e aprovado', () => {
+      eu = admin;
+      let falhou = false;
+      service
+        .aprovarComAvaliadores('ana@teccampos.com', ['carla@teccampos.com'])
+        .subscribe({ error: () => (falhou = true) });
+      http.expectOne('/api/questionario/todos').flush(planoDaAna());
+      http
+        .expectOne('/api/questionario-selecionado-avaliadores')
+        .flush({}, { status: 422, statusText: 'Unprocessable' });
+
+      http.expectNone('/api/questionario/7');
+      expect(falhou).toBeTrue();
+    });
+
+    it('rejeitarSemAvaliadores devolve o plano com o motivo, sem designar ninguem', () => {
+      eu = admin;
+      service.rejeitarSemAvaliadores('ana@teccampos.com', '  Faltam dados.  ').subscribe();
+      http.expectOne('/api/questionario/todos').flush(planoDaAna());
+
+      const pedido = gravacao();
+      const corpo = pedido.request.body as QuestionarioEntrada;
+      expect(corpo.status_questionario).toBe('rejeitado');
+      expect(corpo.json_questionario.decisao?.justificativa).toBe('Faltam dados.');
+      http.expectNone('/api/questionario-selecionado-avaliadores');
+      ecoar(pedido);
+    });
+
+    it('rejeitarSemAvaliadores exige o motivo', () => {
+      eu = admin;
+      let erro: ApiError | undefined;
+      service
+        .rejeitarSemAvaliadores('ana@teccampos.com', '   ')
+        .subscribe({ error: (e: ApiError) => (erro = e) });
+      http.expectOne('/api/questionario/todos').flush(planoDaAna());
+
+      http.expectNone('/api/questionario/7');
+      expect(erro?.code).toBe('JUSTIFICATIVA_OBRIGATORIA');
     });
 
     it('plano que sumiu da lista vira erro, sem gravar', () => {

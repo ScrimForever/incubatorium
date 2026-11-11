@@ -1,0 +1,230 @@
+<div class="overlay">
+  <div
+    #dialogo
+    class="modal"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="designar-titulo"
+    tabindex="-1"
+    (keydown.escape)="escape()"
+    (keydown.tab)="prenderTab($event, false, dialogo)"
+    (keydown.shift.tab)="prenderTab($event, true, dialogo)"
+  >
+    <header class="modal-header">
+      <h2 id="designar-titulo">{{ rejeitando() ? 'Rejeitar plano' : 'Aprovar plano' }}</h2>
+      <button type="button" class="close" aria-label="Fechar" (click)="fechar.emit()">
+        &times;
+      </button>
+    </header>
+
+    <div class="modal-body">
+      @if (mensagemErro()) {
+        <div class="error-message" role="alert"><app-icone nome="erro" />{{ mensagemErro() }}</div>
+      }
+
+      @if (carregando()) {
+        <p class="lista-aviso" role="status">Carregando o plano…</p>
+      } @else if (plano()) {
+        <!-- O mesmo cartão da lista de planos, sem os botões. -->
+        <div class="lista-item plano-item designar-card">
+          <span class="lista-identidade">
+            <span class="lista-titulo">{{ negocio() }}</span>
+            <span class="lista-secundaria">
+              <app-icone nome="usuario" />
+              {{ proponente() }}
+            </span>
+          </span>
+          <span class="lista-meta">
+            <span [class]="'selo selo--' + status()">{{ rotuloStatus() }}</span>
+            <span class="lista-detalhe">atualizado em {{ quando() }}</span>
+          </span>
+        </div>
+
+        @if (!emAnalise()) {
+          <p class="lista-aviso" role="status">
+            <app-icone nome="cadeado" />
+            Só um plano aguardando análise pode ser aprovado ou rejeitado por aqui.
+          </p>
+        } @else if (rejeitando()) {
+          <p>
+            O plano passa a <strong>Devolvido para ajustes</strong> e não vai para nenhum avaliador.
+            O incubado lê o motivo abaixo.
+          </p>
+          <div class="form-group">
+            <label for="rejeicao-motivo">Motivo da rejeição</label>
+            <textarea
+              id="rejeicao-motivo"
+              rows="4"
+              [value]="motivo()"
+              (input)="escreverMotivo($event)"
+              placeholder="Explique o que precisa ser ajustado — é isto que o incubado vai ler."
+            ></textarea>
+            @if (!motivoValido()) {
+              <span class="field-error">Escreva o motivo para poder rejeitar.</span>
+            }
+          </div>
+        } @else {
+          <div class="filtros" role="group" aria-label="Como escolher os avaliadores">
+            @for (opcao of modos; track opcao.valor) {
+              <button
+                type="button"
+                class="filtro"
+                [class.filtro--ativo]="modo() === opcao.valor"
+                [attr.aria-pressed]="modo() === opcao.valor"
+                (click)="trocarModo(opcao.valor)"
+              >
+                {{ opcao.rotulo }}
+              </button>
+            }
+          </div>
+
+          @if (modo() === 'automatico') {
+            <div class="designar-regras" role="group" aria-label="Regra do automático">
+              @for (r of regras; track r.valor) {
+                <button
+                  type="button"
+                  class="lista-item"
+                  [class.lista-item--ativo]="regra() === r.valor && !todosEscolhidos()"
+                  [attr.aria-pressed]="regra() === r.valor"
+                  [disabled]="todosEscolhidos()"
+                  (click)="trocarRegra(r.valor)"
+                >
+                  <span class="lista-identidade">
+                    <span class="lista-titulo">{{ r.rotulo }}</span>
+                    <span class="lista-secundaria">{{ r.texto }}</span>
+                  </span>
+                  @if (regra() === r.valor && !todosEscolhidos()) {
+                    <app-icone nome="sucesso" />
+                  }
+                </button>
+              }
+            </div>
+
+            <div class="designar-quantidade">
+              <span class="rotulo"
+                >Quantos avaliadores ({{ quantidadeEfetiva() }} de {{ todos().length }})</span
+              >
+              <div class="designar-bolinhas" role="group" aria-label="Quantos avaliadores">
+                @for (n of bolinhas(); track n) {
+                  <button
+                    type="button"
+                    class="designar-bolinha"
+                    [class.designar-bolinha--cheia]="n <= quantidadeEfetiva()"
+                    [attr.aria-pressed]="n <= quantidadeEfetiva()"
+                    [attr.aria-label]="n === 1 ? '1 avaliador' : n + ' avaliadores'"
+                    (click)="trocarQuantidade(n)"
+                  ></button>
+                }
+              </div>
+            </div>
+
+            <p class="lista-aviso" role="status">
+              <app-icone nome="equipe" />
+              @if (todosEscolhidos()) {
+                Todos os {{ todos().length }} avaliadores entram no plano; a regra não se aplica.
+              } @else if (regra() === 'sorteio') {
+                Serão sorteados {{ quantidadeEfetiva() }} entre os {{ todos().length }} disponíveis.
+              }
+            </p>
+          } @else {
+            <div class="designar-colunas">
+              <section aria-labelledby="titulo-disponiveis">
+                <h3 id="titulo-disponiveis">Disponíveis ({{ disponiveis().length }})</h3>
+                <ul class="lista">
+                  @for (avaliador of disponiveis(); track avaliador.email) {
+                    <li>
+                      <button type="button" class="lista-item" (click)="escolher(avaliador.email)">
+                        <span class="lista-identidade">
+                          <span class="lista-titulo">
+                            {{ avaliador.nome ?? avaliador.email }} {{ avaliador.sobrenome }}
+                          </span>
+                          <span class="lista-secundaria">{{ avaliador.email }}</span>
+                        </span>
+                        <span class="apenas-leitor-tela">Escolher</span>
+                        <app-icone nome="seta-direita" />
+                      </button>
+                    </li>
+                  } @empty {
+                    <li class="lista-aviso">Todos os avaliadores já foram escolhidos.</li>
+                  }
+                </ul>
+              </section>
+
+              <section aria-labelledby="titulo-escolhidos">
+                <h3 id="titulo-escolhidos">Escolhidos ({{ escolhidos().length }})</h3>
+                <ul class="lista">
+                  @for (avaliador of escolhidos(); track avaliador.email) {
+                    <li>
+                      <button
+                        type="button"
+                        class="lista-item lista-item--ativo"
+                        (click)="tirar(avaliador.email)"
+                      >
+                        <span class="lista-identidade">
+                          <span class="lista-titulo">
+                            {{ avaliador.nome ?? avaliador.email }} {{ avaliador.sobrenome }}
+                          </span>
+                          <span class="lista-secundaria">{{ avaliador.email }}</span>
+                        </span>
+                        <span class="apenas-leitor-tela">Tirar</span>
+                        <app-icone nome="sucesso" />
+                      </button>
+                    </li>
+                  } @empty {
+                    <li class="lista-aviso">
+                      <app-icone nome="equipe" />
+                      Clique em um avaliador para escolhê-lo.
+                    </li>
+                  }
+                </ul>
+              </section>
+            </div>
+          }
+        }
+      }
+    </div>
+
+    <footer class="modal-footer">
+      @if (plano() && emAnalise()) {
+        @if (rejeitando()) {
+          <button
+            type="button"
+            class="btn btn--secundario"
+            [disabled]="enviando()"
+            (click)="voltarDaRejeicao()"
+          >
+            Voltar
+          </button>
+          <button
+            type="button"
+            class="btn btn--azul"
+            [disabled]="!motivoValido() || enviando()"
+            (click)="confirmarRejeicao()"
+          >
+            {{ enviando() ? 'Salvando…' : 'Rejeitar plano' }}
+          </button>
+        } @else {
+          <span class="designar-resumo">{{ resumo() }}</span>
+          <button
+            type="button"
+            class="btn btn--secundario"
+            [disabled]="enviando()"
+            (click)="abrirRejeicao()"
+          >
+            Rejeitar plano
+          </button>
+          <button
+            type="button"
+            class="btn btn--verde"
+            [disabled]="!podeAprovar()"
+            (click)="aprovar()"
+          >
+            {{ enviando() ? 'Salvando…' : 'Aprovar' }}
+          </button>
+        }
+      } @else {
+        <button type="button" class="btn btn--secundario" (click)="fechar.emit()">Fechar</button>
+      }
+    </footer>
+  </div>
+</div>

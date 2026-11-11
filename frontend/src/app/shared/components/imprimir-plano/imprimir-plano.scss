@@ -1,0 +1,17 @@
+:host {
+  display: inline-flex;
+}
+
+.modal {
+  max-width: 620px;
+}
+
+/* O cartão da lista, com um botão no lugar da seta. */
+.imprimir-item {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.modal .lista {
+  display: grid;
+  gap: 8px;
+}

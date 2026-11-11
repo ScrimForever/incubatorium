@@ -57,6 +57,8 @@ import {
 } from '../../core/services/questionario';
 import { Icone } from '../../shared/components/icone/icone';
 import { TopoSessao } from '../../shared/components/topo-sessao/topo-sessao';
+import { ImprimirPlano } from '../../shared/components/imprimir-plano/imprimir-plano';
+import { DesignarAvaliadoresModal } from '../../shared/components/designar-avaliadores-modal/designar-avaliadores-modal';
 import { VisualizadorArquivo } from '../../shared/components/visualizador-arquivo/visualizador-arquivo';
 import { Mascara, mascararValorSalvo } from '../../shared/directives/mascara';
 import { salvarComo } from '../../shared/salvar-como';
@@ -107,6 +109,8 @@ interface Passo {
     TopoSessao,
     RouterLink,
     VisualizadorArquivo,
+    ImprimirPlano,
+    DesignarAvaliadoresModal,
     Mascara,
   ],
   templateUrl: './questionario.html',
@@ -299,10 +303,10 @@ export class Questionario implements OnInit {
 
   /** Situação do plano lido, para a barra saber se já houve decisão. */
   protected readonly statusPlano = signal<StatusQuestionario | null>(null);
-  /** Qual decisão está em confirmação na modal; `null` com a modal fechada. */
-  protected readonly decidindo = signal<'aprovado' | 'rejeitado' | null>(null);
-  protected readonly justificativa = signal('');
-  protected readonly salvandoDecisao = signal(false);
+  /** A modal de avaliadores (aprovar e designar, ou devolver) está aberta. */
+  protected readonly designando = signal(false);
+  /** Ela abre já no passo de devolver, com o motivo. */
+  protected readonly devolvendo = signal(false);
 
   /**
    * Só a coordenação decide e corrige as respostas do incubado. O backend aceita
@@ -328,13 +332,23 @@ export class Questionario implements OnInit {
 
   protected readonly totalEtapas = NUMEROS_ETAPA.length;
 
-  /** Aprovar ou devolver só com o plano em análise e inteiro lido. */
-  protected readonly podeDecidir = computed(
-    () =>
-      this.statusPlano() === 'aguardando_aprovacao' &&
-      this.etapasAvaliadas() === NUMEROS_ETAPA.length &&
-      this.salvandoDecisao() === false,
-  );
+  /** Aprovar (e designar avaliadores) ou devolver: só com o plano em análise. As notas vêm depois. */
+  protected readonly podeDecidir = computed(() => this.statusPlano() === 'aguardando_aprovacao');
+
+  protected abrirDesignacao(devolver: boolean): void {
+    this.devolvendo.set(devolver);
+    this.designando.set(true);
+  }
+
+  protected fecharDesignacao(): void {
+    this.designando.set(false);
+  }
+
+  /** Aprovou ou devolveu: relê o plano, que agora tem outro status e a decisão no documento. */
+  protected designado(): void {
+    this.designando.set(false);
+    this.carregarParaAvaliacao();
+  }
 
   /** Plano reaberto ou devolvido por ajuste: está com o incubado, não há o que decidir. */
   protected readonly comOIncubado = computed(() => {
@@ -419,55 +433,6 @@ export class Questionario implements OnInit {
     const status = this.statusPlano();
     return status ? ROTULO_STATUS[status] : '';
   });
-
-  /** Devolver exige motivo; aprovar, não. */
-  protected readonly decisaoValida = computed(
-    () => this.decidindo() === 'aprovado' || this.justificativa().trim().length > 0,
-  );
-
-  protected abrirDecisao(status: 'aprovado' | 'rejeitado'): void {
-    this.justificativa.set('');
-    this.decidindo.set(status);
-  }
-
-  protected fecharDecisao(): void {
-    if (this.decidindo() !== null) {
-      this.decidindo.set(null);
-    }
-  }
-
-  protected escreverJustificativa(evento: Event): void {
-    this.justificativa.set((evento.target as HTMLTextAreaElement).value);
-  }
-
-  /** Confirma a decisão. O `por` e o `em` o `PlanosService` tira da sessão. */
-  protected confirmarDecisao(): void {
-    const status = this.decidindo();
-    if (status === null || !this.decisaoValida() || this.salvandoDecisao()) {
-      return;
-    }
-    this.salvandoDecisao.set(true);
-    this.limparAvisos();
-    this.planos
-      .decidir(this.email(), { status, justificativa: this.justificativa().trim() })
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (plano) => {
-          this.json.set(plano.json_questionario);
-          this.statusPlano.set(plano.status_questionario);
-          this.salvandoDecisao.set(false);
-          this.decidindo.set(null);
-          this.mensagemSucesso.set(
-            status === 'aprovado' ? 'Plano aprovado.' : 'Plano devolvido para ajustes.',
-          );
-        },
-        error: (err: ApiError) => {
-          this.salvandoDecisao.set(false);
-          this.decidindo.set(null);
-          this.mensagemErro.set(err.message);
-        },
-      });
-  }
 
   // ----- pedido de ajuste por etapa (contrato, Parte 5) -----
 
@@ -699,7 +664,6 @@ export class Questionario implements OnInit {
   private readonly dialogoRemocao = viewChild<ElementRef<HTMLElement>>('dialogoRemocao');
   private readonly dialogoEnvio = viewChild<ElementRef<HTMLElement>>('dialogoEnvio');
   private readonly dialogoSaida = viewChild<ElementRef<HTMLElement>>('dialogoSaida');
-  private readonly dialogoDecisao = viewChild<ElementRef<HTMLElement>>('dialogoDecisao');
   private readonly dialogoAjuste = viewChild<ElementRef<HTMLElement>>('dialogoAjuste');
   private readonly dialogoReabertura = viewChild<ElementRef<HTMLElement>>('dialogoReabertura');
   private ultimoFoco: HTMLElement | null = null;
@@ -713,7 +677,6 @@ export class Questionario implements OnInit {
         this.dialogoRemocao() ??
         this.dialogoEnvio() ??
         this.dialogoSaida() ??
-        this.dialogoDecisao() ??
         this.dialogoAjuste() ??
         this.dialogoReabertura();
       const aberto =
@@ -721,7 +684,6 @@ export class Questionario implements OnInit {
         this.remocao() !== null ||
         this.confirmandoEnvio() ||
         this.saidaPendente() !== null ||
-        this.decidindo() !== null ||
         this.pedindoAjuste() ||
         this.reabrindo();
       if (aberto && dialogo) {
@@ -1074,7 +1036,6 @@ export class Questionario implements OnInit {
     this.fecharPreview();
     this.cancelarSaida();
     this.fecharAjuste();
-    this.fecharDecisao();
     this.fecharReabertura();
   }
 
@@ -1084,7 +1045,9 @@ export class Questionario implements OnInit {
    * De quem é a pasta de anexos que esta tela lê: no modo avaliação, a do dono
    * do plano (`?email=`); no do incubado, a de quem está logado.
    */
-  private readonly donoDosAnexos = computed(() => (this.ehAvaliacao() ? this.email() : undefined));
+  protected readonly donoDosAnexos = computed(() =>
+    this.ehAvaliacao() ? this.email() : undefined,
+  );
 
   /**
    * Abre a modal e já busca o conteúdo, para a prévia ser o arquivo real. No modo

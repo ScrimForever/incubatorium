@@ -20,7 +20,7 @@ export const API_ROUTES = {
   },
   users: {
     me: '/users/me',
-    /** Ainda não existe no backend — respondida pelo mock em desenvolvimento. */
+    /** Ainda não existe para a coordenação (admin). */
     lista: '/users',
     porId: (id: string): string => `/users/${id}`,
   },
@@ -45,6 +45,14 @@ export const API_ROUTES = {
      * `{ status_questionario, json_questionario }`, que substitui o documento inteiro.
      */
     porId: (id: number): string => `/questionario/${id}`,
+  },
+  /**
+   * Designação de avaliadores (`docs/contrato-designacao.md`): rotas reais, só
+   * para a coordenação (admin).
+   */
+  designacao: {
+    avaliadores: '/avaliadores',
+    selecionar: '/questionario-selecionado-avaliadores',
   },
   /**
    * Anexos do questionário. Sem `dono`, o backend usa o e-mail do token; com

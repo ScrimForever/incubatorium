@@ -1,0 +1,102 @@
+<button type="button" class="btn btn--secundario horarios-btn-p" (click)="clicar()">
+  <app-icone nome="imprimir" />
+  Imprimir
+</button>
+
+<!-- A folha do PDF. Fica fora da tela; o ngAfterViewInit a leva para o <body>. -->
+<div #folha class="impressao">
+  @if (imprimindo()) {
+    <!-- Tabela só pelo cabeçalho e rodapé vazios: o navegador os repete em toda
+         página, e é assim que a margem existe com `@page { margin: 0 }`. -->
+    <table class="impressao-tabela">
+      <thead>
+        <tr>
+          <td><div class="impressao-margem"></div></td>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <header class="impressao-cabecalho">
+              <h1>Plano de negócios</h1>
+              <p>{{ negocio() }} — {{ proponente() }}</p>
+              <p>Impresso em {{ hoje }}</p>
+            </header>
+            <app-plano-leitura [json]="json()" />
+          </td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td><div class="impressao-margem"></div></td>
+        </tr>
+      </tfoot>
+    </table>
+  }
+</div>
+
+@if (aberta()) {
+  <div class="overlay">
+    <div
+      #dialogo
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="imprimir-titulo"
+      tabindex="-1"
+      (keydown.escape)="fechar()"
+      (keydown.tab)="prenderTab($event, false, dialogo)"
+      (keydown.shift.tab)="prenderTab($event, true, dialogo)"
+    >
+      <header class="modal-header">
+        <h2 id="imprimir-titulo">Imprimir plano</h2>
+        <button type="button" class="close" aria-label="Fechar" (click)="fechar()">&times;</button>
+      </header>
+
+      <div class="modal-body">
+        @if (erro()) {
+          <div class="error-message" role="alert"><app-icone nome="erro" />{{ erro() }}</div>
+        }
+
+        <ul class="lista">
+          <li class="lista-item plano-item imprimir-item">
+            <span class="lista-identidade">
+              <span class="lista-titulo">Plano de negócios</span>
+              <span class="lista-secundaria">
+                <app-icone nome="documento" />
+                {{ negocio() }} · PDF pelo navegador
+              </span>
+            </span>
+            <button type="button" class="btn btn--azul horarios-btn-p" (click)="imprimir()">
+              <app-icone nome="imprimir" />
+              Imprimir / salvar PDF
+            </button>
+          </li>
+
+          @for (anexo of anexos(); track anexo.aba + anexo.nome) {
+            <li class="lista-item plano-item imprimir-item">
+              <span class="lista-identidade">
+                <span class="lista-titulo">{{ anexo.nome }}</span>
+                <span class="lista-secundaria">
+                  Anexo da etapa {{ anexo.aba }} · {{ tamanhoLegivel(anexo.tamanho) }}
+                </span>
+              </span>
+              <button
+                type="button"
+                class="btn btn--secundario horarios-btn-p"
+                [disabled]="baixando() === anexo.nome"
+                (click)="baixar(anexo)"
+              >
+                {{ baixando() === anexo.nome ? 'Baixando…' : 'Baixar' }}
+              </button>
+            </li>
+          }
+        </ul>
+      </div>
+
+      <footer class="modal-footer">
+        <button type="button" class="btn btn--secundario" (click)="fechar()">Fechar</button>
+      </footer>
+    </div>
+  </div>
+}
