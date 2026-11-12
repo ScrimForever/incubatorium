@@ -70,10 +70,14 @@ async def test_seleciona_consultores_e_grava(criar_usuario, cliente_api, async_d
         "c1@example.com",
         "c2@example.com",
     ]
+    await async_db.refresh(questionario)
+    assert questionario.avaliado_admin is True
 
 
 @pytest.mark.asyncio
-async def test_recusa_emails_que_nao_sao_consultores(criar_usuario, cliente_api, async_db):
+async def test_recusa_emails_que_nao_sao_consultores(
+    criar_usuario, cliente_api, async_db
+):
     admin = await criar_usuario("admin")
     await criar_usuario("consultor", "c1@example.com")
     await criar_usuario("colaborador", "colab@example.com")
@@ -84,7 +88,11 @@ async def test_recusa_emails_que_nao_sao_consultores(criar_usuario, cliente_api,
         "/questionario-selecionado-avaliadores",
         json={
             "questionario_id": questionario.id,
-            "avaliadores": ["c1@example.com", "colab@example.com", "ninguem@example.com"],
+            "avaliadores": [
+                "c1@example.com",
+                "colab@example.com",
+                "ninguem@example.com",
+            ],
         },
     )
 
@@ -122,7 +130,10 @@ async def test_nova_selecao_substitui_a_anterior_e_ignora_repetidos(
     cliente = await cliente_api([router], admin)
     url = "/questionario-selecionado-avaliadores"
 
-    await cliente.post(url, json={"questionario_id": questionario.id, "avaliadores": ["c1@example.com"]})
+    await cliente.post(
+        url,
+        json={"questionario_id": questionario.id, "avaliadores": ["c1@example.com"]},
+    )
     resposta = await cliente.post(
         url,
         json={
@@ -137,14 +148,20 @@ async def test_nova_selecao_substitui_a_anterior_e_ignora_repetidos(
 
 
 @pytest.mark.asyncio
-async def test_lista_vazia_e_email_invalido_sao_422(criar_usuario, cliente_api, async_db):
+async def test_lista_vazia_e_email_invalido_sao_422(
+    criar_usuario, cliente_api, async_db
+):
     admin = await criar_usuario("admin")
     questionario = await _questionario(async_db)
     cliente = await cliente_api([router], admin)
     url = "/questionario-selecionado-avaliadores"
 
-    vazia = await cliente.post(url, json={"questionario_id": questionario.id, "avaliadores": []})
-    invalido = await cliente.post(url, json={"questionario_id": questionario.id, "avaliadores": ["nao-e-email"]})
+    vazia = await cliente.post(
+        url, json={"questionario_id": questionario.id, "avaliadores": []}
+    )
+    invalido = await cliente.post(
+        url, json={"questionario_id": questionario.id, "avaliadores": ["nao-e-email"]}
+    )
 
     assert vazia.status_code == 422
     assert invalido.status_code == 422

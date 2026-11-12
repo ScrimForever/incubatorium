@@ -30,7 +30,9 @@ class QuestionarioRepository(Repositorio):
         )
         return resultado.scalar_one_or_none()
 
-    async def buscar_por_id_para_atualizar(self, questionario_id: int) -> Questionario | None:
+    async def buscar_por_id_para_atualizar(
+        self, questionario_id: int
+    ) -> Questionario | None:
         """Como `buscar_para_atualizar`, mas localizando pelo id (edição pelo consultor)."""
         resultado = await self.db.execute(
             select(Questionario)
@@ -40,7 +42,25 @@ class QuestionarioRepository(Repositorio):
         return resultado.scalar_one_or_none()
 
     async def listar_todos(self) -> list[Questionario]:
-        resultado = await self.db.execute(select(Questionario))
+        resultado = await self.db.execute(
+            select(Questionario).order_by(Questionario.id)
+        )
+        return list(resultado.scalars().all())
+
+    async def listar_avaliados_por(self, email: str) -> list[Questionario]:
+        """Questionários já avaliados pelo admin em que `email` foi selecionado."""
+        resultado = await self.db.execute(
+            select(Questionario)
+            .join(
+                QuestionarioAvaliador,
+                QuestionarioAvaliador.questionario_id == Questionario.id,
+            )
+            .where(
+                QuestionarioAvaliador.avaliador_email == email,
+                Questionario.avaliado_admin.is_(True),
+            )
+            .order_by(Questionario.id)
+        )
         return list(resultado.scalars().all())
 
     async def criar(self, questionario: Questionario) -> Questionario:
@@ -64,21 +84,21 @@ class QuestionarioRepository(Repositorio):
         self.db.add(historico)
 
     async def substituir_avaliadores(
-        self, questionario_id: int, emails: list[str], autor: str
+        self, questionario: Questionario, emails: list[str], autor: str
     ) -> None:
-        """Troca a seleção de avaliadores do questionário pela lista informada."""
+        """Troca a seleção de avaliadores pela lista e marca o questionário como avaliado."""
+        questionario.avaliado_admin = True
         await self.db.execute(
             delete(QuestionarioAvaliador).where(
-                QuestionarioAvaliador.questionario_id == questionario_id
+                QuestionarioAvaliador.questionario_id == questionario.id
             )
         )
         self.db.add_all(
             QuestionarioAvaliador(
-                questionario_id=questionario_id,
+                questionario_id=questionario.id,
                 avaliador_email=email,
                 criado_por=autor,
             )
             for email in emails
         )
         await self.salvar()
-

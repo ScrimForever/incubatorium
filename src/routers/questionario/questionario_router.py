@@ -62,7 +62,8 @@ async def buscar_todos_questionarios(
     user: User = Depends(avaliador_questionario),
     service: QuestionarioService = Depends(get_questionario_service),
 ):
-    return await service.listar_todos()
+    """Admin: todos os questionários. Avaliador: os avaliados pelo admin em que foi selecionado."""
+    return await service.listar_para(user)
 
 
 @router.get("/{questionario_id}", response_model=QuestionarioOutputSchema)

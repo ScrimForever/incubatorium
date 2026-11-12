@@ -1,3 +1,5 @@
+from unittest.mock import AsyncMock
+
 import pytest
 from sqlalchemy import select
 
@@ -11,7 +13,7 @@ from src.shared.exceptions import ConflitoError, NaoEncontradoError
 
 def _service(async_db) -> UsuariosService:
     return UsuariosService(
-        UsuariosRepository(async_db), QuestionarioRepository(async_db)
+        UsuariosRepository(async_db), QuestionarioRepository(async_db), AsyncMock()
     )
 
 
@@ -49,9 +51,12 @@ class TestAlterarSituacao:
         assert incubado.situacao_incubacao == SituacaoIncubacao.ativo
         assert incubado.situacao_alterada_por == colaborador.email
         assert incubado.situacao_alterada_em is not None
-        assert await async_db.scalar(
-            select(Questionario).where(Questionario.usuario_email == incubado.email)
-        ) is not None
+        assert (
+            await async_db.scalar(
+                select(Questionario).where(Questionario.usuario_email == incubado.email)
+            )
+            is not None
+        )
 
     @pytest.mark.asyncio
     async def test_sem_aprovacao_e_nao_incubado(self, async_db, criar_usuario):

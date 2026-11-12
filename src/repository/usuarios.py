@@ -35,16 +35,18 @@ class UsuariosRepository(Repositorio):
             return False
         return True
 
-    async def criar(self, usuario: User) -> None:
-        """Insere a conta já ativa, sem código de ativação. Não confirma: quem chama salva.
+    async def criar(self, usuario: User, ativo: bool = True) -> None:
+        """Insere a conta. Não confirma: quem chama salva.
 
-        O listener `before_insert` de `User` força `is_active=False` no flush, então a
-        ativação acontece depois dele.
+        O listener `before_insert` de `User` gera o código e força `is_active=False` no
+        flush. Com `ativo`, a conta é ativada logo depois e o código descartado; sem ele,
+        fica inativa aguardando o código.
         """
         self.db.add(usuario)
         await self.db.flush()
-        usuario.is_active = True
-        usuario.codigo_ativacao = None
+        if ativo:
+            usuario.is_active = True
+            usuario.codigo_ativacao = None
 
     async def gerar_novo_codigo(self, usuario: User) -> None:
         usuario.codigo_ativacao = gerar_codigo_ativacao()
@@ -75,6 +77,10 @@ class UsuariosRepository(Repositorio):
             }
             for email, sit, status in linhas
         ]
+
+    async def listar_todos(self) -> list[User]:
+        resultado = await self.db.execute(select(User).order_by(User.email))
+        return list(resultado.scalars().all())
 
     async def listar_consultores(self) -> list[User]:
         resultado = await self.db.execute(

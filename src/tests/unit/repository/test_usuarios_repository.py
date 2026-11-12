@@ -90,9 +90,7 @@ class TestCodigoAtivacao:
         assert (await _recarregar(async_db, sample_email)).is_active is False
 
     @pytest.mark.asyncio
-    async def test_ativar_por_codigo_usuario_inexistente(
-        self, async_db: AsyncSession
-    ):
+    async def test_ativar_por_codigo_usuario_inexistente(self, async_db: AsyncSession):
         repo = UsuariosRepository(async_db)
 
         assert await repo.ativar_por_codigo("nao@existe.com", "123456") is False

@@ -18,7 +18,9 @@ def _fim_da_agenda() -> date:
 
 @pytest.fixture
 def service(async_db):
-    return LembreteService(ConsultoriaRepository(async_db), UsuariosRepository(async_db))
+    return LembreteService(
+        ConsultoriaRepository(async_db), UsuariosRepository(async_db)
+    )
 
 
 @pytest.fixture
@@ -95,7 +97,9 @@ async def test_consultor_e_lembrado_uma_vez_6h_antes(async_db, service, cenario)
 
     assert await service.lembretes_ao_consultor(inicio - timedelta(hours=7)) == []
 
-    avisos = await service.lembretes_ao_consultor(inicio - timedelta(hours=5, minutes=50))
+    avisos = await service.lembretes_ao_consultor(
+        inicio - timedelta(hours=5, minutes=50)
+    )
     assert [a.email for a in avisos] == ["cons@example.com"]
     assert "ana@example.com" in avisos[0].detalhe
 

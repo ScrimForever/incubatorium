@@ -10,10 +10,19 @@ from src.domain.schemas.incubado_schema import (
     SituacaoUpdate,
 )
 from src.domain.schemas.plano_schema import PlanoOutput
-from src.domain.schemas.user_schema import UserRead, UsuarioCriar
+from src.domain.schemas.user_schema import (
+    UserRead,
+    UsuarioAdminRead,
+    UsuarioCriar,
+    UsuarioEditar,
+)
 from src.routers.dependencias import get_usuarios_service
 from src.services.usuarios.usuarios_service import UsuariosService
-from src.shared.permissoes import exigir_acesso_incubado, gestor_incubados, somente_admin
+from src.shared.permissoes import (
+    exigir_acesso_incubado,
+    gestor_incubados,
+    somente_admin,
+)
 
 router = APIRouter(prefix="/usuarios", tags=["usuarios"])
 
@@ -26,6 +35,26 @@ async def criar_usuario(
 ):
     """Cria conta ativa com um perfil. Restrito a admins."""
     return await service.criar(admin, corpo)
+
+
+@router.get("/todos", response_model=list[UsuarioAdminRead])
+async def listar_todos_usuarios(
+    _: User = Depends(somente_admin),
+    service: UsuariosService = Depends(get_usuarios_service),
+):
+    """Todas as contas, de qualquer perfil, com seus atributos. Restrito a admins."""
+    return await service.todos()
+
+
+@router.patch("/{email}", response_model=UsuarioAdminRead)
+async def editar_usuario(
+    email: str,
+    corpo: UsuarioEditar,
+    admin: User = Depends(somente_admin),
+    service: UsuariosService = Depends(get_usuarios_service),
+):
+    """Edita dados, senha, status e perfil de uma conta. Restrito a admins."""
+    return await service.editar(admin, email, corpo)
 
 
 @router.get("", response_model=list[IncubadoResumo])

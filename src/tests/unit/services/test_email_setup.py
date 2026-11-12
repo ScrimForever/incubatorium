@@ -78,6 +78,21 @@ class TestEnviarEmailCadastro:
         assert enviados == []
 
 
+class TestTemplateCodigoAtivacao:
+    @pytest.mark.parametrize("definir_senha", [False, True])
+    def test_aviso_de_definir_senha_so_quando_pedido(self, definir_senha):
+        html = setup.jinja_env.get_template("codigo_ativacao.html").render(
+            codigo_ativacao="123456",
+            link_verificacao="http://x/validar",
+            definir_senha=definir_senha,
+            link_definir_senha="http://x/esqueci-senha",
+        )
+
+        assert ("Definir minha senha" in html) is definir_senha
+        assert ("http://x/esqueci-senha" in html) is definir_senha
+        assert "http://x/validar" in html
+
+
 class TestConviteIcs:
     @pytest.mark.asyncio
     async def test_anexa_o_ics_com_o_metodo(self, enviados):

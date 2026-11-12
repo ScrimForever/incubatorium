@@ -2,7 +2,18 @@ import enum
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    false,
+    func,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 from src.domain.models.base import Base
@@ -22,10 +33,10 @@ class StatusEnum(str, enum.Enum):
 class Questionario(Base, MixinDate):
     __tablename__ = "questionario"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False, autoincrement=True)
-    usuario_email: Mapped[str] = mapped_column(
-        String(255), nullable=False
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, nullable=False, autoincrement=True
     )
+    usuario_email: Mapped[str] = mapped_column(String(255), nullable=False)
     status_questionario: Mapped[str] = mapped_column(Enum(StatusEnum), nullable=False)
     json_questionario: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=True)
     decidido_por: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -33,6 +44,9 @@ class Questionario(Base, MixinDate):
         DateTime(timezone=True), nullable=True
     )
     motivo_decisao: Mapped[str | None] = mapped_column(Text, nullable=True)
+    avaliado_admin: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
 
 
 class QuestionarioHistorico(Base):
@@ -62,6 +76,11 @@ class QuestionarioAvaliador(Base, MixinDate):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     questionario_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("questionario.id", ondelete="CASCADE"), nullable=False, index=True
+        Integer,
+        ForeignKey("questionario.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
-    avaliador_email: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    avaliador_email: Mapped[str] = mapped_column(
+        String(255), nullable=False, index=True
+    )

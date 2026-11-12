@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (lint, migrações e testes)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_user -d test_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Variáveis de ambiente têm prioridade sobre o .env.development.
+      PG_HOST: localhost
+      PG_PORT: "5432"
+      PG_USER: test_user
+      PG_PASSWORD: test_password
+      PG_DATABASE_NAME: test_db
+      # Faz o conftest usar o Postgres em vez do SQLite em memória.
+      DATABASE_URL: postgresql+asyncpg://test_user:test_password@localhost:5432/test_db
+      OTEL_HABILITADO: "false"
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.14"
+          enable-cache: true
+          cache-dependency-glob: src/uv.lock
+
+      - name: Instalar dependências
+        run: uv sync --locked --group dev
+
+      - name: Lint (ruff check)
+        run: uv run ruff check .
+
+      - name: Formatação (ruff format)
+        run: uv run ruff format --check .
+
+      - name: Migrações (alembic upgrade head)
+        run: uv run alembic upgrade head
+
+      - name: Migrações reversíveis (downgrade base e upgrade de novo)
+        run: |
+          uv run alembic downgrade base
+          uv run alembic upgrade head
+
+      - name: Testes
+        run: uv run python -m pytest tests -q
