@@ -19,7 +19,8 @@ export type IconeNome =
   | 'seta-direita'
   | 'ajuda'
   | 'lista'
-  | 'video';
+  | 'video'
+  | 'imprimir';
 
 /**
  * Ícones de sistema (traço fino, herdam a cor do texto via currentColor).
@@ -91,6 +92,11 @@ export type IconeNome =
           <rect x="14" y="3" width="7" height="5" rx="1" />
           <rect x="14" y="12" width="7" height="9" rx="1" />
           <rect x="3" y="16" width="7" height="5" rx="1" />
+        }
+        @case ('imprimir') {
+          <polyline points="6 9 6 2 18 2 18 9" />
+          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+          <rect x="6" y="14" width="12" height="8" />
         }
         @case ('documento') {
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />

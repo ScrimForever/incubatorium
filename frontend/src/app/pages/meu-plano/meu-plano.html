@@ -10,11 +10,14 @@
     }
 
     @if (plano(); as p) {
-      <div class="selos plano-situacao">
-        <span class="selo selo--ok">
-          <app-icone nome="sucesso" />
-          {{ rotuloStatus() }}
-        </span>
+      <div class="plano-barra">
+        <div class="selos plano-situacao">
+          <span class="selo selo--ok">
+            <app-icone nome="sucesso" />
+            {{ rotuloStatus() }}
+          </span>
+        </div>
+        <app-imprimir-plano [json]="p.json_questionario" />
       </div>
 
       <app-plano-leitura [json]="p.json_questionario" />

@@ -2,8 +2,11 @@
   <app-painel [user]="u" ativo="Planos de negócio">
     <h1>Planos de negócio</h1>
     <p class="painel-subtitulo">
-      Escolha um plano para ler e avaliar. A sua nota entra etapa por etapa — aprovar ou devolver o
-      plano não é feito aqui.
+      @if (ehAdmin()) {
+        Aprove os planos enviados e escolha quem os avalia, ou devolva-os ao incubado para ajustes.
+      } @else {
+        Planos aprovados em que você foi designado. A sua nota entra etapa por etapa.
+      }
     </p>
 
     <div class="lista-barra">
@@ -36,25 +39,62 @@
     } @else {
       <ul class="lista">
         @for (linha of linhas(); track linha.usuario_email) {
-          <li>
-            <!-- O cartão inteiro é o link: a área de clique é a linha toda. -->
-            <a [routerLink]="linha.rota" class="lista-item">
-              <span class="lista-identidade">
-                <span class="lista-titulo">{{ linha.negocio }}</span>
-                <span class="lista-secundaria">
-                  <app-icone nome="usuario" />
-                  {{ linha.proponente }}
-                </span>
+          <li class="lista-item plano-item" [class.plano-item--ativo]="planoSelecionado() === linha.usuario_email">
+            <span class="lista-identidade">
+              <span class="lista-titulo">{{ linha.negocio }}</span>
+              <span class="lista-secundaria">
+                <app-icone nome="usuario" />
+                {{ linha.proponente }}
               </span>
-              <span class="lista-meta">
-                <span [class]="linha.classeStatus">{{ linha.rotuloStatus }}</span>
-                <span class="lista-detalhe">atualizado em {{ linha.quando }}</span>
-              </span>
-              <app-icone nome="seta-direita" />
-            </a>
+            </span>
+            <span class="lista-meta">
+              <span [class]="linha.classeStatus">{{ linha.rotuloStatus }}</span>
+              <span class="lista-detalhe">atualizado em {{ linha.quando }}</span>
+            </span>
+            <!-- A ação é o botão, não o cartão: o cartão só informa. -->
+            <span class="plano-acoes">
+              @if (ehAdmin() && linha.emAnalise) {
+                <button
+                  type="button"
+                  class="btn btn--verde horarios-btn-p"
+                  [attr.aria-label]="'Aprovar o plano de ' + linha.negocio"
+                  (click)="designar(linha.usuario_email)"
+                >
+                  <app-icone nome="sucesso" />
+                  Aprovar
+                </button>
+                <button
+                  type="button"
+                  class="btn btn--secundario horarios-btn-p"
+                  [attr.aria-label]="'Rejeitar o plano de ' + linha.negocio"
+                  (click)="designar(linha.usuario_email, true)"
+                >
+                  <app-icone nome="erro" />
+                  Rejeitar
+                </button>
+              }
+              <a
+                [routerLink]="linha.rota"
+                class="btn btn--azul horarios-btn-p"
+                [attr.aria-label]="'Ver o plano de ' + linha.negocio"
+                (click)="planoSelecionado.set(linha.usuario_email)"
+              >
+                <app-icone nome="documento" />
+                Ver plano
+              </a>
+            </span>
           </li>
         }
       </ul>
     }
   </app-painel>
+}
+
+@if (designando(); as email) {
+  <app-designar-avaliadores-modal
+    [email]="email"
+    [rejeitar]="abrirRejeitando()"
+    (fechar)="fecharDesignacao()"
+    (concluido)="designado()"
+  />
 }

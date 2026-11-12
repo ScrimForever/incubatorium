@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { Role } from '../models/auth';
-import { UsuarioAdmin, UsuariosService, alteracaoDePapel, papelDe } from './usuarios';
+import { NovoUsuario, UsuarioAdmin, UsuariosService, alteracaoDePapel, papelDe } from './usuarios';
 
 const CONTA: UsuarioAdmin = {
   id: 'abc-123',
@@ -100,5 +100,31 @@ describe('UsuariosService', () => {
     const req = backend.expectOne('/api/users/abc-123');
     expect(req.request.method).toBe('DELETE');
     req.flush(null, { status: 204, statusText: 'No Content' });
+  });
+
+  it('cria uma conta via POST /usuarios', () => {
+    const dados: NovoUsuario = {
+      email: 'novo@teccampos.com',
+      password: 'senha123',
+      nome: 'Novo',
+      sobrenome: 'Usuario',
+      telefone: '(51) 99999-9999',
+      is_admin: false,
+      is_colaborador: false,
+      is_consultor: false,
+      is_incubado: true,
+    };
+    let criado: UsuarioAdmin | undefined;
+    service.criar(dados).subscribe((c) => (criado = c));
+
+    const req = backend.expectOne('/api/usuarios');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual(dados);
+    req.flush(
+      { ...CONTA, email: dados.email, nome: dados.nome },
+      { status: 201, statusText: 'Created' },
+    );
+
+    expect(criado?.email).toBe('novo@teccampos.com');
   });
 });

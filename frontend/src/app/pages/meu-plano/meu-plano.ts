@@ -16,6 +16,7 @@ import { Questionario, ROTULO_STATUS } from '../../core/models/questionario';
 import { Auth } from '../../core/services/auth';
 import { QuestionarioService } from '../../core/services/questionario';
 import { Icone } from '../../shared/components/icone/icone';
+import { ImprimirPlano } from '../../shared/components/imprimir-plano/imprimir-plano';
 import { Painel } from '../../shared/components/painel/painel';
 import { PlanoLeitura } from '../../shared/components/plano-leitura/plano-leitura';
 
@@ -27,7 +28,7 @@ import { PlanoLeitura } from '../../shared/components/plano-leitura/plano-leitur
 @Component({
   selector: 'app-meu-plano',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Painel, Icone, PlanoLeitura],
+  imports: [Painel, Icone, PlanoLeitura, ImprimirPlano],
   templateUrl: './meu-plano.html',
   styleUrl: './meu-plano.scss',
 })

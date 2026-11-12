@@ -3,6 +3,7 @@ import { Observable, forkJoin, map, switchMap, throwError } from 'rxjs';
 import { API_ROUTES } from '../constants/api-routes';
 import { Api } from '../http/api';
 import { ApiError, SessionUser } from '../models/auth';
+import { Avaliador, DesignacaoEntrada } from '../models/avaliador';
 import { AjusteEntrada, DecisaoEntrada, NotaEntrada, PlanoResumo } from '../models/plano';
 import {
   ChaveEtapa,
@@ -46,7 +47,25 @@ export class PlanosService {
 
   /** O documento de um incubado, em leitura. */
   plano(email: string): Observable<Questionario> {
-    return this.api.get<Questionario>(API_ROUTES.avaliacao.planoDe(email)).pipe(map(normalizar));
+    const ler = this.api
+      .get<Questionario>(API_ROUTES.avaliacao.planoDe(email))
+      .pipe(map(normalizar));
+    return this.auth.me().pipe(
+      switchMap((eu) => {
+        if (eu.role !== 'avaliador') {
+          return ler;
+        }
+        // O backend deixa o consultor ler qualquer plano por /usuarios/{email}/plano;
+        // só o /questionario/todos filtra pela designação. Quem não foi designado não abre.
+        return this.todos().pipe(
+          switchMap((planos) =>
+            planos.some((p) => p.usuario_email === email)
+              ? ler
+              : throwError(() => recusa('NAO_DESIGNADO')),
+          ),
+        );
+      }),
+    );
   }
 
   /** Grava a nota do avaliador numa etapa, assinada por quem está logado. */
@@ -92,15 +111,57 @@ export class PlanosService {
       }
       return {
         status_questionario: decisao.status,
-        json_questionario: {
-          ...json,
-          decisao: {
-            status: decisao.status,
-            por: eu.email,
-            em: new Date().toISOString(),
-            justificativa: decisao.status === 'rejeitado' ? justificativa : '',
-          },
-        },
+        json_questionario: comDecisao(json, decisao.status, eu.email, justificativa),
+      };
+    });
+  }
+
+  /** Quem pode ser designado: consultores. Rota só da coordenação . */
+  avaliadores(): Observable<Avaliador[]> {
+    return this.api.get<Avaliador[]>(API_ROUTES.designacao.avaliadores);
+  }
+
+  /**
+   * A coordenação aprova o plano e escolhe quem o avalia. Diferente de `decidir`,
+   * aprovar aqui vem ANTES da avaliação: as notas são dos designados, depois.
+   * A designação grava primeiro: se o `PUT` falhar, a coordenação repete e
+   * a lista é substituída; o inverso deixaria um plano aprovado sem avaliador.
+   */
+  aprovarComAvaliadores(email: string, avaliadores: string[]): Observable<Questionario> {
+    return this.alterar(
+      email,
+      (plano, eu) => {
+        exigirAnalise(plano, eu);
+        if (!avaliadores.length) {
+          throw recusa('AVALIADOR_OBRIGATORIO');
+        }
+        return {
+          status_questionario: 'aprovado',
+          json_questionario: comDecisao(plano.json_questionario, 'aprovado', eu.email, ''),
+        };
+      },
+      (_plano, id) =>
+        this.api.post<unknown>(API_ROUTES.designacao.selecionar, {
+          questionario_id: id,
+          avaliadores,
+        } satisfies DesignacaoEntrada),
+    );
+  }
+
+  /**
+   * A coordenação devolve o plano sem designar ninguém. Não exige as nove
+   * etapas avaliadas: o plano rejeitado "não vai para ninguém".
+   */
+  rejeitarSemAvaliadores(email: string, justificativa: string): Observable<Questionario> {
+    return this.alterar(email, (plano, eu) => {
+      exigirAnalise(plano, eu);
+      const motivo = justificativa.trim();
+      if (!motivo) {
+        throw recusa('JUSTIFICATIVA_OBRIGATORIA');
+      }
+      return {
+        status_questionario: 'rejeitado',
+        json_questionario: comDecisao(plano.json_questionario, 'rejeitado', eu.email, motivo),
       };
     });
   }
@@ -191,6 +252,8 @@ export class PlanosService {
   private alterar(
     email: string,
     mudanca: (plano: Questionario, eu: SessionUser) => QuestionarioEntrada,
+    /** Roda depois das regras e antes do `PUT`; falhar aqui impede a gravação. */
+    antes?: (plano: Questionario, id: number) => Observable<unknown>,
   ): Observable<Questionario> {
     return forkJoin([this.todos(), this.auth.me()]).pipe(
       switchMap(([planos, eu]) => {
@@ -206,9 +269,10 @@ export class PlanosService {
           return throwError(() => erro);
         }
         // A resposta do PUT não traz `id` nem `usuario_email`: o lido completa.
-        return this.api
+        const gravar = this.api
           .put<Questionario>(API_ROUTES.avaliacao.porId(lido.id), corpo)
           .pipe(map((gravado) => normalizar({ ...lido, ...gravado })));
+        return antes ? antes(lido, lido.id).pipe(switchMap(() => gravar)) : gravar;
       }),
     );
   }
@@ -224,6 +288,34 @@ function comAba(
   campos: Record<string, unknown>,
 ): JsonQuestionario {
   return { ...json, [aba]: { ...json[aba], ...campos } };
+}
+
+/** O documento com a decisão da coordenação; a justificativa só vale ao devolver. */
+function comDecisao(
+  json: JsonQuestionario,
+  status: 'aprovado' | 'rejeitado',
+  por: string,
+  justificativa: string,
+): JsonQuestionario {
+  return {
+    ...json,
+    decisao: {
+      status,
+      por,
+      em: new Date().toISOString(),
+      justificativa: status === 'rejeitado' ? justificativa : '',
+    },
+  };
+}
+
+/** Aprovar ou devolver na entrada: só a coordenação, e só com o plano em análise. */
+function exigirAnalise(plano: Questionario, eu: SessionUser): void {
+  if (eu.role !== 'admin') {
+    throw recusa('DECISAO_RESTRITA_COORDENACAO');
+  }
+  if (plano.status_questionario !== 'aguardando_aprovacao') {
+    throw recusa('PLANO_FORA_DE_DECISAO');
+  }
 }
 
 /**
@@ -245,6 +337,8 @@ const MENSAGENS_RECUSA: Record<string, string> = {
   PLANO_FORA_DE_DECISAO: 'Só dá para aprovar ou devolver um plano enviado para análise.',
   REABERTURA_RESTRITA_COORDENACAO: 'Só a coordenação pode reabrir um plano devolvido.',
   PLANO_NAO_DEVOLVIDO: 'Só um plano devolvido para ajustes pode ser reaberto.',
+  AVALIADOR_OBRIGATORIO: 'Escolha ao menos um avaliador para o plano.',
+  NAO_DESIGNADO: 'Você não foi designado para avaliar este plano.',
 };
 
 function recusa(code: string): ApiError {

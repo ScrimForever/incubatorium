@@ -2,3 +2,15 @@
 .plano-situacao {
   margin-top: 20px;
 }
+
+.plano-barra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.plano-barra .plano-situacao {
+  margin-top: 0;
+}

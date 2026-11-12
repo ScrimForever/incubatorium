@@ -17,6 +17,7 @@ import { ROTULO_STATUS, StatusQuestionario } from '../../core/models/questionari
 import { Auth } from '../../core/services/auth';
 import { PlanosService } from '../../core/services/planos';
 import { Icone } from '../../shared/components/icone/icone';
+import { DesignarAvaliadoresModal } from '../../shared/components/designar-avaliadores-modal/designar-avaliadores-modal';
 import { Painel } from '../../shared/components/painel/painel';
 
 /**
@@ -27,6 +28,7 @@ interface Linha extends PlanoResumo {
   readonly rotuloStatus: string;
   readonly classeStatus: string;
   readonly rota: string;
+  readonly emAnalise: boolean;
   readonly quando: string;
   readonly negocio: string;
   readonly proponente: string;
@@ -47,7 +49,7 @@ const FILTROS: readonly { valor: StatusQuestionario | 'todos'; rotulo: string }[
 @Component({
   selector: 'app-planos-de-negocio',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Painel, Icone, RouterLink],
+  imports: [Painel, Icone, RouterLink, DesignarAvaliadoresModal],
   templateUrl: './planos-de-negocio.html',
   styleUrl: './planos-de-negocio.scss',
 })
@@ -61,8 +63,17 @@ export class PlanosDeNegocio implements OnInit {
   protected readonly mensagemErro = signal('');
   protected readonly filtro = signal<StatusQuestionario | 'todos'>('aguardando_aprovacao');
   protected readonly filtros = FILTROS;
+  protected readonly planoSelecionado = signal<string | null>(null);
 
   private readonly resumos = signal<PlanoResumo[]>([]);
+
+  /** E-mail do plano cuja modal de avaliadores está aberta; nulo = fechada. */
+  protected readonly designando = signal<string | null>(null);
+  /** A modal abre já no passo de rejeitar (botão Rejeitar) ou no de aprovar. */
+  protected readonly abrirRejeitando = signal(false);
+
+  /** O botão de designar avaliadores é só da coordenação. */
+  protected readonly ehAdmin = computed(() => this.user()?.role === 'admin');
 
   protected readonly linhas = computed<Linha[]>(() =>
     this.resumos().map((plano) => ({
@@ -70,6 +81,7 @@ export class PlanosDeNegocio implements OnInit {
       rotuloStatus: ROTULO_STATUS[plano.status_questionario],
       classeStatus: `selo selo--${plano.status_questionario}`,
       rota: APP_ROUTES.planoDe(plano.usuario_email),
+      emAnalise: plano.status_questionario === 'aguardando_aprovacao',
       quando: dataLegivel(plano.atualizado_em ?? plano.criado_em),
       // Etapa 1 ainda vazia: a linha diz que falta o dado, e não um e-mail no
       // lugar do nome.
@@ -82,8 +94,20 @@ export class PlanosDeNegocio implements OnInit {
     this.auth
       .me()
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({ next: (user) => this.user.set(user), error: () => this.user.set(null) });
-    this.buscar();
+      .subscribe({
+        next: (user) => {
+          this.user.set(user);
+          // Quem avalia só recebe planos aprovados e designados a ele: abrir em "Aprovado".
+          if (user.role !== 'admin') {
+            this.filtro.set('aprovado');
+          }
+          this.buscar();
+        },
+        error: () => {
+          this.user.set(null);
+          this.carregando.set(false);
+        },
+      });
   }
 
   protected trocarFiltro(valor: StatusQuestionario | 'todos'): void {
@@ -91,6 +115,21 @@ export class PlanosDeNegocio implements OnInit {
       this.filtro.set(valor);
       this.buscar();
     }
+  }
+
+  protected designar(email: string, rejeitar = false): void {
+    this.abrirRejeitando.set(rejeitar);
+    this.designando.set(email);
+  }
+
+  protected fecharDesignacao(): void {
+    this.designando.set(null);
+  }
+
+  /** Aprovou ou rejeitou: a modal fecha e a lista recarrega sem o plano que saiu. */
+  protected designado(): void {
+    this.designando.set(null);
+    this.buscar();
   }
 
   private buscar(): void {

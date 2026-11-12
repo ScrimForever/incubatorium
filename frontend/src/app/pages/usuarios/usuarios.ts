@@ -2,29 +2,33 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  ElementRef,
   OnInit,
   computed,
+  effect,
   inject,
   signal,
+  viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 
-import { APP_ROUTES, ROLE_LABEL } from '../../core/constants/app-constants';
+import { APP_ROUTES, MIN_PASSWORD_LENGTH, ROLE_LABEL } from '../../core/constants/app-constants';
 import { ApiError, Role, SessionUser } from '../../core/models/auth';
 import { Auth } from '../../core/services/auth';
 import {
   AlteracaoUsuario,
+  NovoUsuario,
   UsuarioAdmin,
   UsuariosService,
-  alteracaoDePapel,
   papelDe,
 } from '../../core/services/usuarios';
 import { Icone } from '../../shared/components/icone/icone';
 import { Painel } from '../../shared/components/painel/painel';
+import { ToggleSenha } from '../../shared/components/toggle-senha/toggle-senha';
+import { Mascara } from '../../shared/directives/mascara';
 
-/** Os quatro papéis, com a explicação que aparece ao lado de cada opção. */
 const PAPEIS: readonly { papel: Role; descricao: string }[] = [
   { papel: 'admin', descricao: 'Acesso total, incluindo esta tela de usuários.' },
   { papel: 'avaliador', descricao: 'Analisa e avalia os planos de negócio dos incubados.' },
@@ -32,31 +36,31 @@ const PAPEIS: readonly { papel: Role; descricao: string }[] = [
   { papel: 'incubado', descricao: 'Preenche o próprio plano de negócios.' },
 ];
 
-/** "Todos" por último, como na lista de planos: primeiro os recortes. */
-const FILTROS = ['ativos', 'inativos', 'nao-verificados', 'admins', 'todos'] as const;
+const FILTROS = ['todos', 'admin', 'avaliador', 'incubado', 'colaborador'] as const;
 type Filtro = (typeof FILTROS)[number];
 
 const ROTULO_FILTRO: Record<Filtro, string> = {
   todos: 'Todos',
-  ativos: 'Ativos',
-  inativos: 'Inativos',
-  'nao-verificados': 'Não verificados',
-  admins: 'Administradores',
+  admin: 'Administrador',
+  avaliador: 'Avaliador',
+  incubado: 'Incubado',
+  colaborador: 'Colaborador',
 };
 
-/** "1 conta" e "2 contas" — o número junto da palavra na forma certa. */
-const plural = (quantidade: number, singular: string, plural: string): string =>
-  `${quantidade} ${quantidade === 1 ? singular : plural}`;
+const plural = (n: number, s: string, p: string) => `${n} ${n === 1 ? s : p}`;
+
+const FOCAVEIS = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+const AVATAR_PREFIX = 'usuarios-avatar-';
 
 /**
- * Administração de contas, só para superusuário. A lista é para varrer; a edição
- * acontece no painel lateral, em rascunho até o Salvar. Ler, alterar e excluir são
- * chamadas reais; só a lista vem do mock, porque `GET /users` não existe no backend.
+ * Administração de contas, só para superusuário. A lista segue o padrão dos
+ * planos de negócio (plano-item + plano-acoes); a edição abre em modal. Todas
+ * as operações (ler, criar, alterar, excluir, listar) são API real desde 11/11/2026.
  */
 @Component({
   selector: 'app-usuarios',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, Painel, Icone],
+  imports: [ReactiveFormsModule, Painel, Icone, ToggleSenha, Mascara],
   templateUrl: './usuarios.html',
   styleUrl: './usuarios.scss',
 })
@@ -66,16 +70,41 @@ export class Usuarios implements OnInit {
   private readonly service = inject(UsuariosService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly dialogNovo = viewChild<ElementRef<HTMLElement>>('dialogNovo');
+  private readonly avatarInput = viewChild<ElementRef<HTMLInputElement>>('avatarInput');
+  private focoAnterior: HTMLElement | null = null;
 
   protected readonly user = signal<SessionUser | null>(null);
   protected readonly usuarios = signal<UsuarioAdmin[]>([]);
+  protected readonly usuarioSelecionado = signal<string | null>(null);
   protected readonly carregando = signal(true);
   protected readonly mensagemErro = signal('');
-  /** Guardado à parte: 404 na listagem tem explicação própria. */
   protected readonly semEndpoint = signal(false);
-  protected readonly salvando = signal(false);
-  protected readonly salvo = signal(false);
+
+  // ----- modal de criação / edição -----
+  protected readonly criandoUsuario = signal(false);
+  /** null = modo criação; não-null = conta sendo editada. */
+  protected readonly editandoUsuario = signal<UsuarioAdmin | null>(null);
+  protected readonly salvandoNovo = signal(false);
+  protected readonly erroNovo = signal('');
+  protected readonly mostrarSenha = signal(false);
+  /** Flags de situação editáveis no modo edição (fora do formNovo). */
+  protected readonly editAtiva = signal(false);
+  protected readonly editVerificada = signal(false);
+  /** Confirmação de exclusão dentro do fluxo de edição. */
   protected readonly confirmandoExclusao = signal(false);
+  protected readonly salvandoExclusao = signal(false);
+  /** Avatares por userId carregados do localStorage. */
+  protected readonly avatares = signal<Record<string, string>>({});
+
+  protected readonly formNovo = this.fb.nonNullable.group({
+    nome: ['', Validators.required],
+    sobrenome: ['', Validators.required],
+    telefone: ['', Validators.required],
+    email: ['', [Validators.required, Validators.email]],
+    password: ['', [Validators.required, Validators.minLength(MIN_PASSWORD_LENGTH)]],
+    perfil: ['incubado' as Role],
+  });
 
   protected readonly papeis = PAPEIS;
   protected readonly rotuloPapel = ROLE_LABEL;
@@ -85,78 +114,63 @@ export class Usuarios implements OnInit {
   protected readonly busca = this.fb.nonNullable.control('');
   private readonly termo = signal('');
 
-  /** Id da conta aberta no painel lateral. Vazio = painel fechado. */
-  protected readonly selecionadoId = signal('');
-
-  /**
-   * Rascunho do painel: o que o admin escolheu mas ainda não salvou. A conta na
-   * lista só muda depois do Salvar — clicar num rádio não dispara requisição.
-   */
-  protected readonly rascunhoPapel = signal<Role>('incubado');
-  protected readonly rascunhoAtiva = signal(false);
-  protected readonly rascunhoVerificada = signal(false);
-  protected readonly selecionado = computed(
-    () => this.usuarios().find((usuario) => usuario.id === this.selecionadoId()) ?? null,
-  );
-
   protected readonly lista = computed(() => {
     const termo = this.termo().trim().toLowerCase();
     return this.usuarios()
-      .filter((usuario) => this.passaNoFiltro(usuario))
-      .filter((usuario) => !termo || usuario.email.toLowerCase().includes(termo))
+      .filter((u) => this.passaNoFiltro(u))
+      .filter((u) => !termo || u.email.toLowerCase().includes(termo))
       .sort((a, b) => a.email.localeCompare(b.email));
   });
 
-  /** Selos de resumo no topo, já com o plural certo. */
   protected readonly resumo = computed(() => {
     const contas = this.usuarios();
-    const inativas = contas.filter((usuario) => !usuario.is_active).length;
-    const naoVerificadas = contas.filter((usuario) => !usuario.is_verified).length;
-
+    const inativas = contas.filter((u) => !u.is_active).length;
+    const naoVerificadas = contas.filter((u) => !u.is_verified).length;
     const selos = [{ texto: plural(contas.length, 'conta', 'contas'), alerta: false }];
-    if (inativas) {
-      selos.push({ texto: plural(inativas, 'inativa', 'inativas'), alerta: true });
-    }
-    if (naoVerificadas) {
+    if (inativas) selos.push({ texto: plural(inativas, 'inativa', 'inativas'), alerta: true });
+    if (naoVerificadas)
       selos.push({
         texto: plural(naoVerificadas, 'não verificada', 'não verificadas'),
         alerta: true,
       });
-    }
     return selos;
   });
 
-  private passaNoFiltro(usuario: UsuarioAdmin): boolean {
-    switch (this.filtro()) {
-      case 'ativos':
-        return usuario.is_active;
-      case 'inativos':
-        return !usuario.is_active;
-      case 'nao-verificados':
-        return !usuario.is_verified;
-      case 'admins':
-        return this.papel(usuario) === 'admin';
-      default:
-        return true;
-    }
+  private passaNoFiltro(u: UsuarioAdmin): boolean {
+    const filtroAtual = this.filtro();
+    if (filtroAtual === 'todos') return true;
+    return this.papel(u) === filtroAtual;
+  }
+
+  constructor() {
+    effect(() => {
+      const dialog = this.dialogNovo();
+      if (this.criandoUsuario() && dialog) {
+        dialog.nativeElement.querySelector<HTMLElement>(FOCAVEIS)?.focus();
+      } else if (!this.criandoUsuario() && this.focoAnterior) {
+        this.focoAnterior.focus();
+        this.focoAnterior = null;
+      }
+    });
   }
 
   ngOnInit(): void {
     this.busca.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((valor) => this.termo.set(valor));
+      .subscribe((v) => this.termo.set(v));
 
     this.auth
       .me()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (user) => this.user.set(user),
+        next: (u) => this.user.set(u),
         error: () => {
           this.auth.clearSession();
           void this.router.navigate([APP_ROUTES.login]);
         },
       });
 
+    this.carregarAvatares();
     this.carregar();
   }
 
@@ -166,10 +180,10 @@ export class Usuarios implements OnInit {
       .listar()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
-        next: (usuarios) => {
+        next: (us) => {
           this.carregando.set(false);
           this.semEndpoint.set(false);
-          this.usuarios.set(usuarios);
+          this.usuarios.set(us);
         },
         error: (err: ApiError) => {
           this.carregando.set(false);
@@ -182,108 +196,204 @@ export class Usuarios implements OnInit {
       });
   }
 
-  protected papel(usuario: UsuarioAdmin): Role {
-    return papelDe(usuario);
-  }
-
-  /** Uma situação por linha, a mais grave primeiro. */
-  protected situacao(usuario: UsuarioAdmin): { texto: string; ok: boolean } {
-    if (!usuario.is_active) {
-      return { texto: 'Inativa', ok: false };
+  private carregarAvatares(): void {
+    const result: Record<string, string> = {};
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key?.startsWith(AVATAR_PREFIX)) {
+          result[key.slice(AVATAR_PREFIX.length)] = localStorage.getItem(key) ?? '';
+        }
+      }
+    } catch {
+      // localStorage bloqueado; avatares ficam sem carregar
     }
-    if (!usuario.is_verified) {
-      return { texto: 'Não verificada', ok: false };
-    }
-    return { texto: 'Ativa', ok: true };
+    this.avatares.set(result);
   }
 
-  /** É a própria conta de quem está logado? */
-  protected ehVoce(usuario: UsuarioAdmin): boolean {
-    return usuario.id === this.user()?.id;
+  protected papel(u: UsuarioAdmin): Role {
+    return papelDe(u);
   }
 
-  protected abrir(usuario: UsuarioAdmin): void {
-    this.selecionadoId.set(usuario.id);
-    this.mensagemErro.set('');
-    this.salvo.set(false);
-    this.carregarRascunho(usuario);
+  protected classeStatus(u: UsuarioAdmin): string {
+    if (!u.is_active) return 'selo';
+    if (!u.is_verified) return 'selo';
+    return 'selo selo--ok';
   }
 
-  private carregarRascunho(usuario: UsuarioAdmin): void {
-    this.rascunhoPapel.set(this.papel(usuario));
-    this.rascunhoAtiva.set(usuario.is_active);
-    this.rascunhoVerificada.set(usuario.is_verified);
+  protected textoStatus(u: UsuarioAdmin): string {
+    if (!u.is_active) return 'Inativa';
+    if (!u.is_verified) return 'Não verificada';
+    return 'Ativa';
   }
 
-  /** Há algo diferente do que está gravado? É o que habilita o Salvar. */
-  protected readonly alterado = computed(() => {
-    const conta = this.selecionado();
-    if (!conta) {
-      return false;
-    }
-    return (
-      this.rascunhoPapel() !== this.papel(conta) ||
-      this.rascunhoAtiva() !== conta.is_active ||
-      this.rascunhoVerificada() !== conta.is_verified
-    );
-  });
+  protected iniciais(u: UsuarioAdmin): string {
+    const n = u.nome?.trim();
+    const s = u.sobrenome?.trim();
+    if (n && s) return (n[0] + s[0]).toUpperCase();
+    if (n) return n[0].toUpperCase();
+    return u.email[0].toUpperCase();
+  }
 
-  protected fechar(): void {
-    this.selecionadoId.set('');
+  protected getAvatar(id: string): string {
+    return this.avatares()[id] ?? '';
+  }
+
+  protected escolherAvatar(): void {
+    this.avatarInput()?.nativeElement.click();
+  }
+
+  protected onAvatarSelecionado(event: Event): void {
+    const alvo = this.editandoUsuario();
+    if (!alvo) return;
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      try {
+        localStorage.setItem(`${AVATAR_PREFIX}${alvo.id}`, dataUrl);
+      } catch {
+        // localStorage cheio; imagem exibida mas não persiste
+      }
+      this.avatares.update((prev) => ({ ...prev, [alvo.id]: dataUrl }));
+    };
+    reader.readAsDataURL(file);
+  }
+
+  protected ehVoce(u: UsuarioAdmin): boolean {
+    return u.id === this.user()?.id;
+  }
+
+  protected trocarFiltro(novoFiltro: Filtro): void {
+    this.filtro.set(novoFiltro);
+  }
+
+  protected abrirNovo(): void {
+    this.focoAnterior = document.activeElement as HTMLElement;
+    this.editandoUsuario.set(null);
+    this.erroNovo.set('');
+    this.mostrarSenha.set(false);
+    this.confirmandoExclusao.set(false);
+    this.formNovo.controls.email.enable();
+    this.formNovo.controls.password.setValidators([
+      Validators.required,
+      Validators.minLength(MIN_PASSWORD_LENGTH),
+    ]);
+    this.formNovo.controls.password.updateValueAndValidity();
+    this.formNovo.reset({ perfil: 'incubado' });
+    this.criandoUsuario.set(true);
+  }
+
+  protected abrirEditar(u: UsuarioAdmin): void {
+    this.usuarioSelecionado.set(u.id);
+    this.focoAnterior = document.activeElement as HTMLElement;
+    this.editandoUsuario.set(u);
+    this.erroNovo.set('');
+    this.mostrarSenha.set(false);
+    this.confirmandoExclusao.set(false);
+    this.editAtiva.set(u.is_active);
+    this.editVerificada.set(u.is_verified);
+    this.formNovo.controls.email.disable();
+    this.formNovo.controls.password.setValidators([Validators.minLength(MIN_PASSWORD_LENGTH)]);
+    this.formNovo.controls.password.updateValueAndValidity();
+    this.formNovo.reset({
+      nome: u.nome ?? '',
+      sobrenome: u.sobrenome ?? '',
+      telefone: u.telefone ?? '',
+      email: u.email,
+      password: '',
+      perfil: this.papel(u),
+    });
+    this.criandoUsuario.set(true);
+  }
+
+  protected fecharNovo(): void {
+    this.criandoUsuario.set(false);
+    this.editandoUsuario.set(null);
+    this.usuarioSelecionado.set(null);
     this.confirmandoExclusao.set(false);
   }
 
-  /** Salva de uma vez só o que mudou no rascunho. */
-  protected salvar(): void {
-    const conta = this.selecionado();
-    if (!conta || !this.alterado()) {
+  protected confirmarNovo(): void {
+    if (this.formNovo.invalid) {
+      this.formNovo.markAllAsTouched();
       return;
     }
-    const alteracao: AlteracaoUsuario = {};
-    if (this.rascunhoPapel() !== this.papel(conta)) {
-      Object.assign(alteracao, alteracaoDePapel(this.rascunhoPapel()));
-    }
-    if (this.rascunhoAtiva() !== conta.is_active) {
-      alteracao.is_active = this.rascunhoAtiva();
-    }
-    if (this.rascunhoVerificada() !== conta.is_verified) {
-      alteracao.is_verified = this.rascunhoVerificada();
-    }
-    this.aplicar(conta, alteracao);
-  }
 
-  /** Volta o rascunho ao que está gravado. */
-  protected descartar(): void {
-    const conta = this.selecionado();
-    if (conta) {
-      this.carregarRascunho(conta);
-      this.salvo.set(false);
-    }
-  }
+    const alvoEditar = this.editandoUsuario();
 
-  private aplicar(usuario: UsuarioAdmin, alteracao: AlteracaoUsuario): void {
-    this.salvando.set(true);
-    this.salvo.set(false);
-    this.mensagemErro.set('');
-    this.service
-      .alterar(usuario.id, alteracao)
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe({
-        next: (atualizado) => {
-          this.salvando.set(false);
-          this.salvo.set(true);
-          this.usuarios.update((lista) =>
-            lista.map((atual) =>
-              atual.id === atualizado.id ? { ...atual, ...atualizado } : atual,
-            ),
-          );
-          this.carregarRascunho({ ...usuario, ...atualizado });
-        },
-        error: (err: ApiError) => {
-          this.salvando.set(false);
-          this.mensagemErro.set(err.message);
-        },
-      });
+    if (alvoEditar) {
+      const { nome, sobrenome, telefone, password } = this.formNovo.getRawValue();
+      const alteracao: AlteracaoUsuario = { nome, sobrenome, telefone };
+      if (password) alteracao.password = password;
+      if (this.editAtiva() !== alvoEditar.is_active) alteracao.is_active = this.editAtiva();
+      if (this.editVerificada() !== alvoEditar.is_verified)
+        alteracao.is_verified = this.editVerificada();
+
+      this.salvandoNovo.set(true);
+      this.erroNovo.set('');
+      this.service
+        .alterar(alvoEditar.email, alteracao)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: (atualizado) => {
+            this.salvandoNovo.set(false);
+            const merged: UsuarioAdmin = {
+              ...alvoEditar,
+              ...atualizado,
+              nome: atualizado.nome ?? nome,
+              sobrenome: atualizado.sobrenome ?? sobrenome,
+              telefone: atualizado.telefone ?? telefone,
+            };
+            this.usuarios.update((lista) =>
+              lista.map((atual) => (atual.id === merged.id ? merged : atual)),
+            );
+            this.fecharNovo();
+          },
+          error: (err: ApiError) => {
+            this.salvandoNovo.set(false);
+            if (err.code === 'CONFLICT') {
+              this.formNovo.controls.email.setErrors({ 'email-duplicado': true });
+            } else {
+              this.erroNovo.set(err.message);
+            }
+          },
+        });
+    } else {
+      const { nome, sobrenome, telefone, email, password, perfil } = this.formNovo.getRawValue();
+      const dados: NovoUsuario = {
+        email,
+        password,
+        nome,
+        sobrenome,
+        telefone,
+        is_admin: perfil === 'admin',
+        is_colaborador: perfil === 'colaborador',
+        is_consultor: perfil === 'avaliador',
+        is_incubado: perfil === 'incubado',
+      };
+      this.salvandoNovo.set(true);
+      this.erroNovo.set('');
+      this.service
+        .criar(dados)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: (criado) => {
+            this.salvandoNovo.set(false);
+            this.usuarios.update((lista) => [criado, ...lista]);
+            this.fecharNovo();
+          },
+          error: (err: ApiError) => {
+            this.salvandoNovo.set(false);
+            if (err.code === 'CONFLICT') {
+              this.formNovo.controls.email.setErrors({ 'email-duplicado': true });
+            } else {
+              this.erroNovo.set(err.message);
+            }
+          },
+        });
+    }
   }
 
   protected pedirExclusao(): void {
@@ -295,25 +405,22 @@ export class Usuarios implements OnInit {
   }
 
   protected confirmarExclusao(): void {
-    const usuario = this.selecionado();
-    if (!usuario) {
-      return;
-    }
-    this.salvando.set(true);
+    const u = this.editandoUsuario();
+    if (!u) return;
+    this.salvandoExclusao.set(true);
     this.service
-      .excluir(usuario.id)
+      .excluir(u.email)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
-          this.salvando.set(false);
-          this.confirmandoExclusao.set(false);
-          this.usuarios.update((lista) => lista.filter((atual) => atual.id !== usuario.id));
-          this.selecionadoId.set('');
+          this.salvandoExclusao.set(false);
+          this.usuarios.update((lista) => lista.filter((atual) => atual.id !== u.id));
+          this.fecharNovo();
         },
         error: (err: ApiError) => {
-          this.salvando.set(false);
+          this.salvandoExclusao.set(false);
           this.confirmandoExclusao.set(false);
-          this.mensagemErro.set(err.message);
+          this.erroNovo.set(err.message);
         },
       });
   }

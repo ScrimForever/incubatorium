@@ -625,6 +625,27 @@ code {
   color: var(--texto-suave);
 }
 
+/* Papéis do sistema */
+.selo--admin {
+  background: rgba(36, 105, 179, 0.08);
+  color: #2469b3;
+}
+
+.selo--avaliador {
+  background: var(--nota-5-fundo);
+  color: var(--nota-5-forte);
+}
+
+.selo--incubado {
+  background: var(--nota-3-fundo);
+  color: var(--nota-3-forte);
+}
+
+.selo--colaborador {
+  background: #eef1f5;
+  color: var(--texto-suave);
+}
+
 /* ==========================================================================
    Listagem — o padrão das telas que listam coisas (Usuários, Planos de
    negócio): barra de busca/filtros, cartão por item, selos à direita e o
@@ -636,7 +657,7 @@ code {
   flex-wrap: wrap;
   align-items: center;
   gap: 10px 16px;
-  margin: 20px 0 16px;
+  margin: 20px 0 15px;
 }
 
 /* A busca fica acima dos filtros, com largura própria: ela filtra por texto, os
@@ -707,6 +728,7 @@ code {
   gap: 8px 18px;
   width: 100%;
   padding: 16px 18px;
+  min-height: 80px;
   border: 1px solid var(--borda-input);
   border-radius: 10px;
   background: var(--fundo-cartao);
@@ -723,6 +745,47 @@ code {
 .lista-item:hover {
   border-color: var(--borda);
   background: var(--fundo-app);
+}
+
+/* Cartão que só informa (não é link nem botão): a ação fica nos botões dele. */
+.plano-item {
+  cursor: default;
+}
+
+.plano-item:hover,
+.plano-item--ativo {
+  border-color: var(--borda);
+  background: var(--fundo-app);
+}
+
+.plano-item--ativo:hover {
+  border-color: var(--borda);
+  background: var(--fundo-app);
+}
+
+.plano-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.plano-acoes .btn {
+  text-decoration: none;
+}
+
+@media (max-width: 720px) {
+  .plano-item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .plano-item .lista-meta {
+    align-items: flex-start;
+  }
+
+  .plano-acoes {
+    justify-content: flex-start;
+  }
 }
 
 .lista-item:focus-visible {
@@ -1835,22 +1898,7 @@ quill-view .ql-editor {
 }
 
 /* ==========================================================================
-   Card de nota do avaliador (modo avaliação do Questionario)
-   ========================================================================== */
-
-.aval-voltar {
-  display: inline-block;
-  margin-bottom: 14px;
-  font-size: 13px;
-  color: var(--azul);
-  text-decoration: none;
-}
-
-.aval-voltar:hover {
-  text-decoration: underline;
-}
-
-/* Card de avaliação: o mesmo cartão neutro das outras telas. Quem o separa do
+   Card de avaliação: o mesmo cartão neutro das outras telas. Quem o separa do
    conteúdo do incubado é o rótulo ("Sua avaliação") e o lugar dele na página. */
 .aval-card {
   margin-bottom: 20px;
@@ -2657,5 +2705,113 @@ quill-view .ql-editor {
 
   .horarios-mes-bloco > * {
     display: none;
+  }
+}
+
+/* ----- Impressão do plano (`imprimir-plano`) -----
+   A folha das nove etapas vive no <body>, fora da tela. Na impressão ela é a
+   única coisa visível: o resto da página some. */
+.impressao {
+  display: none;
+}
+
+@media print {
+  body > :not(.impressao) {
+    display: none !important;
+  }
+
+  .impressao {
+    display: block;
+    color: #000;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .impressao-cabecalho {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--borda-input);
+  }
+
+  .impressao-cabecalho h1 {
+    font-size: 22px;
+  }
+
+  .impressao-cabecalho p {
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--texto-suave);
+  }
+
+  /* As respostas têm tamanho imprevisível, então a quebra de página não pode ser
+     fixa: a etapa flui de uma página para a outra, e só as peças pequenas
+     (membro, nota, arquivo) não se partem ao meio. Título nunca fica sozinho no
+     fim da página, e o texto longo não deixa linha órfã. */
+  .impressao .cartao {
+    margin-bottom: 20px;
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+    background: none;
+  }
+
+  .impressao h2,
+  .impressao h3,
+  .impressao dt {
+    break-after: avoid;
+  }
+
+  .impressao .plano-nota,
+  .impressao .plano-arquivos li,
+  .impressao .membro {
+    break-inside: avoid;
+  }
+
+  .impressao p,
+  .impressao li {
+    orphans: 3;
+    widows: 3;
+  }
+
+  /* Dois a dois não fragmenta de forma confiável; uma coluna sim. */
+  .impressao .membros {
+    display: block;
+  }
+
+  .impressao .membro {
+    margin-bottom: 12px;
+  }
+
+  /* Nada de rolagem interna: no papel o texto aparece inteiro. */
+  .impressao .membro-experiencia dd,
+  .impressao .ql-editor,
+  .impressao .plano-texto {
+    max-height: none !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* Margem zero tira o cabeçalho e o rodapé do navegador (URL, data); a margem
+     de verdade vem das laterais daqui e da tabela que repete o espaço em cima e
+     embaixo de cada página. */
+  @page {
+    margin: 0;
+  }
+
+  .impressao {
+    padding: 0 18mm;
+  }
+
+  .impressao-tabela {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .impressao-tabela td {
+    padding: 0;
+  }
+
+  .impressao-margem {
+    height: 16mm;
   }
 }

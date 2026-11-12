@@ -1,2 +1,4 @@
-/* Sem estilo próprio: a lista usa o padrão do sistema (`.lista*`, no
-   `styles.scss`), o mesmo da tela de usuários. */
+/* Espaçamento maior entre filtros e cards em planos de negócio */
+.lista-barra {
+  margin-bottom: 23px;
+}

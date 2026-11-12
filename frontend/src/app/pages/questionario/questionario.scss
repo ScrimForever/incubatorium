@@ -408,3 +408,14 @@
   flex: none;
   color: var(--texto-suave);
 }
+
+/* Imprimir no canto superior direito do conteúdo. */
+.quest-conteudo {
+  position: relative;
+}
+
+.quest-imprimir {
+  position: absolute;
+  top: var(--quest-pad-y);
+  right: var(--quest-pad-x);
+}

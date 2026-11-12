@@ -16,6 +16,10 @@ export interface UserRead {
   is_admin: boolean | null;
   is_consultor: boolean | null;
   is_colaborador: boolean | null;
+  /** Dados pessoais — opcionais; chegam no `POST /usuarios` e no `GET /users/me`. */
+  nome?: string | null;
+  sobrenome?: string | null;
+  telefone?: string | null;
 }
 
 /**
