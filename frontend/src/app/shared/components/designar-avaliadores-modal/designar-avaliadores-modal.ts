@@ -22,7 +22,7 @@ import { PlanosService } from '../../../core/services/planos';
 import { Icone } from '../icone/icone';
 
 type Modo = 'selecionar' | 'automatico';
-type Regra = 'sorteio';
+type Regra = 'sorteio' | 'fila';
 
 const MODOS: readonly { valor: Modo; rotulo: string }[] = [
   { valor: 'selecionar', rotulo: 'Selecionar' },
@@ -34,6 +34,11 @@ const REGRAS: readonly { valor: Regra; rotulo: string; texto: string }[] = [
     valor: 'sorteio',
     rotulo: 'Sorteio',
     texto: 'O sistema sorteia entre os avaliadores disponíveis.',
+  },
+  {
+    valor: 'fila',
+    rotulo: 'Fila',
+    texto: 'Rotação diária entre os avaliadores (o primeiro da fila hoje é o último amanhã).',
   },
 ];
 
@@ -258,12 +263,57 @@ export class DesignarAvaliadoresModal implements OnInit {
       return this.todos().map((a) => a.email);
     }
     const lista = [...this.todos()];
-    // Fisher-Yates: sorteio sem repetir ninguém.
+    if (this.regra() === 'fila') {
+      // Fila: rotação diária. A seed é a data de hoje (YYYY-MM-DD).
+      // Assim a mesma data sempre produz a mesma ordem, mudando a cada dia.
+      const hoje = new Date().toISOString().split('T')[0];
+      const seed = this.simpleHash(hoje);
+      this.embaralhaSeed(lista, seed);
+    } else {
+      // Sorteio: aleatório puro.
+      this.embaralha(lista);
+    }
+    return lista.slice(0, this.quantidadeEfetiva()).map((a) => a.email);
+  }
+
+  /** Embaralha in-place com Fisher-Yates puro (sem seed). */
+  private embaralha(lista: Avaliador[]): void {
     for (let i = lista.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [lista[i], lista[j]] = [lista[j], lista[i]];
     }
-    return lista.slice(0, this.quantidadeEfetiva()).map((a) => a.email);
+  }
+
+  /** Embaralha in-place com Fisher-Yates seeded. */
+  private embaralhaSeed(lista: Avaliador[], seed: number): void {
+    const prng = this.seedRandom(seed);
+    for (let i = lista.length - 1; i > 0; i--) {
+      const j = Math.floor(prng() * (i + 1));
+      [lista[i], lista[j]] = [lista[j], lista[i]];
+    }
+  }
+
+  /** Hash simples de string para number. */
+  private simpleHash(str: string): number {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash = hash & hash; // 32-bit int
+    }
+    return Math.abs(hash);
+  }
+
+  /** Seeded PRNG simples (linear congruential). */
+  private seedRandom(seed: number): () => number {
+    const a = 1664525;
+    const c = 1013904223;
+    const m = 2 ** 32;
+    let x = seed;
+    return () => {
+      x = (a * x + c) % m;
+      return x / m;
+    };
   }
 
   private enviar(chamada: Observable<Questionario>): void {

@@ -51,6 +51,7 @@ const FILTROS: readonly { valor: StatusQuestionario | 'todos'; rotulo: string }[
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Painel, Icone, RouterLink, DesignarAvaliadoresModal],
   templateUrl: './planos-de-negocio.html',
+  styleUrl: './planos-de-negocio.scss',
 })
 export class PlanosDeNegocio implements OnInit {
   private readonly auth = inject(Auth);
@@ -62,6 +63,7 @@ export class PlanosDeNegocio implements OnInit {
   protected readonly mensagemErro = signal('');
   protected readonly filtro = signal<StatusQuestionario | 'todos'>('aguardando_aprovacao');
   protected readonly filtros = FILTROS;
+  protected readonly planoSelecionado = signal<string | null>(null);
 
   private readonly resumos = signal<PlanoResumo[]>([]);
 

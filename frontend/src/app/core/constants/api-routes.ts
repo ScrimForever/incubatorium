@@ -20,10 +20,17 @@ export const API_ROUTES = {
   },
   users: {
     me: '/users/me',
-    /** Ainda não existe para a coordenação (admin). */
-    lista: '/users',
-    porId: (id: string): string => `/users/${id}`,
+    /** Listagem de todos os usuários — `GET /usuarios/todos` (real desde 11/11/2026). */
+    lista: '/usuarios/todos',
+    /** PATCH para editar (nome/sobrenome/telefone) — usa email, não id (`PATCH /usuarios/{email}`). */
+    porEmail: (email: string): string => `/usuarios/${encodeURIComponent(email)}`,
   },
+  /**
+   * Criação de conta pelo admin (`POST /usuarios`, `eb66f85`). A rota `/usuarios`
+   * tem outros verbos (painel de incubados), mas a criação é o único consumidor
+   * atual no frontend.
+   */
+  criarUsuario: '/usuarios',
   /**
    * Questionário Plano de Negócios. Uma rota só, três verbos: `GET` lê (e
    * devolve `false` quando ainda não existe), `POST` cria e `PUT` atualiza.

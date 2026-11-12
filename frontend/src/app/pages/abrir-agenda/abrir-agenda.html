@@ -1,6 +1,6 @@
 @if (user(); as u) {
   <app-painel [user]="u" ativo="Meus horários">
-    <a class="aval-voltar" [routerLink]="voltar">← Meus horários</a>
+    <a class="btn btn--secundario horarios-btn-p" [routerLink]="voltar" style="margin-bottom: 20px;">← Meus horários</a>
 
     <div class="horarios-titulo">
       <div>

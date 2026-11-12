@@ -39,7 +39,7 @@
     } @else {
       <ul class="lista">
         @for (linha of linhas(); track linha.usuario_email) {
-          <li class="lista-item plano-item">
+          <li class="lista-item plano-item" [class.plano-item--ativo]="planoSelecionado() === linha.usuario_email">
             <span class="lista-identidade">
               <span class="lista-titulo">{{ linha.negocio }}</span>
               <span class="lista-secundaria">
@@ -77,6 +77,7 @@
                 [routerLink]="linha.rota"
                 class="btn btn--azul horarios-btn-p"
                 [attr.aria-label]="'Ver o plano de ' + linha.negocio"
+                (click)="planoSelecionado.set(linha.usuario_email)"
               >
                 <app-icone nome="documento" />
                 Ver plano

@@ -124,6 +124,8 @@
                 Todos os {{ todos().length }} avaliadores entram no plano; a regra não se aplica.
               } @else if (regra() === 'sorteio') {
                 Serão sorteados {{ quantidadeEfetiva() }} entre os {{ todos().length }} disponíveis.
+              } @else if (regra() === 'fila') {
+                {{ quantidadeEfetiva() }} avaliadores da fila entram (rotação diária).
               }
             </p>
           } @else {

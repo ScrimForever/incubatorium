@@ -2,7 +2,7 @@ import { Directive, inject, input } from '@angular/core';
 import { NgControl } from '@angular/forms';
 
 /** As máscaras conhecidas. Máscara nova = formatador novo em `FORMATADORES`. */
-export type MascaraNome = 'cnpj';
+export type MascaraNome = 'cnpj' | 'telefone';
 
 /** 00.000.000/0000-00, montado à medida que se digita; o que não é dígito sai. */
 export function formatarCnpj(valor: string): string {
@@ -15,8 +15,18 @@ export function formatarCnpj(valor: string): string {
     .replace(/(\d{4})(\d)/, '$1-$2');
 }
 
+/** (##) #####-####, montado à medida que se digita; o que não é dígito sai. */
+export function formatarTelefone(valor: string): string {
+  return valor
+    .replace(/\D/g, '')
+    .slice(0, 11)
+    .replace(/^(\d{2})(\d)/, '($1) $2')
+    .replace(/(\d{5})(\d)/, '$1-$2');
+}
+
 const FORMATADORES: Record<MascaraNome, (valor: string) => string> = {
   cnpj: formatarCnpj,
+  telefone: formatarTelefone,
 };
 
 /**

@@ -11,7 +11,7 @@
     }
 
     @if (ehAvaliacao()) {
-      <a [routerLink]="voltarLista" class="aval-voltar">← Todos os planos</a>
+      <a [routerLink]="voltarLista" class="btn btn--secundario horarios-btn-p" style="margin-bottom: 20px;">← Todos os planos</a>
       <h1>Plano de negócios</h1>
       @if (ehCoordenacao()) {
         <p class="quest-subtitulo">
