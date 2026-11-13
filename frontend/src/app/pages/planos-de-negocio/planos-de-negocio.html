@@ -3,7 +3,7 @@
     <h1>Planos de negócio</h1>
     <p class="painel-subtitulo">
       @if (ehAdmin()) {
-        Aprove os planos enviados e escolha quem os avalia, ou devolva-os ao incubado para ajustes.
+        Envie os planos aguardando aprovação para os avaliadores que você escolher.
       } @else {
         Planos aprovados em que você foi designado. A sua nota entra etapa por etapa.
       }
@@ -23,6 +23,17 @@
           </button>
         }
       </div>
+      <div class="form-group lista-busca" style="flex: 1; margin: 0">
+        <label for="busca-plano" class="apenas-leitor-tela">
+          Buscar por negócio, proponente ou e-mail
+        </label>
+        <input
+          id="busca-plano"
+          type="search"
+          [formControl]="busca"
+          placeholder="Buscar por negócio, proponente ou e-mail"
+        />
+      </div>
     </div>
 
     @if (mensagemErro()) {
@@ -38,8 +49,11 @@
       </p>
     } @else {
       <ul class="lista">
-        @for (linha of linhas(); track linha.usuario_email) {
-          <li class="lista-item plano-item" [class.plano-item--ativo]="planoSelecionado() === linha.usuario_email">
+        @for (linha of linhasPaginadas(); track linha.usuario_email) {
+          <li
+            class="lista-item plano-item"
+            [class.plano-item--ativo]="planoSelecionado() === linha.usuario_email"
+          >
             <span class="lista-identidade">
               <span class="lista-titulo">{{ linha.negocio }}</span>
               <span class="lista-secundaria">
@@ -57,20 +71,11 @@
                 <button
                   type="button"
                   class="btn btn--verde horarios-btn-p"
-                  [attr.aria-label]="'Aprovar o plano de ' + linha.negocio"
+                  [attr.aria-label]="'Enviar para avaliação o plano de ' + linha.negocio"
                   (click)="designar(linha.usuario_email)"
                 >
-                  <app-icone nome="sucesso" />
-                  Aprovar
-                </button>
-                <button
-                  type="button"
-                  class="btn btn--secundario horarios-btn-p"
-                  [attr.aria-label]="'Rejeitar o plano de ' + linha.negocio"
-                  (click)="designar(linha.usuario_email, true)"
-                >
-                  <app-icone nome="erro" />
-                  Rejeitar
+                  <app-icone nome="equipe" />
+                  Enviar para avaliação
                 </button>
               }
               <a
@@ -86,6 +91,13 @@
           </li>
         }
       </ul>
+      <app-paginacao
+        [pagina]="paginaAtual()"
+        [totalPaginas]="totalPaginas()"
+        [totalItens]="linhas().length"
+        [porPagina]="porPagina"
+        (irPara)="irParaPagina($event)"
+      />
     }
   </app-painel>
 }
@@ -93,7 +105,6 @@
 @if (designando(); as email) {
   <app-designar-avaliadores-modal
     [email]="email"
-    [rejeitar]="abrirRejeitando()"
     (fechar)="fecharDesignacao()"
     (concluido)="designado()"
   />

@@ -21,6 +21,9 @@
   /* Borda um tom mais firme que a de input, para caixas (chips, botões de nota)
      terem contorno visível sobre fundo claro. */
   --borda: #d5dde3;
+  /* Barra de rolagem de dentro do sistema: cinza discreto sobre o fundo claro. */
+  --scroll-polegar: #c3ccd4;
+  --scroll-polegar-forte: #9aa7b2;
   /* Contorno de controle sem preenchimento (botão secundário): 3,5:1 sobre o
      branco e 3,3:1 sobre o fundo do app, o mínimo de 3:1 do WCAG 1.4.11. */
   --borda-controle: #7d8a95;
@@ -96,11 +99,56 @@
   box-sizing: border-box;
 }
 
-/* Só o questionário reserva o lugar da barra: com `auto`, a largura do cartão
-   muda entre uma aba alta e uma curta. No resto do sistema a reserva aparecia
-   como uma faixa fixa à direita em telas que nem rolam (login, onboarding). */
-html:has(.quest) {
+/* Barra de rolagem de dentro do sistema (13/11/2026). A classe vem do `App`,
+   e só existe com sessão: nas telas de entrada nada muda.
+
+   `overflow-y: scroll` deixa a barra à vista mesmo numa tela que não rola, e é
+   isso que acaba com o pulo do layout — antes, cada troca de página que mudava
+   a altura fazia a barra nascer e morrer, e o conteúdo andava para o lado. O
+   `scrollbar-gutter` cuida do navegador de barra flutuante, que não ocupa
+   espaço nenhum. As propriedades padrão (`scrollbar-width`/`scrollbar-color`)
+   vêm primeiro porque o Chrome atual, ao vê-las, ignora os pseudo-elementos
+   `::-webkit-scrollbar`; o bloco webkit fica para quem ainda não as tem.
+
+   O corpo das modais entra na mesma regra: é ele que rola quando o formulário
+   não cabe, e a barra de dentro tem de ser a mesma da página. A cor a modal já
+   herdava; a largura não é herdada, e sem ela a barra saía grossa. */
+html.dentro-do-sistema {
+  overflow-y: scroll;
   scrollbar-gutter: stable;
+}
+
+html.dentro-do-sistema,
+html.dentro-do-sistema .modal-body {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-polegar) transparent;
+}
+
+@supports not (scrollbar-width: thin) {
+  html.dentro-do-sistema,
+  html.dentro-do-sistema .modal-body {
+    &::-webkit-scrollbar {
+      width: 10px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    /* A borda transparente com `background-clip` é o que afina o polegar sem
+       estreitar a área de arraste. */
+    &::-webkit-scrollbar-thumb {
+      border: 3px solid transparent;
+      border-radius: 999px;
+      background: var(--scroll-polegar);
+      background-clip: content-box;
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+      background: var(--scroll-polegar-forte);
+      background-clip: content-box;
+    }
+  }
 }
 
 html {
@@ -727,8 +775,7 @@ code {
   align-items: center;
   gap: 8px 18px;
   width: 100%;
-  padding: 16px 18px;
-  min-height: 80px;
+  padding: 10px 18px;
   border: 1px solid var(--borda-input);
   border-radius: 10px;
   background: var(--fundo-cartao);
@@ -2814,4 +2861,12 @@ quill-view .ql-editor {
   .impressao-margem {
     height: 16mm;
   }
+}
+
+/* Coordenação: nota e comentário dos avaliadores são só leitura — cursor de
+   proibido. Global porque o comentário vem em HTML (innerHTML), fora do escopo
+   do componente. */
+.quest--painel .aval-card,
+.quest--painel .aval-card * {
+  cursor: not-allowed;
 }

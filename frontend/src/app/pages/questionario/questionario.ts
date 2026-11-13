@@ -19,6 +19,8 @@ import { Router, RouterLink } from '@angular/router';
 import { QuillEditorComponent, type ContentChange } from 'ngx-quill';
 import type Quill from 'quill';
 import { forkJoin } from 'rxjs';
+import { NgTemplateOutlet } from '@angular/common';
+import { Painel } from '../../shared/components/painel/painel';
 
 import { APP_ROUTES } from '../../core/constants/app-constants';
 import { destinoPara } from '../../core/guards/plano-guard';
@@ -46,6 +48,7 @@ import {
 import { ArquivosService } from '../../core/services/arquivos';
 import { Auth } from '../../core/services/auth';
 import { PlanosService } from '../../core/services/planos';
+import { UsuariosService } from '../../core/services/usuarios';
 import {
   QuestionarioService,
   emPreenchimento,
@@ -70,6 +73,7 @@ import {
 import { formatarQuando } from '../../shared/data-hora';
 import { textoParaHtml } from '../../shared/editor/texto-para-html';
 import { CAMPOS_ETAPA_1, CampoTexto, ETAPAS, Etapa, ROTULO_CURTO, etapaPorNumero } from './etapas';
+import { ToastService } from '../../core/services/toast';
 
 /** O que a modal de confirmação vai remover, já com o texto da pergunta. */
 interface Remocao {
@@ -112,6 +116,8 @@ interface Passo {
     ImprimirPlano,
     DesignarAvaliadoresModal,
     Mascara,
+    Painel,
+    NgTemplateOutlet,
   ],
   templateUrl: './questionario.html',
   styleUrl: './questionario.scss',
@@ -122,6 +128,8 @@ interface Passo {
 export class Questionario implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(Auth);
+  private readonly usuarios = inject(UsuariosService);
+  private readonly toast = inject(ToastService);
   private readonly service = inject(QuestionarioService);
   private readonly arquivos = inject(ArquivosService);
   private readonly planos = inject(PlanosService);
@@ -303,10 +311,31 @@ export class Questionario implements OnInit {
 
   /** Situação do plano lido, para a barra saber se já houve decisão. */
   protected readonly statusPlano = signal<StatusQuestionario | null>(null);
-  /** A modal de avaliadores (aprovar e designar, ou devolver) está aberta. */
+  /** Nome da conta dona do plano, para o topo da coordenação. */
+  protected readonly nomeDono = signal('');
+
+  /**
+   * Só a coordenação vê o nome no topo. Não há `GET` de um usuário só (a rota
+   * por e-mail responde `405`), então sai da listagem; falhou, fica só o e-mail.
+   */
+  private carregarDono(): void {
+    if (!this.ehCoordenacao()) {
+      return;
+    }
+    this.usuarios
+      .listar()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (contas) => {
+          const dono = contas.find((c) => c.email === this.email());
+          this.nomeDono.set([dono?.nome, dono?.sobrenome].filter(Boolean).join(' '));
+        },
+        error: () => this.nomeDono.set(''),
+      });
+  }
+
+  /** A modal que envia o plano para os avaliadores está aberta. */
   protected readonly designando = signal(false);
-  /** Ela abre já no passo de devolver, com o motivo. */
-  protected readonly devolvendo = signal(false);
 
   /**
    * Só a coordenação decide e corrige as respostas do incubado. O backend aceita
@@ -317,11 +346,10 @@ export class Questionario implements OnInit {
   );
 
   /**
-   * Plano aberto por quem só avalia: os campos do incubado ficam travados. Até o
-   * `/users/me` responder vale a trava, para ninguém digitar no plano alheio
-   * antes de se saber quem é.
+   * Plano aberto por quem avalia ou decide: as respostas do incubado ficam
+   * travadas para todos, coordenação inclusive (13/11/2026).
    */
-  protected readonly somenteLeitura = computed(() => this.ehAvaliacao() && !this.ehCoordenacao());
+  protected readonly somenteLeitura = computed(() => this.ehAvaliacao());
 
   /** Quantas das nove etapas já receberam nota, de qualquer avaliador. */
   protected readonly etapasAvaliadas = computed(
@@ -332,11 +360,10 @@ export class Questionario implements OnInit {
 
   protected readonly totalEtapas = NUMEROS_ETAPA.length;
 
-  /** Aprovar (e designar avaliadores) ou devolver: só com o plano em análise. As notas vêm depois. */
+  /** Enviar para avaliação: só com o plano aguardando aprovação. As notas vêm depois. */
   protected readonly podeDecidir = computed(() => this.statusPlano() === 'aguardando_aprovacao');
 
-  protected abrirDesignacao(devolver: boolean): void {
-    this.devolvendo.set(devolver);
+  protected abrirDesignacao(): void {
     this.designando.set(true);
   }
 
@@ -344,43 +371,15 @@ export class Questionario implements OnInit {
     this.designando.set(false);
   }
 
-  /** Aprovou ou devolveu: relê o plano, que agora tem outro status e a decisão no documento. */
+  /** Enviou para avaliação: relê o plano, que agora tem outro status. */
   protected designado(): void {
     this.designando.set(false);
+    this.toast.sucesso('Plano enviado para avaliação.');
     this.carregarParaAvaliacao();
   }
 
-  /** Plano reaberto ou devolvido por ajuste: está com o incubado, não há o que decidir. */
-  protected readonly comOIncubado = computed(() => {
-    const status = this.statusPlano();
-    return status !== null && emPreenchimento(status);
-  });
-
-  /** Média das notas pontuadas do plano, para a barra resumir a leitura. */
-  protected readonly mediaDoPlano = computed(() => {
-    const json = this.json();
-    const valores = NUMEROS_ETAPA.map(
-      (numero) => json[String(numero) as ChaveEtapa].avaliacao?.nota,
-    ).filter((nota): nota is 1 | 2 | 3 | 4 | 5 => nota != null);
-    if (!valores.length) {
-      return null;
-    }
-    const media = Math.round((valores.reduce((a, b) => a + b, 0) / valores.length) * 10) / 10;
-    // Vírgula decimal: é número lido por gente, em PT-BR.
-    return media.toLocaleString('pt-BR');
-  });
-
   /** A decisão já tomada, quando houve — quem, quando e por quê. */
   protected readonly decisao = computed<DecisaoPlano | null>(() => this.json().decisao ?? null);
-
-  /**
-   * A decisão que ainda vale: a de um plano reaberto continua no documento (o
-   * incubado lê o motivo enquanto corrige), mas não fecha mais a barra.
-   */
-  protected readonly decisaoVigente = computed(() => {
-    const decisao = this.decisao();
-    return decisao && decisao.status === this.statusPlano() ? decisao : null;
-  });
 
   /** Para o incubado, no formulário: o motivo da devolução que a coordenação reabriu. */
   protected readonly devolucaoAnterior = computed(() => {
@@ -419,7 +418,7 @@ export class Questionario implements OnInit {
           this.statusPlano.set(plano.status_questionario);
           this.salvandoReabertura.set(false);
           this.reabrindo.set(false);
-          this.mensagemSucesso.set('Plano reaberto. O incubado já pode corrigir e reenviar.');
+          this.toast.sucesso('Plano reaberto. O incubado já pode corrigir e reenviar.');
         },
         error: (err: ApiError) => {
           this.salvandoReabertura.set(false);
@@ -540,7 +539,7 @@ export class Questionario implements OnInit {
           this.statusPlano.set(plano.status_questionario);
           this.salvandoAjuste.set(false);
           this.pedindoAjuste.set(false);
-          this.mensagemSucesso.set('Pedido de ajuste enviado. O plano voltou para o incubado.');
+          this.toast.sucesso('Pedido de ajuste enviado. O plano voltou para o incubado.');
         },
         error: (err: ApiError) => {
           this.salvandoAjuste.set(false);
@@ -706,6 +705,7 @@ export class Questionario implements OnInit {
       .subscribe({
         next: (user) => {
           this.user.set(user);
+          this.carregarDono();
         },
         error: () => {
           this.auth.clearSession();
@@ -990,7 +990,7 @@ export class Questionario implements OnInit {
     const aviso = this.ehCoordenacao()
       ? 'Alterações salvas no plano.'
       : 'Formulário salvo com sucesso!';
-    this.salvarEntao(() => this.mensagemSucesso.set(aviso));
+    this.salvarEntao(() => this.toast.sucesso(aviso));
   }
 
   /** Grava a etapa aberta e só então segue. */
@@ -1443,7 +1443,7 @@ export class Questionario implements OnInit {
           this.comentario.set(semEtapa(this.comentario(), numero));
           this.salvandoNota.set(null);
           this.editandoNota.set(null);
-          this.mensagemSucesso.set(`Avaliação da etapa ${numero} registrada.`);
+          this.toast.sucesso(`Avaliação da etapa ${numero} registrada.`);
         },
         error: (err: ApiError) => {
           this.salvandoNota.set(null);

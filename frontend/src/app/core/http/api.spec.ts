@@ -80,7 +80,9 @@ describe('Api', () => {
   });
 
   it('postBlob pede responseType blob', async () => {
-    const promessa = firstValueFrom(api.postBlob('/arquivos/questionario/download/1/0', { nome_arquivo: 'a.pdf' }));
+    const promessa = firstValueFrom(
+      api.postBlob('/arquivos/questionario/download/1/0', { nome_arquivo: 'a.pdf' }),
+    );
     const req = http.expectOne('/api/arquivos/questionario/download/1/0');
     expect(req.request.responseType).toBe('blob');
     req.flush(new Blob(['dados']));
@@ -88,7 +90,9 @@ describe('Api', () => {
   });
 
   it('postForm envia x-www-form-urlencoded', async () => {
-    const promessa = firstValueFrom(api.postForm('/auth/jwt/login', { username: 'a@b', password: 'x' }));
+    const promessa = firstValueFrom(
+      api.postForm('/auth/jwt/login', { username: 'a@b', password: 'x' }),
+    );
     const req = http.expectOne('/api/auth/jwt/login');
     expect(req.request.headers.get('Content-Type')).toBe('application/x-www-form-urlencoded');
     expect(req.request.body).toContain('username=a%40b');

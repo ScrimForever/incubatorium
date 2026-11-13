@@ -43,7 +43,8 @@ const REGRAS: readonly { valor: Regra; rotulo: string; texto: string }[] = [
 ];
 
 /**
- * Aprovar um plano e escolher quem o avalia — ou rejeitá-lo sem designar ninguém.
+ * A coordenação envia o plano para avaliação: escolhe os avaliadores e aprova.
+ * Não existe recusa — o admin só manda o plano para quem avalia.
  * Abre por cima da lista de planos (quem a usa só a cria quando abre) e só a
  * coordenação a vê. `concluido` avisa a lista para recarregar.
  */
@@ -59,8 +60,6 @@ export class DesignarAvaliadoresModal implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly email = input.required<string>();
-  /** Abre já no passo de rejeitar (botão Rejeitar da lista). */
-  readonly rejeitar = input(false);
   readonly fechar = output<void>();
   readonly concluido = output<void>();
 
@@ -78,10 +77,6 @@ export class DesignarAvaliadoresModal implements OnInit {
   protected readonly regra = signal<Regra>('sorteio');
   protected readonly quantidade = signal(1);
 
-  protected readonly rejeitando = signal(false);
-  protected readonly motivo = signal('');
-  protected readonly motivoValido = computed(() => this.motivo().trim().length > 0);
-
   protected readonly negocio = computed(
     () => this.plano()?.json_questionario?.['1']?.nome_negocio || 'Negócio sem nome',
   );
@@ -93,7 +88,7 @@ export class DesignarAvaliadoresModal implements OnInit {
   protected readonly quando = computed(() =>
     dataLegivel(this.plano()?.atualizado_em ?? this.plano()?.criado_em),
   );
-  /** Só um plano enviado para análise se aprova ou se rejeita por aqui. */
+  /** Só um plano aguardando aprovação é enviado para avaliação. */
   protected readonly emAnalise = computed(() => this.status() === 'aguardando_aprovacao');
 
   protected readonly escolhidos = computed(() =>
@@ -146,7 +141,6 @@ export class DesignarAvaliadoresModal implements OnInit {
   }
 
   ngOnInit(): void {
-    this.rejeitando.set(this.rejeitar());
     forkJoin([this.planos.plano(this.email()), this.planos.avaliadores()])
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
@@ -182,12 +176,20 @@ export class DesignarAvaliadoresModal implements OnInit {
   }
 
   protected escolher(email: string): void {
-    this.marcados.update((lista) => [...lista, email]);
+    // Clique duplo não escolhe a mesma pessoa duas vezes.
+    this.marcados.update((lista) => (lista.includes(email) ? lista : [...lista, email]));
   }
 
   protected tirar(email: string): void {
     this.marcados.update((lista) => lista.filter((item) => item !== email));
   }
+
+  /**
+   * Avaliadores à espera da confirmação; nulo = ainda escolhendo. O sorteio do
+   * automático roda aqui, uma vez só, para a confirmação mostrar exatamente
+   * quem vai receber o plano.
+   */
+  protected readonly paraConfirmar = signal<Avaliador[] | null>(null);
 
   protected aprovar(): void {
     if (!this.podeAprovar()) {
@@ -199,37 +201,34 @@ export class DesignarAvaliadoresModal implements OnInit {
       this.modo() === 'automatico'
         ? this.escolhaAutomatica()
         : this.escolhidos().map((a) => a.email);
-    this.enviar(this.planos.aprovarComAvaliadores(this.email(), emails));
-  }
-
-  protected abrirRejeicao(): void {
-    this.motivo.set('');
     this.mensagemErro.set('');
-    this.rejeitando.set(true);
+    this.paraConfirmar.set(this.todos().filter((a) => emails.includes(a.email)));
   }
 
-  protected voltarDaRejeicao(): void {
-    this.rejeitando.set(false);
+  protected voltarDaConfirmacao(): void {
+    this.paraConfirmar.set(null);
   }
 
-  protected escreverMotivo(evento: Event): void {
-    this.motivo.set((evento.target as HTMLTextAreaElement).value);
-  }
-
-  protected confirmarRejeicao(): void {
-    if (!this.motivoValido() || this.enviando()) {
+  protected confirmarEnvio(): void {
+    const avaliadores = this.paraConfirmar();
+    if (!avaliadores?.length || this.enviando()) {
       return;
     }
-    this.enviar(this.planos.rejeitarSemAvaliadores(this.email(), this.motivo()));
+    this.enviar(
+      this.planos.aprovarComAvaliadores(
+        this.email(),
+        avaliadores.map((a) => a.email),
+      ),
+    );
   }
 
-  /** Esc volta da rejeição antes de fechar a modal. */
+  /** Esc volta da confirmação antes de fechar a modal. */
   protected escape(): void {
     if (this.enviando()) {
       return;
     }
-    if (this.rejeitando()) {
-      this.voltarDaRejeicao();
+    if (this.paraConfirmar()) {
+      this.voltarDaConfirmacao();
     } else {
       this.fechar.emit();
     }
@@ -323,7 +322,6 @@ export class DesignarAvaliadoresModal implements OnInit {
       next: () => this.concluido.emit(),
       error: (err: ApiError) => {
         this.enviando.set(false);
-        this.rejeitando.set(false);
         this.mensagemErro.set(err.message);
       },
     });

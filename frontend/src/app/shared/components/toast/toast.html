@@ -1,0 +1,16 @@
+<div class="toasts" role="status" aria-live="polite">
+  @for (item of toast.itens(); track item.id) {
+    <div class="toast">
+      <app-icone nome="sucesso" />
+      <span class="toast-texto">{{ item.mensagem }}</span>
+      <button
+        type="button"
+        class="toast-fechar"
+        aria-label="Fechar aviso"
+        (click)="toast.fechar(item.id)"
+      >
+        &times;
+      </button>
+    </div>
+  }
+</div>

@@ -11,7 +11,7 @@
     (keydown.shift.tab)="prenderTab($event, true, dialogo)"
   >
     <header class="modal-header">
-      <h2 id="designar-titulo">{{ rejeitando() ? 'Rejeitar plano' : 'Aprovar plano' }}</h2>
+      <h2 id="designar-titulo">Enviar para avaliação</h2>
       <button type="button" class="close" aria-label="Fechar" (click)="fechar.emit()">
         &times;
       </button>
@@ -43,40 +43,35 @@
         @if (!emAnalise()) {
           <p class="lista-aviso" role="status">
             <app-icone nome="cadeado" />
-            Só um plano aguardando análise pode ser aprovado ou rejeitado por aqui.
+            Só um plano aguardando aprovação pode ser enviado para avaliação.
           </p>
-        } @else if (rejeitando()) {
+        } @else if (paraConfirmar(); as avaliadores) {
+          <!-- Confirmação: o envio só sai daqui, com a lista final à vista. -->
           <p>
-            O plano passa a <strong>Devolvido para ajustes</strong> e não vai para nenhum avaliador.
-            O incubado lê o motivo abaixo.
+            Enviar <strong>{{ negocio() }}</strong> para
+            {{ avaliadores.length === 1 ? 'o avaliador abaixo' : 'os avaliadores abaixo' }}? Eles
+            passam a ver o plano e a dar nota em cada etapa.
           </p>
-          <div class="form-group">
-            <label for="rejeicao-motivo">Motivo da rejeição</label>
-            <textarea
-              id="rejeicao-motivo"
-              rows="4"
-              [value]="motivo()"
-              (input)="escreverMotivo($event)"
-              placeholder="Explique o que precisa ser ajustado — é isto que o incubado vai ler."
-            ></textarea>
-            @if (!motivoValido()) {
-              <span class="field-error">Escreva o motivo para poder rejeitar.</span>
-            }
+          <div class="designar-colunas designar-colunas--uma">
+            <section aria-labelledby="titulo-confirmacao">
+              <h3 id="titulo-confirmacao">Avaliadores ({{ avaliadores.length }})</h3>
+              <ul class="lista">
+                @for (avaliador of avaliadores; track avaliador.email) {
+                  <li class="lista-item lista-item--ativo">
+                    <span class="lista-identidade">
+                      <span class="lista-titulo">
+                        {{ avaliador.nome ?? avaliador.email }} {{ avaliador.sobrenome }}
+                      </span>
+                      <span class="lista-secundaria">{{ avaliador.email }}</span>
+                    </span>
+                    <app-icone nome="sucesso" />
+                  </li>
+                }
+              </ul>
+            </section>
           </div>
         } @else {
-          <div class="filtros" role="group" aria-label="Como escolher os avaliadores">
-            @for (opcao of modos; track opcao.valor) {
-              <button
-                type="button"
-                class="filtro"
-                [class.filtro--ativo]="modo() === opcao.valor"
-                [attr.aria-pressed]="modo() === opcao.valor"
-                (click)="trocarModo(opcao.valor)"
-              >
-                {{ opcao.rotulo }}
-              </button>
-            }
-          </div>
+          <!-- Modos Selecionar/Automático escondidos (13/11/2026): só a escolha manual. -->
 
           @if (modo() === 'automatico') {
             <div class="designar-regras" role="group" aria-label="Regra do automático">
@@ -169,7 +164,7 @@
                           <span class="lista-secundaria">{{ avaliador.email }}</span>
                         </span>
                         <span class="apenas-leitor-tela">Tirar</span>
-                        <app-icone nome="sucesso" />
+                        <app-icone nome="seta-esquerda" />
                       </button>
                     </li>
                   } @empty {
@@ -187,43 +182,41 @@
     </div>
 
     <footer class="modal-footer">
-      @if (plano() && emAnalise()) {
-        @if (rejeitando()) {
-          <button
-            type="button"
-            class="btn btn--secundario"
-            [disabled]="enviando()"
-            (click)="voltarDaRejeicao()"
-          >
-            Voltar
-          </button>
-          <button
-            type="button"
-            class="btn btn--azul"
-            [disabled]="!motivoValido() || enviando()"
-            (click)="confirmarRejeicao()"
-          >
-            {{ enviando() ? 'Salvando…' : 'Rejeitar plano' }}
-          </button>
-        } @else {
-          <span class="designar-resumo">{{ resumo() }}</span>
-          <button
-            type="button"
-            class="btn btn--secundario"
-            [disabled]="enviando()"
-            (click)="abrirRejeicao()"
-          >
-            Rejeitar plano
-          </button>
-          <button
-            type="button"
-            class="btn btn--verde"
-            [disabled]="!podeAprovar()"
-            (click)="aprovar()"
-          >
-            {{ enviando() ? 'Salvando…' : 'Aprovar' }}
-          </button>
-        }
+      @if (plano() && emAnalise() && paraConfirmar()) {
+        <button
+          type="button"
+          class="btn btn--secundario"
+          [disabled]="enviando()"
+          (click)="voltarDaConfirmacao()"
+        >
+          Voltar
+        </button>
+        <button
+          type="button"
+          class="btn btn--verde"
+          [disabled]="enviando()"
+          (click)="confirmarEnvio()"
+        >
+          {{ enviando() ? 'Enviando…' : 'Confirmar envio' }}
+        </button>
+      } @else if (plano() && emAnalise()) {
+        <span class="designar-resumo">{{ resumo() }}</span>
+        <button
+          type="button"
+          class="btn btn--secundario"
+          [disabled]="enviando()"
+          (click)="fechar.emit()"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="btn btn--verde"
+          [disabled]="!podeAprovar()"
+          (click)="aprovar()"
+        >
+          Enviar para avaliação
+        </button>
       } @else {
         <button type="button" class="btn btn--secundario" (click)="fechar.emit()">Fechar</button>
       }

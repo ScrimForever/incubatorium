@@ -25,9 +25,11 @@ import {
   papelDe,
 } from '../../core/services/usuarios';
 import { Icone } from '../../shared/components/icone/icone';
+import { Paginacao } from '../../shared/components/paginacao/paginacao';
 import { Painel } from '../../shared/components/painel/painel';
 import { ToggleSenha } from '../../shared/components/toggle-senha/toggle-senha';
 import { Mascara } from '../../shared/directives/mascara';
+import { ToastService } from '../../core/services/toast';
 
 const PAPEIS: readonly { papel: Role; descricao: string }[] = [
   { papel: 'admin', descricao: 'Acesso total, incluindo esta tela de usuários.' },
@@ -47,10 +49,19 @@ const ROTULO_FILTRO: Record<Filtro, string> = {
   colaborador: 'Colaborador',
 };
 
+/** Contas por página na listagem. */
+const POR_PAGINA = 10;
+
+/** O que a busca varre — o placeholder promete nome e e-mail. */
+const alvoDaBusca = (u: UsuarioAdmin): string =>
+  [u.nome, u.sobrenome, u.email].filter(Boolean).join(' ').toLowerCase();
+
 const plural = (n: number, s: string, p: string) => `${n} ${n === 1 ? s : p}`;
 
 const FOCAVEIS = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 const AVATAR_PREFIX = 'usuarios-avatar-';
+/** Registro da ordem de descoberta das contas (ver `ordemDescoberta`). */
+const ORDEM_KEY = 'usuarios-ordem';
 
 /**
  * Administração de contas, só para superusuário. A lista segue o padrão dos
@@ -60,7 +71,7 @@ const AVATAR_PREFIX = 'usuarios-avatar-';
 @Component({
   selector: 'app-usuarios',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, Painel, Icone, ToggleSenha, Mascara],
+  imports: [ReactiveFormsModule, Painel, Icone, ToggleSenha, Mascara, Paginacao],
   templateUrl: './usuarios.html',
   styleUrl: './usuarios.scss',
 })
@@ -70,6 +81,7 @@ export class Usuarios implements OnInit {
   private readonly service = inject(UsuariosService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly toast = inject(ToastService);
   private readonly dialogNovo = viewChild<ElementRef<HTMLElement>>('dialogNovo');
   private readonly avatarInput = viewChild<ElementRef<HTMLInputElement>>('avatarInput');
   private focoAnterior: HTMLElement | null = null;
@@ -114,13 +126,43 @@ export class Usuarios implements OnInit {
   protected readonly busca = this.fb.nonNullable.control('');
   private readonly termo = signal('');
 
+  protected readonly porPagina = POR_PAGINA;
+  protected readonly pagina = signal(1);
+  /**
+   * Ordem de descoberta: id da conta → número crescente, guardado no navegador.
+   * O `UserRead` não tem data de criação e o `id` é UUID aleatório, então essa é
+   * a única recência que o frontend pode ter sem mexer no backend: conta que
+   * esta tela nunca tinha visto é mais nova que as que ela já conhecia, e a
+   * criada aqui é a mais nova de todas. Sobrevive ao F5; some ao limpar o
+   * navegador, e aí a lista volta a ser alfabética.
+   */
+  private readonly ordem = signal<Record<string, number>>({});
+
+  /** Mais recente primeiro, pela ordem de descoberta; empate resolve por e-mail. */
   protected readonly lista = computed(() => {
     const termo = this.termo().trim().toLowerCase();
+    const ordem = this.ordem();
     return this.usuarios()
       .filter((u) => this.passaNoFiltro(u))
-      .filter((u) => !termo || u.email.toLowerCase().includes(termo))
-      .sort((a, b) => a.email.localeCompare(b.email));
+      .filter((u) => !termo || alvoDaBusca(u).includes(termo))
+      .sort((a, b) => (ordem[b.id] ?? 0) - (ordem[a.id] ?? 0) || a.email.localeCompare(b.email));
   });
+
+  protected readonly totalPaginas = computed(() =>
+    Math.max(1, Math.ceil(this.lista().length / POR_PAGINA)),
+  );
+
+  /** Página corrente já presa ao total (filtro pode encolher a lista). */
+  protected readonly paginaAtual = computed(() => Math.min(this.pagina(), this.totalPaginas()));
+
+  protected readonly listaPaginada = computed(() => {
+    const inicio = (this.paginaAtual() - 1) * POR_PAGINA;
+    return this.lista().slice(inicio, inicio + POR_PAGINA);
+  });
+
+  protected irParaPagina(n: number): void {
+    this.pagina.set(Math.min(Math.max(1, n), this.totalPaginas()));
+  }
 
   protected readonly resumo = computed(() => {
     const contas = this.usuarios();
@@ -155,9 +197,10 @@ export class Usuarios implements OnInit {
   }
 
   ngOnInit(): void {
-    this.busca.valueChanges
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((v) => this.termo.set(v));
+    this.busca.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((v) => {
+      this.termo.set(v);
+      this.pagina.set(1);
+    });
 
     this.auth
       .me()
@@ -171,6 +214,7 @@ export class Usuarios implements OnInit {
       });
 
     this.carregarAvatares();
+    this.carregarOrdem();
     this.carregar();
   }
 
@@ -184,6 +228,7 @@ export class Usuarios implements OnInit {
           this.carregando.set(false);
           this.semEndpoint.set(false);
           this.usuarios.set(us);
+          this.registrarOrdem(us.map((u) => u.id));
         },
         error: (err: ApiError) => {
           this.carregando.set(false);
@@ -209,6 +254,47 @@ export class Usuarios implements OnInit {
       // localStorage bloqueado; avatares ficam sem carregar
     }
     this.avatares.set(result);
+  }
+
+  /**
+   * Dá número de ordem a todo id ainda sem um e esquece os que saíram da API.
+   * `primeiro` (a conta acabada de criar) fica acima de todas; os demais ids
+   * novos entram em ordem alfabética, para a primeira visita bater com a lista
+   * do servidor.
+   */
+  private registrarOrdem(ids: string[], primeiro?: string): void {
+    const atual = this.ordem();
+    const conhecidos = new Set(ids);
+    const proximo: Record<string, number> = {};
+    for (const [id, n] of Object.entries(atual)) {
+      if (conhecidos.has(id)) proximo[id] = n;
+    }
+    let maior = Math.max(0, ...Object.values(proximo));
+    const novos = ids.filter((id) => proximo[id] === undefined && id !== primeiro).sort();
+    for (const id of novos) proximo[id] = ++maior;
+    if (primeiro && proximo[primeiro] === undefined) proximo[primeiro] = ++maior;
+    this.ordem.set(proximo);
+    try {
+      localStorage.setItem(ORDEM_KEY, JSON.stringify(proximo));
+    } catch {
+      // localStorage bloqueado; a ordem vale só nesta visita
+    }
+  }
+
+  private carregarOrdem(): void {
+    try {
+      const cru = localStorage.getItem(ORDEM_KEY);
+      const lido: unknown = cru ? JSON.parse(cru) : null;
+      if (lido && typeof lido === 'object') {
+        const limpo: Record<string, number> = {};
+        for (const [id, n] of Object.entries(lido as Record<string, unknown>)) {
+          if (typeof n === 'number' && Number.isFinite(n)) limpo[id] = n;
+        }
+        this.ordem.set(limpo);
+      }
+    } catch {
+      // registro ilegível; a lista nasce alfabética
+    }
   }
 
   protected papel(u: UsuarioAdmin): Role {
@@ -267,6 +353,7 @@ export class Usuarios implements OnInit {
 
   protected trocarFiltro(novoFiltro: Filtro): void {
     this.filtro.set(novoFiltro);
+    this.pagina.set(1);
   }
 
   protected abrirNovo(): void {
@@ -350,6 +437,7 @@ export class Usuarios implements OnInit {
               lista.map((atual) => (atual.id === merged.id ? merged : atual)),
             );
             this.fecharNovo();
+            this.toast.sucesso('Usuário atualizado.');
           },
           error: (err: ApiError) => {
             this.salvandoNovo.set(false);
@@ -382,7 +470,10 @@ export class Usuarios implements OnInit {
           next: (criado) => {
             this.salvandoNovo.set(false);
             this.usuarios.update((lista) => [criado, ...lista]);
+            this.registrarOrdem([...this.usuarios().map((u) => u.id)], criado.id);
+            this.pagina.set(1);
             this.fecharNovo();
+            this.toast.sucesso('Usuário criado.');
           },
           error: (err: ApiError) => {
             this.salvandoNovo.set(false);
@@ -415,7 +506,9 @@ export class Usuarios implements OnInit {
         next: () => {
           this.salvandoExclusao.set(false);
           this.usuarios.update((lista) => lista.filter((atual) => atual.id !== u.id));
+          this.registrarOrdem(this.usuarios().map((atual) => atual.id));
           this.fecharNovo();
+          this.toast.sucesso('Usuário excluído.');
         },
         error: (err: ApiError) => {
           this.salvandoExclusao.set(false);

@@ -23,6 +23,17 @@
   margin: 0 auto;
 }
 
+/* Dentro do painel (coordenação): o painel já dá fundo e padding; o botão
+   Imprimir e o topo grudado se posicionam por aqui. */
+.quest--painel {
+  --quest-pad-x: 0px;
+  --quest-pad-y: 0px;
+
+  position: relative;
+  min-height: 0;
+  background: none;
+}
+
 /* ----- cartão da etapa ----- */
 
 .quest-cartao {
@@ -40,7 +51,7 @@
 .quest-instrucao {
   margin: 0 0 12px;
   padding: 12px 16px 12px 32px;
-  border-left: 3px solid var(--borda-input);
+  border-left: 3px solid var(--sucesso-texto);
   border-radius: 0 8px 8px 0;
   background: var(--fundo-app);
   font-size: 13.5px;
@@ -418,4 +429,42 @@
   position: absolute;
   top: var(--quest-pad-y);
   right: var(--quest-pad-x);
+}
+
+/* Leitura: o campo vazio não é erro de quem lê — nada de moldura vermelha
+   quando o foco passa por um campo obrigatório em branco. */
+.quest--leitura {
+  input.ng-invalid.ng-touched,
+  textarea.ng-invalid.ng-touched,
+  quill-editor.ng-invalid.ng-touched {
+    border-color: var(--borda-input);
+    box-shadow: none;
+  }
+}
+
+/* Coordenação: subtítulo com o selo da situação e, ao lado, a ação possível. */
+.quest-situacao {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  margin-bottom: 16px;
+
+  .quest-subtitulo {
+    margin: 0;
+  }
+
+  .selo {
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+}
+
+/* Uma pergunta por bloco: linha fina e respiro entre as respostas do cartão,
+   igual para incubado, avaliador e coordenação. */
+.quest-campo + .quest-campo {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--borda);
 }

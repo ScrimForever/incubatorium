@@ -17,6 +17,9 @@ const CONTA: UsuarioAdmin = {
   is_colaborador: false,
 };
 
+/** `PATCH`/`GET`/`DELETE` são por e-mail, com o @ percent-encoded. */
+const ROTA_CONTA = '/api/usuarios/ana%40teccampos.com';
+
 describe('papelDe', () => {
   it('prefere o role que o mock da listagem guardou', () => {
     expect(papelDe({ ...CONTA, role: 'avaliador' })).toBe('avaliador');
@@ -65,39 +68,39 @@ describe('UsuariosService', () => {
     let recebidas: UsuarioAdmin[] | undefined;
     service.listar().subscribe((contas) => (recebidas = contas));
 
-    const req = backend.expectOne('/api/users');
+    const req = backend.expectOne('/api/usuarios/todos');
     expect(req.request.method).toBe('GET');
     req.flush([CONTA]);
 
     expect(recebidas?.length).toBe(1);
   });
 
-  it('busca uma conta pelo identificador', () => {
-    service.buscar('abc-123').subscribe();
-    expect(backend.expectOne('/api/users/abc-123').request.method).toBe('GET');
+  it('busca uma conta pelo e-mail, com o @ escapado', () => {
+    service.buscar(CONTA.email).subscribe();
+    expect(backend.expectOne(ROTA_CONTA).request.method).toBe('GET');
   });
 
   it('altera só os campos informados', () => {
-    service.alterar('abc-123', { is_active: false }).subscribe();
+    service.alterar(CONTA.email, { is_active: false }).subscribe();
 
-    const req = backend.expectOne('/api/users/abc-123');
+    const req = backend.expectOne(ROTA_CONTA);
     expect(req.request.method).toBe('PATCH');
     expect(req.request.body).toEqual({ is_active: false });
     req.flush({ ...CONTA, is_active: false });
   });
 
   it('troca o papel mandando role e is_superuser juntos', () => {
-    service.alterar('abc-123', alteracaoDePapel('avaliador')).subscribe();
+    service.alterar(CONTA.email, alteracaoDePapel('avaliador')).subscribe();
 
-    const req = backend.expectOne('/api/users/abc-123');
+    const req = backend.expectOne(ROTA_CONTA);
     expect(req.request.body).toEqual({ role: 'avaliador', is_superuser: false });
     req.flush({ ...CONTA, role: 'avaliador' });
   });
 
   it('exclui a conta', () => {
-    service.excluir('abc-123').subscribe();
+    service.excluir(CONTA.email).subscribe();
 
-    const req = backend.expectOne('/api/users/abc-123');
+    const req = backend.expectOne(ROTA_CONTA);
     expect(req.request.method).toBe('DELETE');
     req.flush(null, { status: 204, statusText: 'No Content' });
   });

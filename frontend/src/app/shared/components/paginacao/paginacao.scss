@@ -1,0 +1,59 @@
+// Barra de paginação das listagens
+.paginacao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.paginacao-passo {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.875rem;
+}
+
+// Sem página para ir: cursor normal, nem mãozinha nem proibido (o global
+// do .btn põe not-allowed).
+.paginacao-passo:disabled {
+  cursor: default;
+}
+
+.paginacao-paginas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.paginacao-pagina {
+  min-width: 2rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+
+  &:hover {
+    background: #f4f4f5;
+  }
+}
+
+.paginacao-pagina--ativa {
+  border-color: var(--azul);
+  background: var(--azul);
+  color: #fff;
+
+  &:hover {
+    background: var(--azul);
+  }
+}
+
+.paginacao-contagem {
+  margin: 0.5rem 0 0;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: #6b7280;
+}
