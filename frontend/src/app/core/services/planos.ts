@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { Observable, forkJoin, map, switchMap, throwError } from 'rxjs';
 import { API_ROUTES } from '../constants/api-routes';
 import { Api } from '../http/api';
@@ -31,6 +31,18 @@ import { etapasComAjuste, normalizar } from './questionario';
 export class PlanosService {
   private readonly api = inject(Api);
   private readonly auth = inject(Auth);
+
+  /**
+   * A aba escolhida na listagem de planos. Mora aqui (o service vive a sessão
+   * inteira) para quem abre um plano e volta encontrar a lista como deixou.
+   */
+  readonly filtroLista = signal<StatusQuestionario | 'todos'>('todos');
+
+  /**
+   * De quem é o `filtroLista`. O service sobrevive ao logout: sem isto, quem
+   * entra depois herda a aba da conta anterior (medido em 13/11/2026).
+   */
+  readonly donoFiltro = signal<string | null>(null);
 
   /**
    * A lista de planos; sem `status`, vêm todos. O backend não filtra e devolve
@@ -146,24 +158,6 @@ export class PlanosService {
           avaliadores,
         } satisfies DesignacaoEntrada),
     );
-  }
-
-  /**
-   * A coordenação devolve o plano sem designar ninguém. Não exige as nove
-   * etapas avaliadas: o plano rejeitado "não vai para ninguém".
-   */
-  rejeitarSemAvaliadores(email: string, justificativa: string): Observable<Questionario> {
-    return this.alterar(email, (plano, eu) => {
-      exigirAnalise(plano, eu);
-      const motivo = justificativa.trim();
-      if (!motivo) {
-        throw recusa('JUSTIFICATIVA_OBRIGATORIA');
-      }
-      return {
-        status_questionario: 'rejeitado',
-        json_questionario: comDecisao(plano.json_questionario, 'rejeitado', eu.email, motivo),
-      };
-    });
   }
 
   /**

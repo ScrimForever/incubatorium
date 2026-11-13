@@ -428,31 +428,6 @@ describe('PlanosService', () => {
       expect(falhou).toBeTrue();
     });
 
-    it('rejeitarSemAvaliadores devolve o plano com o motivo, sem designar ninguem', () => {
-      eu = admin;
-      service.rejeitarSemAvaliadores('ana@teccampos.com', '  Faltam dados.  ').subscribe();
-      http.expectOne('/api/questionario/todos').flush(planoDaAna());
-
-      const pedido = gravacao();
-      const corpo = pedido.request.body as QuestionarioEntrada;
-      expect(corpo.status_questionario).toBe('rejeitado');
-      expect(corpo.json_questionario.decisao?.justificativa).toBe('Faltam dados.');
-      http.expectNone('/api/questionario-selecionado-avaliadores');
-      ecoar(pedido);
-    });
-
-    it('rejeitarSemAvaliadores exige o motivo', () => {
-      eu = admin;
-      let erro: ApiError | undefined;
-      service
-        .rejeitarSemAvaliadores('ana@teccampos.com', '   ')
-        .subscribe({ error: (e: ApiError) => (erro = e) });
-      http.expectOne('/api/questionario/todos').flush(planoDaAna());
-
-      http.expectNone('/api/questionario/7');
-      expect(erro?.code).toBe('JUSTIFICATIVA_OBRIGATORIA');
-    });
-
     it('plano que sumiu da lista vira erro, sem gravar', () => {
       eu = avaliador;
       let erro: ApiError | undefined;

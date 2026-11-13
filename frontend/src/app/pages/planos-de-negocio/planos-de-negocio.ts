@@ -8,6 +8,7 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
 import { APP_ROUTES } from '../../core/constants/app-constants';
@@ -18,7 +19,9 @@ import { Auth } from '../../core/services/auth';
 import { PlanosService } from '../../core/services/planos';
 import { Icone } from '../../shared/components/icone/icone';
 import { DesignarAvaliadoresModal } from '../../shared/components/designar-avaliadores-modal/designar-avaliadores-modal';
+import { Paginacao } from '../../shared/components/paginacao/paginacao';
 import { Painel } from '../../shared/components/painel/painel';
+import { ToastService } from '../../core/services/toast';
 
 /**
  * Uma linha da lista. Sem e-mail à vista: quem avalia reconhece o plano pelo
@@ -34,72 +37,111 @@ interface Linha extends PlanoResumo {
   readonly proponente: string;
 }
 
+/** Planos por página na listagem. */
+const POR_PAGINA = 10;
+
 /**
  * Filtros por situação real do plano, na ordem do fluxo e com os rótulos oficiais
- * (`ROTULO_STATUS`), para a pílula e o selo dizerem a mesma coisa. `iniciado` e
- * `pendente` entram porque quem coordena precisa ver quem nem começou.
+ * (`ROTULO_STATUS`), para a aba, o selo e o rodapé do plano dizerem a mesma coisa.
  */
 const FILTROS: readonly { valor: StatusQuestionario | 'todos'; rotulo: string }[] = [
-  ...(['aguardando_aprovacao', 'rejeitado', 'aprovado', 'pendente', 'iniciado'] as const).map(
+  { valor: 'todos' as const, rotulo: 'Todos' },
+  ...(['iniciado', 'pendente', 'aguardando_aprovacao', 'aprovado', 'rejeitado'] as const).map(
     (valor) => ({ valor, rotulo: ROTULO_STATUS[valor] }),
   ),
-  { valor: 'todos' as const, rotulo: 'Todos' },
 ];
 
 @Component({
   selector: 'app-planos-de-negocio',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Painel, Icone, RouterLink, DesignarAvaliadoresModal],
+  imports: [Painel, Icone, RouterLink, DesignarAvaliadoresModal, Paginacao, ReactiveFormsModule],
   templateUrl: './planos-de-negocio.html',
   styleUrl: './planos-de-negocio.scss',
 })
 export class PlanosDeNegocio implements OnInit {
+  private readonly fb = inject(FormBuilder);
   private readonly auth = inject(Auth);
   private readonly planos = inject(PlanosService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly toast = inject(ToastService);
+
+  /** A aba ativa fica no service: sobrevive à ida ao plano e à volta. */
+  protected readonly filtro = this.planos.filtroLista;
 
   protected readonly user = signal<SessionUser | null>(null);
   protected readonly carregando = signal(true);
   protected readonly mensagemErro = signal('');
-  protected readonly filtro = signal<StatusQuestionario | 'todos'>('aguardando_aprovacao');
   protected readonly filtros = FILTROS;
   protected readonly planoSelecionado = signal<string | null>(null);
+  protected readonly busca = this.fb.nonNullable.control('');
+  private readonly termo = signal('');
 
   private readonly resumos = signal<PlanoResumo[]>([]);
 
   /** E-mail do plano cuja modal de avaliadores está aberta; nulo = fechada. */
   protected readonly designando = signal<string | null>(null);
-  /** A modal abre já no passo de rejeitar (botão Rejeitar) ou no de aprovar. */
-  protected readonly abrirRejeitando = signal(false);
 
   /** O botão de designar avaliadores é só da coordenação. */
   protected readonly ehAdmin = computed(() => this.user()?.role === 'admin');
 
-  protected readonly linhas = computed<Linha[]>(() =>
-    this.resumos().map((plano) => ({
-      ...plano,
-      rotuloStatus: ROTULO_STATUS[plano.status_questionario],
-      classeStatus: `selo selo--${plano.status_questionario}`,
-      rota: APP_ROUTES.planoDe(plano.usuario_email),
-      emAnalise: plano.status_questionario === 'aguardando_aprovacao',
-      quando: dataLegivel(plano.atualizado_em ?? plano.criado_em),
-      // Etapa 1 ainda vazia: a linha diz que falta o dado, e não um e-mail no
-      // lugar do nome.
-      negocio: plano.nome_negocio || 'Negócio sem nome',
-      proponente: plano.nome_proponente || 'Proponente não informado',
-    })),
+  protected readonly porPagina = POR_PAGINA;
+  protected readonly pagina = signal(1);
+
+  /**
+   * Mais recente primeiro, pela data de atualização (ou de criação), já com a
+   * busca aplicada (negócio, proponente ou e-mail do dono).
+   */
+  protected readonly linhas = computed<Linha[]>(() => {
+    const termo = this.termo().trim().toLowerCase();
+    return [...this.resumos()]
+      .filter((plano) => !termo || alvoDaBusca(plano).includes(termo))
+      .sort((a, b) => quando(b) - quando(a))
+      .map((plano) => ({
+        ...plano,
+        rotuloStatus: ROTULO_STATUS[plano.status_questionario],
+        classeStatus: `selo selo--${plano.status_questionario}`,
+        rota: APP_ROUTES.planoDe(plano.usuario_email),
+        emAnalise: plano.status_questionario === 'aguardando_aprovacao',
+        quando: dataLegivel(plano.atualizado_em ?? plano.criado_em),
+        // Etapa 1 ainda vazia: a linha diz que falta o dado, e não um e-mail no
+        // lugar do nome.
+        negocio: plano.nome_negocio || 'Negócio sem nome',
+        proponente: plano.nome_proponente || 'Proponente não informado',
+      }));
+  });
+
+  protected readonly totalPaginas = computed(() =>
+    Math.max(1, Math.ceil(this.linhas().length / POR_PAGINA)),
   );
 
+  /** Página corrente já presa ao total (trocar de filtro encolhe a lista). */
+  protected readonly paginaAtual = computed(() => Math.min(this.pagina(), this.totalPaginas()));
+
+  protected readonly linhasPaginadas = computed(() => {
+    const inicio = (this.paginaAtual() - 1) * POR_PAGINA;
+    return this.linhas().slice(inicio, inicio + POR_PAGINA);
+  });
+
+  protected irParaPagina(n: number): void {
+    this.pagina.set(Math.min(Math.max(1, n), this.totalPaginas()));
+  }
+
   ngOnInit(): void {
+    this.busca.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((v) => {
+      this.termo.set(v);
+      this.pagina.set(1);
+    });
+
     this.auth
       .me()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (user) => {
           this.user.set(user);
-          // Quem avalia só recebe planos aprovados e designados a ele: abrir em "Aprovado".
-          if (user.role !== 'admin') {
-            this.filtro.set('aprovado');
+          // Primeira visita desta conta: avaliador abre nos aprovados (os que ele avalia).
+          if (this.planos.donoFiltro() !== user.email) {
+            this.planos.donoFiltro.set(user.email);
+            this.filtro.set(user.role === 'avaliador' ? 'aprovado' : 'todos');
           }
           this.buscar();
         },
@@ -113,12 +155,12 @@ export class PlanosDeNegocio implements OnInit {
   protected trocarFiltro(valor: StatusQuestionario | 'todos'): void {
     if (valor !== this.filtro()) {
       this.filtro.set(valor);
+      this.pagina.set(1);
       this.buscar();
     }
   }
 
-  protected designar(email: string, rejeitar = false): void {
-    this.abrirRejeitando.set(rejeitar);
+  protected designar(email: string): void {
     this.designando.set(email);
   }
 
@@ -126,9 +168,10 @@ export class PlanosDeNegocio implements OnInit {
     this.designando.set(null);
   }
 
-  /** Aprovou ou rejeitou: a modal fecha e a lista recarrega sem o plano que saiu. */
+  /** Enviou para avaliação: a modal fecha e a lista recarrega sem o plano que saiu. */
   protected designado(): void {
     this.designando.set(null);
+    this.toast.sucesso('Plano enviado para avaliação.');
     this.buscar();
   }
 
@@ -142,6 +185,7 @@ export class PlanosDeNegocio implements OnInit {
       .subscribe({
         next: (planos) => {
           this.resumos.set(planos);
+          this.pagina.set(1);
           this.carregando.set(false);
         },
         error: (err: ApiError) => {
@@ -151,6 +195,21 @@ export class PlanosDeNegocio implements OnInit {
         },
       });
   }
+}
+
+/** O que a busca varre: nome do negócio, proponente e e-mail do dono. */
+function alvoDaBusca(plano: PlanoResumo): string {
+  return [plano.nome_negocio, plano.nome_proponente, plano.usuario_email]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+}
+
+/** Para ordenar: data de atualização, ou de criação; sem data, vai para o fim. */
+function quando(plano: PlanoResumo): number {
+  const iso = plano.atualizado_em ?? plano.criado_em;
+  const ms = iso ? new Date(iso).getTime() : NaN;
+  return Number.isNaN(ms) ? 0 : ms;
 }
 
 /** Data curta, em PT-BR; sem data, um traço — melhor que "Invalid Date". */

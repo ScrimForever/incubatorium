@@ -220,9 +220,9 @@ export type StatusQuestionario =
 export const ROTULO_STATUS: Record<StatusQuestionario, string> = {
   iniciado: 'Não iniciado',
   pendente: 'Em preenchimento',
-  aguardando_aprovacao: 'Aguardando análise',
+  aguardando_aprovacao: 'Aguardando aprovação',
   aprovado: 'Aprovado',
-  rejeitado: 'Devolvido para ajustes',
+  rejeitado: 'Devolvido',
 };
 
 /** Os dois status em que o formulário ainda está aberto para edição. */

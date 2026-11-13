@@ -11,6 +11,15 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRouteSnapshot, NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 
+import { TokenStore } from './core/auth/token-store';
+import { Toast } from './shared/components/toast/toast';
+
+/**
+ * Marca a raiz nas telas de dentro do sistema. É só o que o CSS precisa saber
+ * para reservar o lugar da barra de rolagem lá, e não nas telas de entrada.
+ */
+const CLASSE_LOGADO = 'dentro-do-sistema';
+
 /** Teclas de navegação: só elas ligam o anel de foco. Digitar texto não. */
 const TECLAS_NAVEGACAO = new Set([
   'Tab',
@@ -32,7 +41,7 @@ const TECLAS_NAVEGACAO = new Set([
 @Component({
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet],
+  imports: [RouterOutlet, Toast],
   host: {
     '(document:keydown)': 'aoTeclar($event)',
     '(document:pointerdown)': 'aoApontar()',
@@ -40,6 +49,7 @@ const TECLAS_NAVEGACAO = new Set([
   template: `
     <a class="pular-conteudo" href="#conteudo">Pular para o conteúdo</a>
     <router-outlet />
+    <app-toast />
     <p class="apenas-leitor-tela" role="status" aria-live="polite">{{ anuncio() }}</p>
   `,
 })
@@ -47,10 +57,13 @@ export class App {
   private readonly router = inject(Router);
   private readonly injector = inject(Injector);
   private readonly raiz = inject(DOCUMENT).documentElement;
+  private readonly tokens = inject(TokenStore);
 
   protected readonly anuncio = signal('');
 
   constructor() {
+    this.marcarDentroDoSistema();
+
     this.router.events
       .pipe(
         filter((evento) => evento instanceof NavigationEnd),
@@ -58,6 +71,7 @@ export class App {
       )
       .subscribe(() => {
         this.anuncio.set(this.tituloDaRota());
+        this.marcarDentroDoSistema();
         // O foco só pode mudar depois que a página nova existir no DOM. Sem
         // `preventScroll`, focar um `main` mais alto que a tela esconde a barra
         // do topo; quem põe a página no topo é o roteador (`withInMemoryScrolling`).
@@ -65,6 +79,16 @@ export class App {
           injector: this.injector,
         });
       });
+  }
+
+  /**
+   * Liga a classe que faz a barra de rolagem ficar à vista e com lugar fixo nas
+   * telas internas. O critério é haver sessão: as telas de entrada (login,
+   * registro, redefinir senha) não têm token e seguem sem barra reservada.
+   * Chamada a cada navegação, então sair do sistema também a desliga.
+   */
+  private marcarDentroDoSistema(): void {
+    this.raiz.classList.toggle(CLASSE_LOGADO, this.tokens.get() !== null);
   }
 
   /**

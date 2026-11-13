@@ -28,8 +28,8 @@
         <div>
           <strong>Não foi possível carregar a lista de usuários</strong>
           <p>
-            O servidor retornou erro ao tentar listar as contas. Verifique se a API está rodando
-            e tente recarregar a página.
+            O servidor retornou erro ao tentar listar as contas. Verifique se a API está rodando e
+            tente recarregar a página.
           </p>
         </div>
       </div>
@@ -50,7 +50,7 @@
             </button>
           }
         </div>
-        <div class="form-group lista-busca" style="flex: 1; margin: 0;">
+        <div class="form-group lista-busca" style="flex: 1; margin: 0">
           <label for="busca-usuario" class="apenas-leitor-tela">Buscar por nome ou e-mail</label>
           <input
             id="busca-usuario"
@@ -65,8 +65,11 @@
         <p class="lista-aviso" role="status">Carregando contas...</p>
       } @else if (lista().length) {
         <ul class="lista">
-          @for (usuario of lista(); track usuario.id) {
-            <li class="lista-item plano-item" [class.plano-item--ativo]="usuarioSelecionado() === usuario.id">
+          @for (usuario of listaPaginada(); track usuario.id) {
+            <li
+              class="lista-item plano-item"
+              [class.plano-item--ativo]="usuarioSelecionado() === usuario.id"
+            >
               <span class="lista-identidade">
                 <span class="lista-titulo">{{ usuario.nome || usuario.email }}</span>
                 <span class="lista-secundaria">
@@ -77,10 +80,13 @@
                 </span>
               </span>
               <span class="lista-meta">
-                <span class="selo" [class.selo--admin]="papel(usuario) === 'admin'"
-                      [class.selo--avaliador]="papel(usuario) === 'avaliador'"
-                      [class.selo--incubado]="papel(usuario) === 'incubado'"
-                      [class.selo--colaborador]="papel(usuario) === 'colaborador'">
+                <span
+                  class="selo"
+                  [class.selo--admin]="papel(usuario) === 'admin'"
+                  [class.selo--avaliador]="papel(usuario) === 'avaliador'"
+                  [class.selo--incubado]="papel(usuario) === 'incubado'"
+                  [class.selo--colaborador]="papel(usuario) === 'colaborador'"
+                >
                   {{ rotuloPapel[papel(usuario)] }}
                 </span>
               </span>
@@ -98,6 +104,14 @@
             </li>
           }
         </ul>
+
+        <app-paginacao
+          [pagina]="paginaAtual()"
+          [totalPaginas]="totalPaginas()"
+          [totalItens]="lista().length"
+          [porPagina]="porPagina"
+          (irPara)="irParaPagina($event)"
+        />
       } @else {
         <p class="lista-aviso" role="status">
           <app-icone nome="equipe" />
@@ -135,8 +149,8 @@
           Esta ação não pode ser desfeita.
         </div>
         <p>
-          A conta <strong>{{ alvoExcluir.email }}</strong> será removida do sistema junto com
-          o acesso dela.
+          A conta <strong>{{ alvoExcluir.email }}</strong> será removida do sistema junto com o
+          acesso dela.
         </p>
       </div>
 
@@ -238,7 +252,9 @@
             [formControl]="formNovo.controls.email"
             autocomplete="email"
           />
-          @if (formNovo.controls.email.touched || formNovo.controls.email.errors?.['email-duplicado']) {
+          @if (
+            formNovo.controls.email.touched || formNovo.controls.email.errors?.['email-duplicado']
+          ) {
             @if (formNovo.controls.email.hasError('required')) {
               <span class="field-error">E-mail é obrigatório.</span>
             } @else if (formNovo.controls.email.hasError('email')) {

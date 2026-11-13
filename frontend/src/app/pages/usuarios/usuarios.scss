@@ -143,29 +143,6 @@
   width: min(500px, calc(100vw - 32px));
   max-width: none;
   max-height: min(820px, calc(100dvh - 40px));
-
-  /* Scrollbar customizada - clean e menor */
-  scrollbar-width: thin;
-  scrollbar-color: var(--borda-input) transparent;
-}
-
-/* Webkit browsers (Chrome, Safari, Edge) */
-.modal--novo::-webkit-scrollbar {
-  width: 6px;
-}
-
-.modal--novo::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.modal--novo::-webkit-scrollbar-thumb {
-  background: var(--borda-input);
-  border-radius: 3px;
-  transition: background 0.2s;
-}
-
-.modal--novo::-webkit-scrollbar-thumb:hover {
-  background: var(--borda);
 }
 
 /* Perfil no header da modal de edição */

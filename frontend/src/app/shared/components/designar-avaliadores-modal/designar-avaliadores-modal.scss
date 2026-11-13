@@ -77,16 +77,52 @@
   margin-bottom: 8px;
 }
 
+/* O corpo vira coluna para as duas bandejas ocuparem a altura que sobra: como a
+   modal tem tamanho fixo, elas não mudam de tamanho quando um nome troca de lado. */
+.modal-body {
+  display: flex;
+  flex-direction: column;
+}
+
 .designar-colunas {
+  flex: 1 1 0;
+  min-height: 240px;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 16px;
+}
+
+/* Bandeja: o fundo do app delimita "de onde sai" e "para onde vai", e os cartões
+   brancos se destacam sobre ele. Continua neutro — a cor fica no ícone. */
+.designar-colunas section {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--borda-input);
+  border-radius: 10px;
+  background: var(--fundo-app);
 }
 
 .designar-colunas h3 {
-  margin-bottom: 10px;
+  flex: none;
+  padding: 12px 14px 0;
   font-size: 14px;
   color: var(--texto-suave);
+}
+
+/* Quem rola é a lista, não a modal: os dois títulos ficam sempre à vista. O
+   respiro lateral também dá espaço para o anel de foco, que a rolagem cortaria. */
+.designar-colunas .lista {
+  flex: 1 1 auto;
+  min-height: 0;
+  align-content: start;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 10px 12px 12px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-polegar) transparent;
 }
 
 /* O item aqui só tem duas colunas (texto e ícone). */
@@ -94,12 +130,58 @@
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
+/* Sobre a bandeja o cartão fica sempre branco: o cinza do hover e do item ativo
+   é o mesmo do fundo, e o cartão sumiria nele. Quem responde é o contorno. */
+.designar-colunas .lista-item,
+.designar-colunas .lista-item:hover {
+  background: var(--fundo-cartao);
+}
+
+.designar-colunas .lista-item:hover {
+  border-color: var(--borda-controle);
+}
+
+.designar-colunas .lista-item--ativo,
+.designar-colunas .lista-item--ativo:hover {
+  border-color: var(--texto-suave);
+}
+
 .designar-colunas .lista-item--ativo > app-icone {
   color: var(--sucesso-texto);
 }
 
+/* Nos escolhidos a seta volta para "disponíveis": é ação, não estado — cor neutra. */
+.designar-colunas section:last-child .lista-item--ativo > app-icone[nome='seta-esquerda'] {
+  color: var(--texto-suave);
+}
+
+/* A bandeja já é a caixa: o aviso de lista vazia dispensa o tracejado. */
+.designar-colunas .lista-aviso {
+  justify-content: center;
+  padding: 28px 12px;
+  border: none;
+  text-align: center;
+}
+
+/* Empilhadas, as bandejas têm a altura do conteúdo e quem rola é o corpo. */
 @media (max-width: 760px) {
   .designar-colunas {
+    flex: none;
+    min-height: 0;
     grid-template-columns: 1fr;
+    grid-template-rows: auto;
   }
+}
+
+/* No celular o selo e a data viram linha (regra global da lista): em duas colunas
+   eles espremiam o nome do negócio até uma letra por linha. */
+@media (max-width: 640px) {
+  .designar-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Confirmação: uma bandeja só, a mesma das duas de escolha. */
+.designar-colunas--uma {
+  grid-template-columns: minmax(0, 1fr);
 }

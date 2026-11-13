@@ -1,0 +1,37 @@
+@if (totalPaginas() > 1) {
+  <nav class="paginacao" aria-label="Paginação da lista">
+    <button
+      type="button"
+      class="btn btn--secundario paginacao-passo"
+      [disabled]="pagina() === 1"
+      (click)="irPara.emit(pagina() - 1)"
+    >
+      Anterior
+    </button>
+    <span class="paginacao-paginas">
+      @for (n of paginas(); track n) {
+        <button
+          type="button"
+          class="paginacao-pagina"
+          [class.paginacao-pagina--ativa]="pagina() === n"
+          [attr.aria-current]="pagina() === n ? 'page' : null"
+          [attr.aria-label]="'Página ' + n"
+          (click)="irPara.emit(n)"
+        >
+          {{ n }}
+        </button>
+      }
+    </span>
+    <button
+      type="button"
+      class="btn btn--secundario paginacao-passo"
+      [disabled]="pagina() === totalPaginas()"
+      (click)="irPara.emit(pagina() + 1)"
+    >
+      Próxima
+    </button>
+  </nav>
+}
+@if (intervalo()) {
+  <p class="paginacao-contagem" role="status">{{ intervalo() }}</p>
+}
