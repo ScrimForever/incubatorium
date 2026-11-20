@@ -3,15 +3,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.infra.armazenamento import ArmazenamentoLocal
 from src.infra.db import get_async_session
+from src.repository.auditoria import AuditoriaRepository
 from src.repository.consultoria import ConsultoriaRepository
 from src.repository.questionario import QuestionarioRepository
 from src.repository.usuarios import UsuariosRepository
 from src.services.arquivos.arquivos_service import ArquivosService
+from src.services.auditoria.auditoria_service import AuditoriaService
 from src.services.consultoria.agenda_service import AgendaService
 from src.services.consultoria.avisos import EnviadorDeAvisos
 from src.services.consultoria.convites import ConvitesPorEmail
 from src.services.consultoria.reserva_service import ReservaService
 from src.services.email.setup import EmailSetup
+from src.services.questionario.plano_pdf_service import PlanoPdfService
 from src.services.questionario.questionario_service import QuestionarioService
 from src.services.questionario.selecao_avaliadores_service import (
     SelecaoAvaliadoresService,
@@ -26,6 +29,12 @@ def get_questionario_service(
     return QuestionarioService(QuestionarioRepository(db))
 
 
+def get_plano_pdf_service(
+    db: AsyncSession = Depends(get_async_session),
+) -> PlanoPdfService:
+    return PlanoPdfService(QuestionarioRepository(db), UsuariosRepository(db))
+
+
 def get_selecao_avaliadores_service(
     db: AsyncSession = Depends(get_async_session),
 ) -> SelecaoAvaliadoresService:
@@ -36,8 +45,17 @@ def get_usuarios_service(
     db: AsyncSession = Depends(get_async_session),
 ) -> UsuariosService:
     return UsuariosService(
-        UsuariosRepository(db), QuestionarioRepository(db), EmailSetup()
+        UsuariosRepository(db),
+        QuestionarioRepository(db),
+        EmailSetup(),
+        AuditoriaRepository(db),
     )
+
+
+def get_auditoria_service(
+    db: AsyncSession = Depends(get_async_session),
+) -> AuditoriaService:
+    return AuditoriaService(AuditoriaRepository(db))
 
 
 def get_ativacao_service(
@@ -63,19 +81,19 @@ def get_agenda_service(
     db: AsyncSession = Depends(get_async_session),
 ) -> AgendaService:
     return AgendaService(
-        ConsultoriaRepository(db), UsuariosRepository(db), get_convites()
+        ConsultoriaRepository(db), UsuariosRepository(db), get_convites(db)
     )
 
 
 def get_reserva_service(
     db: AsyncSession = Depends(get_async_session),
 ) -> ReservaService:
-    return ReservaService(ConsultoriaRepository(db), get_convites())
+    return ReservaService(ConsultoriaRepository(db), get_convites(db))
 
 
 def get_enviador_de_avisos() -> EnviadorDeAvisos:
     return EnviadorDeAvisos(EmailSetup())
 
 
-def get_convites() -> ConvitesPorEmail:
-    return ConvitesPorEmail(get_enviador_de_avisos())
+def get_convites(db: AsyncSession) -> ConvitesPorEmail:
+    return ConvitesPorEmail(get_enviador_de_avisos(), UsuariosRepository(db))
