@@ -32,6 +32,8 @@ router.include_router(
     fastapi_users.get_users_router(UserRead, UserUpdate),
     prefix="/users",
     tags=["users"],
+    # deixa o e-mail de quem chama em `request.state`: é o autor da troca de senha
+    dependencies=[Depends(current_active_user)],
 )
 
 

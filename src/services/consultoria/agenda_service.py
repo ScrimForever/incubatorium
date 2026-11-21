@@ -109,8 +109,12 @@ class AgendaService:
             por_dia.setdefault(janela.data, []).append(
                 f"{janela.hora_inicio:%H:%M}–{janela.hora_fim:%H:%M}"
             )
-        detalhe = f"Consultor: {consultor.email}. " + "; ".join(
-            f"{dia:%d/%m/%Y}: {', '.join(faixas)}" for dia, faixas in por_dia.items()
+        detalhe = "\n".join(
+            [f"Consultor: {await self._nome(consultor.email)}"]
+            + [
+                f"{dia:%d/%m/%Y}: {', '.join(faixas)}"
+                for dia, faixas in por_dia.items()
+            ]
         )
         return [
             Aviso(
@@ -122,6 +126,9 @@ class AgendaService:
             )
             for destino in await self.usuarios.emails_incubados_ativos()
         ]
+
+    async def _nome(self, email: str) -> str:
+        return (await self.usuarios.identificacao(email))[0]
 
     async def agenda_do_consultor(self, consultor: User) -> list[ConsultoriaJanela]:
         return await self.consultoria.janelas_a_partir_de(consultor.email, hoje_local())
@@ -191,7 +198,7 @@ class AgendaService:
     ) -> tuple[int, int, list[Aviso]]:
         await self.consultoria.travar_usuario(consultor.email)
         janela = await self._janela_do_consultor(consultor, janela_id)
-        return await self._cancelar([janela])
+        return await self._cancelar(consultor, [janela])
 
     async def cancelar_dias(
         self, consultor: User, datas: list[date]
@@ -200,14 +207,16 @@ class AgendaService:
         janelas = await self.consultoria.janelas_nas_datas(consultor.email, datas)
         if not janelas:
             raise NaoEncontradoError("Nenhuma janela sua nas datas informadas.")
-        return await self._cancelar(janelas)
+        return await self._cancelar(consultor, janelas)
 
     async def _cancelar(
-        self, janelas: list[ConsultoriaJanela]
+        self, consultor: User, janelas: list[ConsultoriaJanela]
     ) -> tuple[int, int, list[Aviso]]:
+        nome = await self._nome(consultor.email)
         avisos = [
             aviso_horario(
                 h,
+                nome,
                 "Consultoria cancelada",
                 "Sua consultoria foi cancelada",
                 "O consultor cancelou o horário que você havia reservado.",
@@ -277,6 +286,7 @@ class AgendaService:
             avisos.append(
                 aviso_horario(
                     horario,
+                    await self._nome(consultor.email),
                     "Consultoria remarcada",
                     "Sua consultoria mudou de horário",
                     "O consultor alterou o horário da sua consultoria.",
@@ -294,6 +304,7 @@ class AgendaService:
             [
                 aviso_horario(
                     horario,
+                    await self._nome(consultor.email),
                     "Consultoria cancelada",
                     "Sua consultoria foi cancelada",
                     "O consultor cancelou o horário que você havia reservado.",

@@ -6,6 +6,9 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
+
+# Importar os models garante que suas tabelas estejam em Base.metadata.
+from src.domain.models.auditoria import RegistroAcesso  # noqa: F401
 from src.domain.models.base import Base
 from src.domain.models.consultoria import (  # noqa: F401
     ConsultoriaHorario,
@@ -16,8 +19,6 @@ from src.domain.models.questionario import (  # noqa: F401
     QuestionarioAvaliador,
     QuestionarioHistorico,
 )
-
-# Importar os models garante que suas tabelas estejam em Base.metadata.
 from src.domain.models.usuario import User  # noqa: F401
 from src.infra.config import settings
 

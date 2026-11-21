@@ -5,6 +5,7 @@ from sqlalchemy import select
 
 from src.domain.models.enums import SituacaoIncubacao
 from src.domain.models.questionario import Questionario, StatusEnum
+from src.repository.auditoria import AuditoriaRepository
 from src.repository.questionario import QuestionarioRepository
 from src.repository.usuarios import UsuariosRepository
 from src.services.usuarios.usuarios_service import UsuariosService
@@ -13,7 +14,10 @@ from src.shared.exceptions import ConflitoError, NaoEncontradoError
 
 def _service(async_db) -> UsuariosService:
     return UsuariosService(
-        UsuariosRepository(async_db), QuestionarioRepository(async_db), AsyncMock()
+        UsuariosRepository(async_db),
+        QuestionarioRepository(async_db),
+        AsyncMock(),
+        AuditoriaRepository(async_db),
     )
 
 

@@ -1,11 +1,14 @@
 import secrets
 
 from fastapi_users.password import PasswordHelper
+from src.domain.models.auditoria import EventoAcesso, MotivoAcesso
 from src.domain.models.enums import SituacaoIncubacao
 from src.domain.models.questionario import Questionario, StatusEnum
 from src.domain.models.usuario import User
+from src.domain.schemas.auditoria_schema import OrigemRequisicao
 from src.domain.schemas.user_schema import UsuarioCriar, UsuarioEditar
 from src.logger import logger
+from src.repository.auditoria import AuditoriaRepository
 from src.repository.questionario import QuestionarioRepository
 from src.repository.usuarios import UsuariosRepository
 from src.services.contratos import EmailDeCadastro
@@ -21,10 +24,12 @@ class UsuariosService:
         usuarios: UsuariosRepository,
         questionarios: QuestionarioRepository,
         email: EmailDeCadastro,
+        auditoria: AuditoriaRepository,
     ):
         self.usuarios = usuarios
         self.questionarios = questionarios
         self.email = email
+        self.auditoria = auditoria
 
     async def plano(self, email: str) -> Questionario:
         plano = await self.questionarios.buscar(email)
@@ -78,11 +83,16 @@ class UsuariosService:
         return usuario
 
     async def editar(
-        self, administrador: User, email: str, corpo: UsuarioEditar
+        self,
+        administrador: User,
+        email: str,
+        corpo: UsuarioEditar,
+        origem: OrigemRequisicao = OrigemRequisicao(),
     ) -> User:
         """Aplica só os campos enviados. Incubado ativo sem questionário ganha o inicial.
 
         Ativar manualmente (`is_active=True`) descarta o código de ativação pendente.
+        Troca de senha entra no histórico de acesso na mesma transação.
         """
         usuario = await self.usuarios.buscar_por_email(email)
         if usuario is None:
@@ -100,6 +110,14 @@ class UsuariosService:
                 setattr(usuario, campo, getattr(corpo, campo))
         if corpo.password is not None:
             usuario.hashed_password = PasswordHelper().hash(corpo.password)
+            self.auditoria.registrar(
+                EventoAcesso.senha_alterada,
+                usuario.email,
+                origem,
+                usuario=usuario,
+                motivo=MotivoAcesso.administrador,
+                autor_email=administrador.email,
+            )
         if perfis:
             for campo in ("is_admin", "is_colaborador", "is_consultor", "is_incubado"):
                 setattr(usuario, campo, perfis.get(campo, False))
