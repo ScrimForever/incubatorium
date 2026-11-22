@@ -16,6 +16,9 @@ repo_root = str(Path(__file__).resolve().parents[2])
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
+# Testes nunca enviam ao Sentry, mesmo com SENTRY_DSN no `.env.development.local`.
+os.environ["SENTRY_DSN"] = ""
+
 # Now import all modules we need
 from src.domain.models import (
     auditoria,  # noqa: F401

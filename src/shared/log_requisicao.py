@@ -1,9 +1,9 @@
 """Uma linha de log por requisição: método, rota, status, duração, usuário logado e `trace_id`
-(o mesmo do trace no SigNoz, para seguir o caminho da requisição)."""
+(o mesmo do trace no Sentry, para seguir o caminho da requisição)."""
 
 import time
 
-from opentelemetry import trace
+import sentry_sdk
 from src.logger import logger
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -34,11 +34,11 @@ class LogRequisicaoMiddleware:
     @staticmethod
     def _registrar(scope: Scope, status: int, ms: float) -> None:
         usuario = scope.get("state", {}).get("usuario_email") or "anonimo"
-        span = trace.get_current_span()
-        contexto = span.get_span_context()
-        trace_id = f"{contexto.trace_id:032x}" if contexto.is_valid else "-"
-        if span.is_recording():
-            span.set_attribute("enduser.id", usuario)
+        trace_id = (
+            sentry_sdk.get_current_scope().get_active_propagation_context().trace_id
+            if sentry_sdk.is_initialized()
+            else "-"
+        )
         metodo, rota = scope["method"], scope["path"]
         nivel = "ERROR" if status >= 500 else "WARNING" if status >= 400 else "INFO"
         logger.bind(
