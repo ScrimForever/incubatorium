@@ -5,6 +5,7 @@ from datetime import date, time, timedelta
 import pytest
 
 from src.domain.models.consultoria import ConsultoriaHorario, ConsultoriaJanela
+from src.domain.models.questionario import Questionario, StatusEnum
 from src.repository.consultoria import ConsultoriaRepository
 from src.repository.usuarios import UsuariosRepository
 from src.services.consultoria.lembrete_service import LembreteService
@@ -92,6 +93,15 @@ async def test_sem_pendentes_ninguem_e_avisado(async_db, service, cenario):
 @pytest.mark.asyncio
 async def test_consultor_e_lembrado_uma_vez_6h_antes(async_db, service, cenario):
     janela, ana, *_ = cenario
+    ana.nome, ana.sobrenome = "Ana", "Souza"
+    async_db.add(
+        Questionario(
+            usuario_email=ana.email,
+            status_questionario=StatusEnum.iniciado,
+            json_questionario={"1": {"nome_negocio": "NutriData"}},
+            criado_por=ana.email,
+        )
+    )
     await _reservar(async_db, janela, ana, 0)  # 10h do dia 20
     inicio = janela.horarios[0].inicio
 
@@ -101,6 +111,8 @@ async def test_consultor_e_lembrado_uma_vez_6h_antes(async_db, service, cenario)
         inicio - timedelta(hours=5, minutes=50)
     )
     assert [a.email for a in avisos] == ["cons@example.com"]
-    assert "ana@example.com" in avisos[0].detalhe
+    linhas = avisos[0].detalhe.split("\n")
+    assert linhas[:2] == ["Incubado: Ana Souza", "Empresa: NutriData"]
+    assert linhas[2].startswith("Horário: ")
 
     assert await service.lembretes_ao_consultor(inicio - timedelta(hours=5)) == []

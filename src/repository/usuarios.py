@@ -14,6 +14,37 @@ class UsuariosRepository(Repositorio):
         resultado = await self.db.execute(select(User).where(User.email == email))
         return resultado.scalar_one_or_none()
 
+    async def identificacao(self, email: str) -> tuple[str, str | None]:
+        return (await self.identificacoes([email]))[email]
+
+    async def identificacoes(
+        self, emails: list[str]
+    ) -> dict[str, tuple[str, str | None]]:
+        """Por e-mail: nome de exibição (nome completo, senão o proponente do plano,
+        senão o próprio e-mail) e o nome do negócio do plano de negócio, quando houver."""
+        linhas = (
+            await self.db.execute(
+                select(
+                    User.email,
+                    User.nome,
+                    User.sobrenome,
+                    Questionario.json_questionario,
+                )
+                .outerjoin(Questionario, Questionario.usuario_email == User.email)
+                .where(User.email.in_(set(emails)))
+            )
+        ).all()
+        resultado = {email: (email, None) for email in emails}
+        for email, nome, sobrenome, plano in linhas:
+            etapa1 = (plano.get("1") or {}) if isinstance(plano, dict) else {}
+            completo = " ".join(p.strip() for p in (nome, sobrenome) if p and p.strip())
+            exibicao = (
+                completo or (etapa1.get("nome_proponente") or "").strip() or email
+            )
+            empresa = (etapa1.get("nome_negocio") or "").strip() or None
+            resultado[email] = (exibicao, empresa)
+        return resultado
+
     async def buscar_por_id(self, user_id) -> User | None:
         return await self.db.get(User, user_id)
 

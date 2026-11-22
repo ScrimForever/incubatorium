@@ -18,19 +18,25 @@ class Aviso:
     convite_ics: str = ""
 
 
+def linhas_incubado(nome: str, empresa: str | None) -> list[str]:
+    """Identificação do incubado no detalhe dos e-mails, uma informação por linha."""
+    return [f"Incubado: {nome}"] + ([f"Empresa: {empresa}"] if empresa else [])
+
+
 def aviso_horario(
-    horario: ConsultoriaHorario, assunto: str, titulo: str, mensagem: str
+    horario: ConsultoriaHorario,
+    consultor: str,
+    assunto: str,
+    titulo: str,
+    mensagem: str,
 ) -> Aviso:
-    """Aviso ao incubado que reservou `horario`."""
+    """Aviso ao incubado que reservou `horario`; `consultor` é o nome de exibição."""
     return Aviso(
         email=horario.incubado_email,
         assunto=assunto,
         titulo=titulo,
         mensagem=mensagem,
-        detalhe=(
-            f"Consultor: {horario.consultor_email}. "
-            f"Horário: {formatar_local(horario.inicio)}."
-        ),
+        detalhe=f"Consultor: {consultor}\nHorário: {formatar_local(horario.inicio)}",
     )
 
 

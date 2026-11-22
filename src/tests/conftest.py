@@ -17,7 +17,10 @@ if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
 
 # Now import all modules we need
-from src.domain.models import consultoria  # noqa: F401  (registra as tabelas)
+from src.domain.models import (
+    auditoria,  # noqa: F401
+    consultoria,  # noqa: F401  (registra as tabelas)
+)
 from src.domain.models.base import Base
 from src.domain.models.usuario import User
 

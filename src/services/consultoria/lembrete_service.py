@@ -3,7 +3,7 @@ from datetime import date, datetime, time, timedelta
 
 from src.repository.consultoria import ConsultoriaRepository
 from src.repository.usuarios import UsuariosRepository
-from src.services.consultoria.avisos import Aviso
+from src.services.consultoria.avisos import Aviso, linhas_incubado
 from src.shared.datas import agora, formatar_local, para_utc
 
 # Quantos dias antes do fim da agenda do consultor os lembretes começam.
@@ -48,6 +48,13 @@ class LembreteService:
             for consultor in em_aviso
         }
 
+        pessoas = await self.usuarios.identificacoes(
+            list(em_aviso) + [i for c in em_aviso for i in pendentes[c]]
+        )
+
+        def nome(email: str) -> str:
+            return pessoas[email][0]
+
         avisos = []
         for incubado in incubados:
             devidos = [c for c in em_aviso if incubado in pendentes[c]]
@@ -61,17 +68,26 @@ class LembreteService:
                             "A agenda de consultoria deste mês está acabando e você ainda "
                             "não reservou um horário. Acesse a plataforma e agende."
                         ),
-                        detalhe="; ".join(
-                            f"Consultor: {c}, agenda até {em_aviso[c]:%d/%m/%Y}"
+                        detalhe="\n".join(
+                            f"Consultor: {nome(c)} (agenda até {em_aviso[c]:%d/%m/%Y})"
                             for c in devidos
                         ),
                     )
                 )
         com_pendencia = [c for c in em_aviso if pendentes[c]]
         if com_pendencia:
-            detalhe = " | ".join(
-                f"Consultor {c} (agenda até {em_aviso[c]:%d/%m/%Y}), sem agendamento: "
-                + ", ".join(pendentes[c])
+            detalhe = "\n\n".join(
+                "\n".join(
+                    [
+                        f"Consultor: {nome(c)} (agenda até {em_aviso[c]:%d/%m/%Y})",
+                        "Sem agendamento:",
+                    ]
+                    + [
+                        linha
+                        for i in pendentes[c]
+                        for linha in linhas_incubado(*pessoas[i])
+                    ]
+                )
                 for c in com_pendencia
             )
             avisos += [
@@ -99,6 +115,10 @@ class LembreteService:
         for horario in horarios:
             horario.lembrete_consultor_em = agora_
         await self.consultoria.salvar()
+        pessoas = await self.usuarios.identificacoes(
+            [h.incubado_email for h in horarios]
+        )
+
         return [
             Aviso(
                 email=h.consultor_email,
@@ -108,8 +128,11 @@ class LembreteService:
                     f"Um incubado reservou horário com você e a consultoria começa "
                     f"em até {HORAS_DE_ANTECEDENCIA_CONSULTOR} horas."
                 ),
-                detalhe=(
-                    f"Incubado: {h.incubado_email}. Horário: {formatar_local(h.inicio)}."
+                detalhe="\n".join(
+                    [
+                        *linhas_incubado(*pessoas[h.incubado_email]),
+                        f"Horário: {formatar_local(h.inicio)}",
+                    ]
                 ),
             )
             for h in horarios

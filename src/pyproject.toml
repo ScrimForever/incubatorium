@@ -6,14 +6,14 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "asyncpg>=0.31.0",
-    "fastapi[standard]>=0.162.0",
+    "fastapi[standard]>=0.162.7",
     "fastapi-users[sqlalchemy]>=15.0.5",
     "pydantic>=2.13.5",
-    "pydantic-settings>=2.15.0",
+    "pydantic-settings>=2.16.3",
     "sqlalchemy>=2.0.52",
     "uvicorn>=0.52.4",
-    "resend>=2.42.0",
-    "loguru>=0.7.3",
+    "resend>=2.54.0",
+    "loguru>=0.8.0",
     "jinja2>=3.1.6",
     "alembic>=1.19.2",
     "aiofiles>=25.1.0",
@@ -22,14 +22,16 @@ dependencies = [
     "opentelemetry-instrumentation-fastapi>=0.66b1",
     "opentelemetry-instrumentation-sqlalchemy>=0.66b1",
     "opentelemetry-instrumentation-asyncpg>=0.66b1",
+    "fpdf2>=2.9.0",
 ]
 
 [dependency-groups]
 test = [
-    "pytest-asyncio>=1.4.0",
+    "pytest-asyncio>=1.5.0",
     "pytest-cov>=7.1.0",
     "pytest-mock>=3.17.0",
     "aiosqlite>=0.22.1",
+    "pypdf>=7.0.1",
 ]
 dev = [
     {include-group = "test"},

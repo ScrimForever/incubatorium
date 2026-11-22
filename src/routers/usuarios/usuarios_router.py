@@ -1,6 +1,6 @@
 from typing import Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
 from src.domain.models.enums import SituacaoIncubacao
 from src.domain.models.usuario import User
@@ -23,6 +23,7 @@ from src.shared.permissoes import (
     gestor_incubados,
     somente_admin,
 )
+from src.shared.requisicao import origem_da_requisicao
 
 router = APIRouter(prefix="/usuarios", tags=["usuarios"])
 
@@ -50,11 +51,12 @@ async def listar_todos_usuarios(
 async def editar_usuario(
     email: str,
     corpo: UsuarioEditar,
+    request: Request,
     admin: User = Depends(somente_admin),
     service: UsuariosService = Depends(get_usuarios_service),
 ):
     """Edita dados, senha, status e perfil de uma conta. Restrito a admins."""
-    return await service.editar(admin, email, corpo)
+    return await service.editar(admin, email, corpo, origem_da_requisicao(request))
 
 
 @router.get("", response_model=list[IncubadoResumo])

@@ -4,7 +4,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from src.domain.models.consultoria import ConsultoriaHorario
-from src.services.consultoria.avisos import Aviso, EnviadorDeAvisos
+from src.repository.usuarios import UsuariosRepository
+from src.services.consultoria.avisos import Aviso, EnviadorDeAvisos, linhas_incubado
 from src.shared.datas import como_utc, formatar_local
 
 SALA_BASE = "https://meet.jit.si/tec-campos-"
@@ -83,8 +84,9 @@ class ConvitesPorEmail:
     """Envia o .ics da consultoria ao consultor e ao incubado; o Gmail de cada um o
     mostra como convite e o coloca na agenda. Falhas de envio não afetam a reserva."""
 
-    def __init__(self, enviador: EnviadorDeAvisos):
+    def __init__(self, enviador: EnviadorDeAvisos, usuarios: UsuariosRepository):
         self.enviador = enviador
+        self.usuarios = usuarios
 
     async def convidar(self, reuniao: Reuniao) -> None:
         await self._enviar(
@@ -108,9 +110,11 @@ class ConvitesPorEmail:
         self, reuniao: Reuniao, metodo: str, assunto: str, titulo: str, mensagem: str
     ) -> None:
         ics = montar_ics(reuniao, metodo)
-        detalhe = (
-            f"Consultor: {reuniao.consultor}. Incubado: {reuniao.incubado}. "
-            f"Horário: {formatar_local(reuniao.inicio)}. Sala: {reuniao.link}"
+        consultor, _ = await self.usuarios.identificacao(reuniao.consultor)
+        incubado, empresa = await self.usuarios.identificacao(reuniao.incubado)
+        detalhe = "\n".join(
+            [f"Consultor: {consultor}", *linhas_incubado(incubado, empresa)]
+            + [f"Horário: {formatar_local(reuniao.inicio)}", f"Sala: {reuniao.link}"]
         )
         await self.enviador.enviar(
             [

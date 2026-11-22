@@ -55,8 +55,8 @@ async def test_simulacao_agenda_reservas_e_lembretes(async_db, criar_usuario):
     caixa = Caixa()
     enviador = EnviadorDeAvisos(caixa)
     repo, usuarios = ConsultoriaRepository(async_db), UsuariosRepository(async_db)
-    agenda = AgendaService(repo, usuarios, ConvitesPorEmail(enviador))
-    reservas = ReservaService(repo, ConvitesPorEmail(enviador))
+    agenda = AgendaService(repo, usuarios, ConvitesPorEmail(enviador, usuarios))
+    reservas = ReservaService(repo, ConvitesPorEmail(enviador, usuarios))
     lembretes = LembreteService(repo, usuarios)
 
     consultor = await criar_usuario("consultor", "cons@example.com")

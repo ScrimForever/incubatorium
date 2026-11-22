@@ -5,7 +5,9 @@ from datetime import UTC, date, datetime, time, timedelta
 import pytest
 
 from src.domain.models.consultoria import ConsultoriaHorario, ConsultoriaJanela
+from src.domain.models.questionario import Questionario, StatusEnum
 from src.repository.consultoria import ConsultoriaRepository
+from src.repository.usuarios import UsuariosRepository
 from src.services.consultoria.avisos import EnviadorDeAvisos
 from src.services.consultoria.convites import (
     ConvitesPorEmail,
@@ -95,15 +97,29 @@ def test_ics_traz_convite_para_os_dois_e_cancelamento():
 
 
 @pytest.mark.asyncio
-async def test_convite_vai_por_email_para_consultor_e_incubado():
+async def test_convite_vai_por_email_para_consultor_e_incubado(async_db, criar_usuario):
     enviados = []
 
     class Notificador:
         async def enviar_notificacao(
             self, email, assunto, titulo, mensagem, detalhe="", convite_ics=""
         ):
-            enviados.append((email, convite_ics))
+            enviados.append((email, detalhe, convite_ics))
             return True
+
+    consultor = await criar_usuario("consultor", "cons@example.com")
+    consultor.nome, consultor.sobrenome = "Carlos", "Lima"
+    incubado = await criar_usuario("incubado", "ana@example.com")
+    incubado.nome, incubado.sobrenome = "Ana", "Souza"
+    async_db.add(
+        Questionario(
+            usuario_email=incubado.email,
+            status_questionario=StatusEnum.iniciado,
+            json_questionario={"1": {"nome_negocio": "NutriData"}},
+            criado_por=incubado.email,
+        )
+    )
+    await async_db.commit()
 
     reuniao = Reuniao(
         "abc",
@@ -112,7 +128,16 @@ async def test_convite_vai_por_email_para_consultor_e_incubado():
         datetime(2026, 11, 10, 13, 0, tzinfo=UTC),
         datetime(2026, 11, 10, 14, 0, tzinfo=UTC),
     )
-    await ConvitesPorEmail(EnviadorDeAvisos(Notificador())).convidar(reuniao)
+    await ConvitesPorEmail(
+        EnviadorDeAvisos(Notificador()), UsuariosRepository(async_db)
+    ).convidar(reuniao)
 
-    assert [e for e, _ in enviados] == ["cons@example.com", "ana@example.com"]
-    assert all("METHOD:REQUEST" in ics for _, ics in enviados)
+    assert [e for e, _, _ in enviados] == ["cons@example.com", "ana@example.com"]
+    assert all("METHOD:REQUEST" in ics for _, _, ics in enviados)
+    linhas = enviados[0][1].split("\n")
+    assert linhas[:3] == [
+        "Consultor: Carlos Lima",
+        "Incubado: Ana Souza",
+        "Empresa: NutriData",
+    ]
+    assert linhas[3].startswith("Horário: ") and linhas[4].startswith("Sala: ")
