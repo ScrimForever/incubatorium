@@ -2,6 +2,13 @@
 
 APP := docker compose -f docker-compose.yml
 
+# Linux/macOS: containers rodam com o seu UID/GID, então logs/__pycache__ criados
+# no bind mount ficam com o seu dono. No Windows (Docker Desktop) roda como root.
+ifneq ($(OS),Windows_NT)
+export APP_UID ?= $(shell id -u)
+export APP_GID ?= $(shell id -g)
+endif
+
 .DEFAULT_GOAL := help
 .PHONY: help up down restart ps logs test clean
 
