@@ -22,8 +22,10 @@ export const API_ROUTES = {
     me: '/users/me',
     /** Listagem de todos os usuários — `GET /usuarios/todos` (real desde 11/11/2026). */
     lista: '/usuarios/todos',
-    /** PATCH para editar (nome/sobrenome/telefone) — usa email, não id (`PATCH /usuarios/{email}`). */
+    /** `PATCH /usuarios/{email}`: nome, sobrenome, telefone, senha, ativa e perfil. Só PATCH. */
     porEmail: (email: string): string => `/usuarios/${encodeURIComponent(email)}`,
+    /** `DELETE /users/{id}` (fastapi-users): exclusão, só superusuário. */
+    porId: (id: string): string => `/users/${encodeURIComponent(id)}`,
   },
   /**
    * Criação de conta pelo admin (`POST /usuarios`, `eb66f85`). A rota `/usuarios`

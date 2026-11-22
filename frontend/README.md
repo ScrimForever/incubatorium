@@ -50,6 +50,18 @@ npm run test:ci
 
 `test:ci` roda o Karma em Chrome headless, sem watch.
 
+### Testes de ponta a ponta (Playwright)
+
+Precisam da API no Docker e do Chrome instalado na máquina.
+
+```bash
+npm run e2e      # roda tudo; sobe o npm start se ele não estiver no ar
+npm run e2e:ui   # modo visual, para depurar
+```
+
+`e2e/massa.ts` cria pela API as contas e o plano de cada fluxo; no fim,
+`e2e/limpeza.ts` apaga toda conta `pw.*`.
+
 ## Telas
 
 | Rota | Tela | Acesso |

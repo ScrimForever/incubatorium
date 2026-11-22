@@ -143,10 +143,28 @@ describe('errorInterceptor', () => {
     expect(capturar(503, {}).code).toBe('OFFLINE');
   });
 
-  it('cai em UNKNOWN quando o detail não é conhecido', () => {
+  it('código desconhecido mantém o código e mostra a frase do status', () => {
     const erro = capturar(400, { detail: 'ALGO_NOVO' });
     expect(erro.code).toBe('ALGO_NOVO');
-    expect(erro.message).toBe('Não foi possível concluir. Tente novamente.');
+    expect(erro.message).toBe('O servidor recusou o pedido. Confira os dados e tente de novo.');
+  });
+
+  it('405 nunca chega em inglês à tela', () => {
+    const erro = capturar(405, { detail: 'Method Not Allowed' });
+    expect(erro.code).toBe('METHOD_NOT_ALLOWED');
+    expect(erro.message).toBe('Esta operação não está disponível na API.');
+  });
+
+  it('403 genérico do fastapi-users ("Forbidden") vira frase em português', () => {
+    const erro = capturar(403, { detail: 'Forbidden' });
+    expect(erro.code).toBe('FORBIDDEN');
+    expect(erro.message).toBe('Você não tem permissão para esta operação.');
+  });
+
+  it('500 sem corpo vira SERVER_ERROR', () => {
+    const erro = capturar(500, {});
+    expect(erro.code).toBe('SERVER_ERROR');
+    expect(erro.message).toContain('O servidor falhou');
   });
 
   it('no 401 encerra a sessão e manda para o login', () => {

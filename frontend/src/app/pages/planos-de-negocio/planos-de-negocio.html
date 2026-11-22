@@ -5,24 +5,27 @@
       @if (ehAdmin()) {
         Envie os planos aguardando aprovação para os avaliadores que você escolher.
       } @else {
-        Planos aprovados em que você foi designado. A sua nota entra etapa por etapa.
+        Planos em que você foi designado. Dê a sua nota etapa por etapa e, se faltar algo, peça
+        ajuste.
       }
     </p>
 
     <div class="lista-barra">
-      <div class="filtros" role="group" aria-label="Filtrar por situação">
-        @for (opcao of filtros; track opcao.valor) {
-          <button
-            type="button"
-            class="filtro"
-            [class.filtro--ativo]="filtro() === opcao.valor"
-            [attr.aria-pressed]="filtro() === opcao.valor"
-            (click)="trocarFiltro(opcao.valor)"
-          >
-            {{ opcao.rotulo }}
-          </button>
-        }
-      </div>
+      @if (mostraFiltros()) {
+        <div class="filtros" role="group" aria-label="Filtrar por situação">
+          @for (opcao of filtros; track opcao.valor) {
+            <button
+              type="button"
+              class="filtro"
+              [class.filtro--ativo]="filtro() === opcao.valor"
+              [attr.aria-pressed]="filtro() === opcao.valor"
+              (click)="trocarFiltro(opcao.valor)"
+            >
+              {{ opcao.rotulo }}
+            </button>
+          }
+        </div>
+      }
       <div class="form-group lista-busca" style="flex: 1; margin: 0">
         <label for="busca-plano" class="apenas-leitor-tela">
           Buscar por negócio, proponente ou e-mail

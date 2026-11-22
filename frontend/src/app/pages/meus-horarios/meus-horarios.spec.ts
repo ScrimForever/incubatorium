@@ -65,6 +65,8 @@ describe('MeusHorarios', () => {
   beforeEach(async () => {
     localStorage.clear();
     localStorage.setItem('bearerToken', 'token-jwt');
+    // O tour da primeira visita troca a visão; não é o assunto destes testes.
+    localStorage.setItem('tour-visto:meus-horarios-calendario', '1');
     await TestBed.configureTestingModule({
       imports: [MeusHorarios],
       providers: [
@@ -101,34 +103,47 @@ describe('MeusHorarios', () => {
   }
 
   const el = (): HTMLElement => fixture.nativeElement;
-  const textos = (seletor: string): string[] =>
-    Array.from(el().querySelectorAll(seletor)).map((e) => (e.textContent ?? '').trim());
 
-  it('mostra os dias do mês na faixa e o primeiro já aberto, com as faixas', () => {
-    carregar();
-    const dias = textos('.faixa-dia');
-    expect(dias.length).toBe(2);
-    expect(dias[0]).toContain('1 reserva');
-    expect(dias[1]).toContain('1 livre');
+  /** A tela abre direto no calendário do primeiro mês com agenda (desde 04/11/2026). */
+  const casas = (): HTMLButtonElement[] =>
+    Array.from(el().querySelectorAll<HTMLButtonElement>('.horarios-mes-casa--agenda'));
 
-    const cartao = textos('.horarios-dia-linha');
-    expect(cartao.length).toBe(1);
-    expect(cartao[0]).toContain('1 reservado');
-    expect(cartao[0]).toContain('2 horários · 1 livre');
-    expect(el().querySelector('.horarios-detalhe')).not.toBeNull();
-    expect(el().querySelector('.horarios-alternar')).toBeNull();
-  });
-
-  it('o dia clicado na faixa troca o cartão', () => {
-    carregar();
-    (el().querySelectorAll('.faixa-dia')[1] as HTMLButtonElement).click();
+  function abrirDia(indice: number): void {
+    casas()[indice].click();
     fixture.detectChanges();
-    expect(textos('.horarios-dia-linha')[0]).toContain('Sem reserva');
+  }
+
+  it('abre no calendário do primeiro mês com agenda, com os dias marcados', () => {
+    carregar();
+    expect(el().querySelector('.horarios-mes-titulo')?.textContent).toContain('Janeiro de 2099');
+    expect(casas().length).toBe(2);
+    expect(casas()[0].classList).toContain('horarios-mes-casa--reservas');
+    expect(casas()[0].textContent).toContain('1 de 2 reservados');
+    expect(casas()[1].textContent).toContain('1 livres');
+    expect(el().querySelector('#horarios-dia-escolhido')).toBeNull();
   });
 
-  it('tem uma aba por mês da agenda, só com o nome', () => {
+  it('o dia clicado abre as faixas abaixo da grade, e o segundo clique fecha', () => {
     carregar();
-    expect(textos('.filtro')).toEqual(['jan/99']);
+    abrirDia(1);
+    const dia = el().querySelector('#horarios-dia-escolhido');
+    expect(dia?.textContent).toContain('Cancelar dia');
+    expect(dia?.textContent).toContain('Sem reserva');
+    expect(el().querySelectorAll('#horarios-dia-escolhido .horarios-faixa').length).toBe(1);
+
+    abrirDia(1);
+    expect(el().querySelector('#horarios-dia-escolhido')).toBeNull();
+  });
+
+  it('as setas trocam o mês, e mês sem agenda diz isso', () => {
+    carregar();
+    (el().querySelector('[aria-label="Próximo mês"]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(el().querySelector('.horarios-mes-titulo')?.textContent).toContain('Fevereiro de 2099');
+    expect(casas().length).toBe(0);
+    expect(el().querySelector('.horarios-mes-vazio')?.textContent).toContain(
+      'Nenhum dia da agenda neste mês.',
+    );
   });
 
   it('vindo de Abrir agenda, avisa o sucesso e tira o parâmetro da URL', () => {
@@ -142,35 +157,9 @@ describe('MeusHorarios', () => {
     );
   });
 
-  it('o ícone de calendário mostra o mês, e o dia clicado abre as faixas abaixo', () => {
-    carregar();
-    (el().querySelector('[aria-label="Ver em calendário"]') as HTMLButtonElement).click();
-    (fixture.componentInstance as unknown as { mes: { set(v: string): void } }).mes.set(
-      '2099-01-01',
-    );
-    fixture.detectChanges();
-
-    expect(el().querySelector('.lista')).toBeNull();
-    expect(el().querySelector('.horarios-mes-titulo')?.textContent).toContain('Janeiro de 2099');
-    const dias = el().querySelectorAll<HTMLButtonElement>('.horarios-mes-casa--agenda');
-    expect(dias.length).toBe(2);
-    expect(dias[0].classList).toContain('horarios-mes-casa--reservas');
-
-    dias[1].click();
-    fixture.detectChanges();
-    expect(el().querySelector('#horarios-dia-escolhido')?.textContent).toContain('Cancelar dia');
-    expect(el().querySelectorAll('#horarios-dia-escolhido .horarios-faixa').length).toBe(1);
-  });
-
-  it('lembra a visão escolhida na próxima visita', () => {
-    carregar();
-    (el().querySelector('[aria-label="Ver em calendário"]') as HTMLButtonElement).click();
-    expect(localStorage.getItem('meus-horarios:visao')).toBe('calendario');
-  });
-
   it('remarcar fora da faixa não chega ao servidor', () => {
     carregar();
-    // O primeiro dia do mês já vem aberto: o chip reservado está à vista.
+    abrirDia(0);
     (el().querySelector('.horarios-chip-acao') as HTMLButtonElement).click();
     fixture.detectChanges();
 

@@ -215,7 +215,7 @@ export class DesignarAvaliadoresModal implements OnInit {
       return;
     }
     this.enviar(
-      this.planos.aprovarComAvaliadores(
+      this.planos.designar(
         this.email(),
         avaliadores.map((a) => a.email),
       ),
@@ -315,7 +315,7 @@ export class DesignarAvaliadoresModal implements OnInit {
     };
   }
 
-  private enviar(chamada: Observable<Questionario>): void {
+  private enviar(chamada: Observable<unknown>): void {
     this.enviando.set(true);
     this.mensagemErro.set('');
     chamada.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({

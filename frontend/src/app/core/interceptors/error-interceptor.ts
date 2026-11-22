@@ -99,15 +99,44 @@ function normalize(error: unknown, url: string): ApiError {
   }
 
   const codigo = code ?? CODIGO_POR_STATUS[error.status] ?? 'UNKNOWN';
+  // "Forbidden", "Method Not Allowed"...: o texto padrão do HTTP em inglês não
+  // vai para a tela — no lugar dele, a frase do status em português.
+  const motivo = reason && !RAZAO_PADRAO_HTTP.has(reason) ? reason : undefined;
   return {
     code: codigo,
-    message: MESSAGES[codigo] ?? reason ?? 'Não foi possível concluir. Tente novamente.',
+    message:
+      MESSAGES[codigo] ??
+      motivo ??
+      MENSAGEM_POR_STATUS[error.status] ??
+      'Não foi possível concluir. Tente novamente.',
   };
 }
 
+/** Frases genéricas que o Starlette/fastapi-users devolvem no `detail`. */
+const RAZAO_PADRAO_HTTP = new Set([
+  'Bad Request',
+  'Forbidden',
+  'Method Not Allowed',
+  'Internal Server Error',
+  'Unprocessable Entity',
+  'Conflict',
+]);
+
+/** Quando a API não diz o motivo (ou diz só o nome do status em inglês). */
+const MENSAGEM_POR_STATUS: Record<number, string> = {
+  400: 'O servidor recusou o pedido. Confira os dados e tente de novo.',
+  403: 'Você não tem permissão para esta operação.',
+  405: 'Esta operação não está disponível na API.',
+  409: 'A operação conflita com o estado atual. Recarregue a página e tente de novo.',
+  500: 'O servidor falhou ao processar o pedido. Tente novamente em instantes.',
+};
+
 /** Código para quando a API recusa com frase pronta, sem código próprio. */
 const CODIGO_POR_STATUS: Record<number, string> = {
+  400: 'BAD_REQUEST',
   403: 'FORBIDDEN',
+  405: 'METHOD_NOT_ALLOWED',
+  500: 'SERVER_ERROR',
   409: 'CONFLICT',
   422: 'UNPROCESSABLE',
 };

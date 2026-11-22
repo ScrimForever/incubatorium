@@ -4,7 +4,7 @@ import { API_ROUTES } from '../constants/api-routes';
 import { Api } from '../http/api';
 import { ApiError, SessionUser } from '../models/auth';
 import { Avaliador, DesignacaoEntrada } from '../models/avaliador';
-import { AjusteEntrada, DecisaoEntrada, NotaEntrada, PlanoResumo } from '../models/plano';
+import { AjusteEntrada, NotaEntrada, PlanoResumo } from '../models/plano';
 import {
   ChaveEtapa,
   ETAPAS_COM_AJUSTE,
@@ -101,29 +101,24 @@ export class PlanosService {
   }
 
   /**
-   * Aprova ou devolve o plano — só a coordenação, com as nove etapas avaliadas.
-   * Única escrita que muda o status para `aprovado` ou `rejeitado`.
+   * A coordenação devolve o plano em análise, com motivo, sem esperar nota:
+   * as notas só existem depois da aprovação, quando os designados avaliam.
    */
-  decidir(email: string, decisao: DecisaoEntrada): Observable<Questionario> {
+  devolver(email: string, motivo: string): Observable<Questionario> {
     return this.alterar(email, (plano, eu) => {
-      if (eu.role !== 'admin') {
-        throw recusa('DECISAO_RESTRITA_COORDENACAO');
-      }
-      // Plano reaberto, ainda com o incubado: decide-se de novo só quando ele reenviar.
-      if (plano.status_questionario !== 'aguardando_aprovacao') {
-        throw recusa('PLANO_FORA_DE_DECISAO');
-      }
-      const json = plano.json_questionario;
-      if (NUMEROS_ETAPA.some((n) => json[String(n) as ChaveEtapa].avaliacao === null)) {
-        throw recusa('ETAPAS_PENDENTES');
-      }
-      const justificativa = decisao.justificativa.trim();
-      if (decisao.status === 'rejeitado' && !justificativa) {
+      exigirAnalise(plano, eu);
+      const justificativa = motivo.trim();
+      if (!justificativa) {
         throw recusa('JUSTIFICATIVA_OBRIGATORIA');
       }
       return {
-        status_questionario: decisao.status,
-        json_questionario: comDecisao(json, decisao.status, eu.email, justificativa),
+        status_questionario: 'rejeitado',
+        json_questionario: comDecisao(
+          plano.json_questionario,
+          'rejeitado',
+          eu.email,
+          justificativa,
+        ),
       };
     });
   }
@@ -134,30 +129,46 @@ export class PlanosService {
   }
 
   /**
-   * A coordenação aprova o plano e escolhe quem o avalia. Diferente de `decidir`,
-   * aprovar aqui vem ANTES da avaliação: as notas são dos designados, depois.
-   * A designação grava primeiro: se o `PUT` falhar, a coordenação repete e
-   * a lista é substituída; o inverso deixaria um plano aprovado sem avaliador.
+   * A coordenação escolhe quem avalia — e só isso: o plano continua em
+   * `aguardando_aprovacao` (decisão de 19/11/2026). Os designados dão nota e
+   * podem pedir ajuste; depois a coordenação aprova (`aprovar`) ou devolve.
    */
-  aprovarComAvaliadores(email: string, avaliadores: string[]): Observable<Questionario> {
-    return this.alterar(
-      email,
-      (plano, eu) => {
-        exigirAnalise(plano, eu);
-        if (!avaliadores.length) {
-          throw recusa('AVALIADOR_OBRIGATORIO');
+  designar(email: string, avaliadores: string[]): Observable<unknown> {
+    return forkJoin([this.todos(), this.auth.me()]).pipe(
+      switchMap(([planos, eu]) => {
+        const lido = planos.find((plano) => plano.usuario_email === email);
+        if (!lido?.id) {
+          return throwError(() => recusa('PLANO_NAO_ENCONTRADO'));
         }
-        return {
-          status_questionario: 'aprovado',
-          json_questionario: comDecisao(plano.json_questionario, 'aprovado', eu.email, ''),
-        };
-      },
-      (_plano, id) =>
-        this.api.post<unknown>(API_ROUTES.designacao.selecionar, {
-          questionario_id: id,
+        try {
+          exigirAnalise(normalizar(lido), eu);
+          if (!avaliadores.length) {
+            throw recusa('AVALIADOR_OBRIGATORIO');
+          }
+        } catch (erro) {
+          return throwError(() => erro);
+        }
+        return this.api.post<unknown>(API_ROUTES.designacao.selecionar, {
+          questionario_id: lido.id,
           avaliadores,
-        } satisfies DesignacaoEntrada),
+        } satisfies DesignacaoEntrada);
+      }),
     );
+  }
+
+  /** A coordenação aprova o plano em análise, com as nove etapas já avaliadas. */
+  aprovar(email: string): Observable<Questionario> {
+    return this.alterar(email, (plano, eu) => {
+      exigirAnalise(plano, eu);
+      const json = plano.json_questionario;
+      if (NUMEROS_ETAPA.some((n) => !json[String(n) as ChaveEtapa].avaliacao)) {
+        throw recusa('ETAPAS_PENDENTES');
+      }
+      return {
+        status_questionario: 'aprovado',
+        json_questionario: comDecisao(json, 'aprovado', eu.email, ''),
+      };
+    });
   }
 
   /**
@@ -246,8 +257,6 @@ export class PlanosService {
   private alterar(
     email: string,
     mudanca: (plano: Questionario, eu: SessionUser) => QuestionarioEntrada,
-    /** Roda depois das regras e antes do `PUT`; falhar aqui impede a gravação. */
-    antes?: (plano: Questionario, id: number) => Observable<unknown>,
   ): Observable<Questionario> {
     return forkJoin([this.todos(), this.auth.me()]).pipe(
       switchMap(([planos, eu]) => {
@@ -266,7 +275,7 @@ export class PlanosService {
         const gravar = this.api
           .put<Questionario>(API_ROUTES.avaliacao.porId(lido.id), corpo)
           .pipe(map((gravado) => normalizar({ ...lido, ...gravado })));
-        return antes ? antes(lido, lido.id).pipe(switchMap(() => gravar)) : gravar;
+        return gravar;
       }),
     );
   }
@@ -322,7 +331,7 @@ const MENSAGENS_RECUSA: Record<string, string> = {
   AVALIACAO_RESTRITA_CONSULTOR: 'Quem avalia as etapas é o consultor, não a coordenação.',
   DECISAO_RESTRITA_COORDENACAO: 'Só a coordenação pode aprovar ou devolver um plano.',
   EDICAO_RESTRITA_COORDENACAO: 'Só a coordenação pode corrigir as respostas de um plano.',
-  ETAPAS_PENDENTES: 'Avalie as nove etapas antes de decidir o plano.',
+  ETAPAS_PENDENTES: 'Os avaliadores ainda não deram nota nas nove etapas.',
   JUSTIFICATIVA_OBRIGATORIA: 'Escreva o motivo para devolver o plano.',
   AJUSTE_RESTRITO_AVALIADOR: 'Só o avaliador pode pedir ajuste numa etapa.',
   ETAPA_SEM_AJUSTE: 'A etapa 1 não recebe pedido de ajuste.',

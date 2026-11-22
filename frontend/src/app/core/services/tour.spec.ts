@@ -113,7 +113,7 @@ describe('TourService', () => {
     expect(destroy).toHaveBeenCalled();
   });
 
-  it('passo com antes muda a tela e só então anda', () => {
+  it('passo com antes muda a tela e só então anda', async () => {
     let visao = 'lista';
     service.iniciar([
       PASSOS[0],
@@ -126,6 +126,9 @@ describe('TourService', () => {
     const tour = { moveNext } as unknown as Driver;
     config.steps?.[0].popover?.onNextClick?.(undefined, {}, { driver: tour } as never);
     expect(visao).toBe('calendario');
+    expect(moveNext).not.toHaveBeenCalled();
+    // Anda depois do desenho, numa microtask.
+    await Promise.resolve();
     expect(moveNext).toHaveBeenCalled();
   });
 });

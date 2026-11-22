@@ -468,3 +468,15 @@
   padding-top: 24px;
   border-top: 1px solid var(--borda);
 }
+
+.quest-decisao {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Ação destrutiva secundária: contorno e texto de erro (padrão do styles.scss). */
+.quest-devolver {
+  color: var(--erro-texto);
+  border-color: var(--erro-texto);
+}

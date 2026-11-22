@@ -91,10 +91,7 @@ export function menuPara(role: Role): readonly ItemMenu[] {
     // Nunca usado: o `if` acima trata o avaliador antes. O `Record<Role, …>`
     // exige a chave, e deixá-la igual à lista curta evita divergência.
     avaliador: [planosDeNegocio, consultorias, meusHorarios, minhaConta],
-    colaborador: [
-      bloqueado('Planos de negócio', 'documento', 'só avaliador e administrador avaliam planos'),
-      bloqueado('Agenda', 'agenda', SEM_AGENDA),
-    ],
+    colaborador: [bloqueado('Agenda', 'agenda', SEM_AGENDA)],
     incubado: [
       meuPlano,
       bloqueado('Equipe', 'equipe', 'aguarda os endpoints de membros'),
