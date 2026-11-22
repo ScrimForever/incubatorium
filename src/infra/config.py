@@ -13,7 +13,8 @@ if not Path(env_file).exists():
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=env_file if ENV == "development" else None,
+        # `.local` (fora do git) sobrescreve o versionado; guarde segredos como SENTRY_DSN nele
+        env_file=(env_file, f"{env_file}.local") if ENV == "development" else None,
         env_file_encoding="utf-8",
     )
 
@@ -30,13 +31,12 @@ class Settings(BaseSettings):
     email_envio_habilitado: bool = True
     admin_password: str = ""
     upload_tamanho_maximo_mb: int = 10
-    otel_habilitado: bool = False
-    # Um span por função (args, variáveis locais e retorno): grava valores reais na telemetria.
-    otel_rastrear_funcoes: bool = False
-    otel_service_name: str = "incubatorium-api"
-    otel_exporter_otlp_endpoint: str = "http://localhost:4317"
-    # `chave=valor,...`; no SigNoz Cloud: `signoz-ingestion-key=<chave>`
-    otel_exporter_otlp_headers: str = ""
+    # Vazio desliga o Sentry.
+    sentry_dsn: str = ""
+    # Fração das requisições com trace de performance (0.0 a 1.0).
+    sentry_traces_sample_rate: float = 1.0
+    # Fração das sessões com profiling (roda junto dos traces amostrados).
+    sentry_profile_session_sample_rate: float = 1.0
 
     @computed_field
     @property
