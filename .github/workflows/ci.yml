@@ -44,7 +44,6 @@ jobs:
       PG_DATABASE_NAME: test_db
       # Faz o conftest usar o Postgres em vez do SQLite em memória.
       DATABASE_URL: postgresql+asyncpg://test_user:test_password@localhost:5432/test_db
-      OTEL_HABILITADO: "false"
 
     steps:
       - uses: actions/checkout@v7

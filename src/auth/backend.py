@@ -1,5 +1,6 @@
 import uuid
 
+import sentry_sdk
 from fastapi import Depends, Request
 from fastapi_users import FastAPIUsers, models
 from fastapi_users.authentication import (
@@ -32,6 +33,8 @@ _usuario_ativo = fastapi_users.current_user(active=True)
 async def current_active_user(
     request: Request, user: User = Depends(_usuario_ativo)
 ) -> User:
-    """Usuário logado da requisição; fica em `request.state` para o log de requisição."""
+    """Usuário logado da requisição; fica em `request.state` para o log de requisição e no
+    escopo do Sentry para os erros desta requisição."""
     request.state.usuario_email = user.email
+    sentry_sdk.set_user({"id": str(user.id), "email": user.email})
     return user

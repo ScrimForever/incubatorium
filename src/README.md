@@ -127,25 +127,19 @@ LOCUST_INCUBADO_EMAIL=... LOCUST_INCUBADO_SENHA=... \
 uv run locust -f locust_test/locustfile.py --host http://localhost:8000
 ```
 
-## Observabilidade (SigNoz)
+## Observabilidade (Sentry)
 
-O backend envia traces, métricas e logs por OpenTelemetry (OTLP/gRPC) ao SigNoz. Vem desligado;
-para ligar, defina no `.env.<ENV>`:
+O backend envia erros e traces de performance ao Sentry pelo SDK (`sentry-sdk`). Vem desligado;
+para ligar, defina no `.env.<ENV>.local` (fora do git):
 
 ```
-OTEL_HABILITADO=true
-OTEL_SERVICE_NAME=incubatorium-api
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
-# SigNoz Cloud: https://ingest.<região>.signoz.cloud:443 e
-# OTEL_EXPORTER_OTLP_HEADERS=signoz-ingestion-key=<chave>
+SENTRY_DSN=https://<chave>@<org>.ingest.sentry.io/<projeto>
+SENTRY_TRACES_SAMPLE_RATE=1.0           # fração das requisições com trace (padrão 1.0)
+SENTRY_PROFILE_SESSION_SAMPLE_RATE=1.0  # fração das sessões com profiling (padrão 1.0)
 ```
 
-- SigNoz roda em um compose próprio (`../signoz`, gerado pelo Foundry a partir de `signoz/casting.yaml`),
-  separado do compose da aplicação; os dois se falam pela rede externa `observabilidade`. Na raiz do
-  repositório: `make up` sobe os dois, `make down` para, `make help` lista o resto. Dentro do compose
-  o backend usa `http://signoz-ingester:4317` (já configurado). UI do SigNoz: http://localhost:8080
-  — o primeiro acesso exige criar a conta admin; só depois disso o coletor passa a aceitar dados.
-- `OTEL_RASTREAR_FUNCOES=true` cria um span por função, com argumentos, variáveis locais e retorno
-  (valores reais: nomes sensíveis são mascarados, mas é para desenvolvimento).
-- Instrumentado: FastAPI (requisições), SQLAlchemy e asyncpg (consultas) e os logs do loguru
-  (correlacionados ao trace ativo). Código em `infra/observabilidade.py`.
+- O ambiente do evento vem de `ENVIROMENT`.
+- Instrumentado: FastAPI (requisições e exceções não tratadas), SQLAlchemy e asyncpg (consultas),
+  loguru (`INFO`+ vai para o Sentry Logs, `ERROR`+ também vira evento de erro), profiling e o usuário logado (id e e-mail).
+- Métricas: `sentry_sdk.metrics.count/gauge/distribution` em qualquer ponto do código.
+- O log de cada requisição traz o `trace_id` do Sentry. Código em `infra/observabilidade.py`.

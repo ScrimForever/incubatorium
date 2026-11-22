@@ -3,7 +3,9 @@ services:
     build: .
     container_name: app_web
     restart: unless-stopped
-    user: "${APP_UID:-1000}:${APP_GID:-1000}"
+    # Sem APP_UID roda como root (Docker Desktop no Windows não deixa outro usuário
+    # gravar no bind mount). No Linux/macOS o Makefile exporta o UID/GID do host.
+    user: "${APP_UID:-0}:${APP_GID:-0}"
     command: >
       sh -c "uv run alembic upgrade head &&
       uv run fastapi dev startapp.py --host 0.0.0.0 --port 8000"
@@ -16,10 +18,6 @@ services:
       PYTHONPATH: /app
       HOME: /tmp
       UV_CACHE_DIR: /tmp/uv-cache
-      # SigNoz (compose em ./signoz) alcançado pela rede compartilhada `observabilidade`
-      OTEL_HABILITADO: ${OTEL_HABILITADO:-true}
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://signoz-ingester:4317
-      OTEL_RASTREAR_FUNCOES: ${OTEL_RASTREAR_FUNCOES:-true}
     env_file:
       - src/.env.development
       - path: src/.env.development.local
@@ -29,14 +27,13 @@ services:
         condition: service_healthy
     networks:
       - app_network
-      - observabilidade
 
   # Lembretes de agendamento de consultoria: dispara todo dia às 13h (Brasília).
   lembretes:
     build: .
     container_name: app_lembretes
     restart: unless-stopped
-    user: "${APP_UID:-1000}:${APP_GID:-1000}"
+    user: "${APP_UID:-0}:${APP_GID:-0}"
     command: uv run python -m src.scripts.lembrar_agendamentos --diario 13:00
     volumes:
       - .:/app
@@ -45,7 +42,6 @@ services:
       PYTHONPATH: /app
       HOME: /tmp
       UV_CACHE_DIR: /tmp/uv-cache
-      OTEL_HABILITADO: "false"
     env_file:
       - src/.env.development
       - path: src/.env.development.local
@@ -60,7 +56,7 @@ services:
     build: .
     container_name: app_lembretes_consultor
     restart: unless-stopped
-    user: "${APP_UID:-1000}:${APP_GID:-1000}"
+    user: "${APP_UID:-0}:${APP_GID:-0}"
     command: uv run python -m src.scripts.lembrar_consultores --intervalo 10
     volumes:
       - .:/app
@@ -69,7 +65,6 @@ services:
       PYTHONPATH: /app
       HOME: /tmp
       UV_CACHE_DIR: /tmp/uv-cache
-      OTEL_HABILITADO: "false"
     env_file:
       - src/.env.development
       - path: src/.env.development.local
@@ -169,7 +164,3 @@ volumes:
 networks:
   app_network:
     driver: bridge
-  # Compartilhada com o compose do SigNoz; criada por `make network`.
-  observabilidade:
-    name: observabilidade
-    external: true
