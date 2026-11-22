@@ -13,7 +13,6 @@ services:
       - "8000:8000"
     volumes:
       - .:/app
-      - /app/src/.venv
     environment:
       PYTHONPATH: /app
       HOME: /tmp
@@ -37,7 +36,6 @@ services:
     command: uv run python -m src.scripts.lembrar_agendamentos --diario 13:00
     volumes:
       - .:/app
-      - /app/src/.venv
     environment:
       PYTHONPATH: /app
       HOME: /tmp
@@ -60,7 +58,6 @@ services:
     command: uv run python -m src.scripts.lembrar_consultores --intervalo 10
     volumes:
       - .:/app
-      - /app/src/.venv
     environment:
       PYTHONPATH: /app
       HOME: /tmp
@@ -133,7 +130,6 @@ services:
     container_name: app_tests
     volumes:
       - .:/app
-      - test_venv:/app/src/.venv
       - test_pytest_cache:/app/src/.pytest_cache
     environment:
       PYTHONPATH: /app
@@ -158,7 +154,6 @@ services:
 
 volumes:
   postgres_data:
-  test_venv:
   test_pytest_cache:
 
 networks:
