@@ -38,7 +38,9 @@ interface Tela {
   de: { set(v: string): void };
   ate: { set(v: string): void };
   adicionarDatas(): void;
-  tirarDaPrevia(indice: number, inicio: string): void;
+  blocos: { at(i: number): { setValue(v: object): void } };
+  gerarHorarios(): void;
+  tirarDaPrevia(inicio: string): void;
 }
 
 describe('AbrirAgenda', () => {
@@ -91,20 +93,37 @@ describe('AbrirAgenda', () => {
     fixture.detectChanges();
   }
 
+  /** A tela só publica depois de "Gerar horários" a partir da faixa. */
+  function gerar(inicio = '09:00', fim = '12:00', duracao = 45): void {
+    tela().blocos.at(0).setValue({ hora_inicio: inicio, hora_fim: fim, duracao_minutos: duracao });
+    tela().gerarHorarios();
+    fixture.detectChanges();
+  }
+
   it('sem data, o Publicar fica bloqueado e diz o motivo', () => {
     expect(publicar().disabled).toBeTrue();
     expect(pendencia()).toBe('Adicione ao menos uma data.');
   });
 
-  it('avisa antes de publicar uma faixa que se sobrepõe à agenda do dia', () => {
-    escolher('2099-01-05');
-    expect(pendencia()).toContain('você já atende das 10:00 às 11:00');
+  it('sem gerar os horários, o Publicar fica bloqueado', () => {
+    escolher('2099-01-07');
+    expect(pendencia()).toBe('Gere os horários para publicar.');
     expect(publicar().disabled).toBeTrue();
+  });
+
+  it('ignora o horário que já está na agenda do dia e avisa', () => {
+    escolher('2099-01-05');
+    gerar('09:00', '12:00', 60);
+    const aviso = el().querySelector('.horarios-ger')?.textContent ?? '';
+    expect(aviso).toContain('2 horário(s) adicionado(s)');
+    expect(aviso).toContain('1 já ocupado(s)');
+    expect(publicar().disabled).toBeFalse();
   });
 
   it('publica as datas do período e volta para a lista com o aviso', () => {
     // 07/01/2099 é quarta; segunda a sexta até sábado dá quarta, quinta e sexta.
     escolher('2099-01-07', '2099-01-10');
+    gerar();
     publicar().click();
 
     const req = backend.expectOne('/api/consultorias/agenda');
@@ -121,7 +140,8 @@ describe('AbrirAgenda', () => {
 
   it('horário tirado da prévia vai como faixa partida', () => {
     escolher('2099-01-07');
-    tela().tirarDaPrevia(0, '09:45');
+    gerar();
+    tela().tirarDaPrevia('09:45');
     fixture.detectChanges();
     publicar().click();
 
@@ -135,6 +155,7 @@ describe('AbrirAgenda', () => {
 
   it('recusa do servidor fica na tela, sem sair dela', () => {
     escolher('2099-01-07');
+    gerar();
     publicar().click();
     backend
       .expectOne('/api/consultorias/agenda')

@@ -8,6 +8,7 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Observable, forkJoin, map } from 'rxjs';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
@@ -17,6 +18,7 @@ import { PlanoResumo } from '../../core/models/plano';
 import { ROTULO_STATUS, StatusQuestionario } from '../../core/models/questionario';
 import { Auth } from '../../core/services/auth';
 import { PlanosService } from '../../core/services/planos';
+import { UsuariosService } from '../../core/services/usuarios';
 import { Icone } from '../../shared/components/icone/icone';
 import { DesignarAvaliadoresModal } from '../../shared/components/designar-avaliadores-modal/designar-avaliadores-modal';
 import { Paginacao } from '../../shared/components/paginacao/paginacao';
@@ -24,8 +26,8 @@ import { Painel } from '../../shared/components/painel/painel';
 import { ToastService } from '../../core/services/toast';
 
 /**
- * Uma linha da lista. Sem e-mail à vista: quem avalia reconhece o plano pelo
- * negócio e pelo proponente; o e-mail é chave de rota e fica só na URL.
+ * Uma linha da lista. Quem avalia reconhece o plano pelo negócio e pelo
+ * proponente; sem proponente ainda, o e-mail do dono ocupa o lugar dele.
  */
 interface Linha extends PlanoResumo {
   readonly rotuloStatus: string;
@@ -62,6 +64,7 @@ export class PlanosDeNegocio implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(Auth);
   private readonly planos = inject(PlanosService);
+  private readonly usuarios = inject(UsuariosService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly toast = inject(ToastService);
 
@@ -84,6 +87,12 @@ export class PlanosDeNegocio implements OnInit {
   /** O botão de designar avaliadores é só da coordenação. */
   protected readonly ehAdmin = computed(() => this.user()?.role === 'admin');
 
+  /**
+   * O avaliador só recebe os planos designados a ele (já aprovados): abas por
+   * situação não dizem nada para ele, então não aparecem.
+   */
+  protected readonly mostraFiltros = computed(() => this.user()?.role !== 'avaliador');
+
   protected readonly porPagina = POR_PAGINA;
   protected readonly pagina = signal(1);
 
@@ -93,7 +102,9 @@ export class PlanosDeNegocio implements OnInit {
    */
   protected readonly linhas = computed<Linha[]>(() => {
     const termo = this.termo().trim().toLowerCase();
+    const filtro = this.mostraFiltros() ? this.filtro() : 'todos';
     return [...this.resumos()]
+      .filter((plano) => filtro === 'todos' || plano.status_questionario === filtro)
       .filter((plano) => !termo || alvoDaBusca(plano).includes(termo))
       .sort((a, b) => quando(b) - quando(a))
       .map((plano) => ({
@@ -106,7 +117,7 @@ export class PlanosDeNegocio implements OnInit {
         // Etapa 1 ainda vazia: a linha diz que falta o dado, e não um e-mail no
         // lugar do nome.
         negocio: plano.nome_negocio || 'Negócio sem nome',
-        proponente: plano.nome_proponente || 'Proponente não informado',
+        proponente: plano.nome_proponente || plano.usuario_email,
       }));
   });
 
@@ -138,10 +149,9 @@ export class PlanosDeNegocio implements OnInit {
       .subscribe({
         next: (user) => {
           this.user.set(user);
-          // Primeira visita desta conta: avaliador abre nos aprovados (os que ele avalia).
           if (this.planos.donoFiltro() !== user.email) {
             this.planos.donoFiltro.set(user.email);
-            this.filtro.set(user.role === 'avaliador' ? 'aprovado' : 'todos');
+            this.filtro.set('todos');
           }
           this.buscar();
         },
@@ -153,10 +163,10 @@ export class PlanosDeNegocio implements OnInit {
   }
 
   protected trocarFiltro(valor: StatusQuestionario | 'todos'): void {
+    // A lista inteira já está na tela: trocar de aba só filtra, sem ir à API.
     if (valor !== this.filtro()) {
       this.filtro.set(valor);
       this.pagina.set(1);
-      this.buscar();
     }
   }
 
@@ -171,16 +181,31 @@ export class PlanosDeNegocio implements OnInit {
   /** Enviou para avaliação: a modal fecha e a lista recarrega sem o plano que saiu. */
   protected designado(): void {
     this.designando.set(null);
-    this.toast.sucesso('Plano enviado para avaliação.');
+    this.toast.sucesso('Avaliadores designados. O plano segue aguardando aprovação.');
     this.buscar();
+  }
+
+  /**
+   * Para a coordenação, só planos de quem ainda é incubado: o backend não apaga o
+   * plano quando a conta troca de papel, e a linha ficava órfã na lista. O
+   * avaliador não lê a lista de contas (403) — e recebe só os designados.
+   */
+  private planosDeIncubados(): Observable<PlanoResumo[]> {
+    if (!this.ehAdmin()) {
+      return this.planos.listar();
+    }
+    return forkJoin([this.planos.listar(), this.usuarios.listar()]).pipe(
+      map(([planos, contas]) => {
+        const incubados = emailsDeIncubados(contas);
+        return planos.filter((plano) => incubados.has(plano.usuario_email));
+      }),
+    );
   }
 
   private buscar(): void {
     this.carregando.set(true);
     this.mensagemErro.set('');
-    const filtro = this.filtro();
-    this.planos
-      .listar(filtro === 'todos' ? undefined : filtro)
+    this.planosDeIncubados()
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (planos) => {
@@ -195,6 +220,11 @@ export class PlanosDeNegocio implements OnInit {
         },
       });
   }
+}
+
+/** E-mails das contas que hoje são incubadas (só a coordenação lê a lista de contas). */
+function emailsDeIncubados(contas: { email: string; is_incubado?: boolean | null }[]): Set<string> {
+  return new Set(contas.filter((conta) => conta.is_incubado).map((conta) => conta.email));
 }
 
 /** O que a busca varre: nome do negócio, proponente e e-mail do dono. */

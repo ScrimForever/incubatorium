@@ -59,7 +59,7 @@ export const routes: Routes = [
   {
     // Tela cheia, sem menu: a primeira coisa que o incubado vê ao entrar.
     path: 'questionario',
-    title: 'TecCampos — Questionário Plano de Negócios',
+    title: 'TecCampos - Questionário Plano de Negócios',
     canActivate: [authGuard, questionarioGuard],
     loadComponent: () => import('./pages/questionario/questionario').then((m) => m.Questionario),
   },

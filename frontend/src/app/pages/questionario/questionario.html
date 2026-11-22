@@ -44,9 +44,27 @@
           <span [class]="'selo selo--' + statusPlano()">{{ rotuloStatusPlano() }}</span>
         </p>
         @if (podeDecidir()) {
-          <button type="button" class="btn btn--verde" (click)="abrirDesignacao()">
-            Enviar para avaliação
-          </button>
+          <div class="quest-decisao">
+            <button
+              type="button"
+              class="btn btn--secundario quest-devolver"
+              (click)="abrirDevolucao()"
+            >
+              Devolver
+            </button>
+            <button type="button" class="btn btn--secundario" (click)="abrirDesignacao()">
+              Enviar para avaliação
+            </button>
+            <button
+              type="button"
+              class="btn btn--verde"
+              [disabled]="!todasAvaliadas()"
+              [title]="todasAvaliadas() ? '' : 'Libera quando as nove etapas tiverem nota.'"
+              (click)="abrirAprovacao()"
+            >
+              Aprovar
+            </button>
+          </div>
         } @else if (statusPlano() === 'rejeitado') {
           <button type="button" class="btn btn--azul" (click)="abrirReabertura()">
             Reabrir para edição
@@ -866,6 +884,97 @@
           } @else {
             Reabrir plano
           }
+        </button>
+      </footer>
+    </div>
+  </div>
+}
+
+@if (confirmandoAprovacao()) {
+  <div class="overlay">
+    <div
+      #dialogoAprovacao
+      class="modal"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="aprovacao-titulo"
+      tabindex="-1"
+      (keydown.tab)="prenderTab($event, false, dialogoAprovacao)"
+      (keydown.shift.tab)="prenderTab($event, true, dialogoAprovacao)"
+    >
+      <header class="modal-header">
+        <h2 id="aprovacao-titulo">Aprovar plano</h2>
+        <button type="button" class="close" aria-label="Fechar" (click)="fecharAprovacao()">
+          &times;
+        </button>
+      </header>
+      <div class="modal-body">
+        <p>As nove etapas têm nota. O plano passa a <strong>Aprovado</strong>.</p>
+      </div>
+      <footer class="modal-footer">
+        <button type="button" class="btn btn--secundario" (click)="fecharAprovacao()">
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="btn btn--verde"
+          [disabled]="salvandoAprovacao()"
+          (click)="confirmarAprovacao()"
+        >
+          {{ salvandoAprovacao() ? 'Aprovando…' : 'Aprovar plano' }}
+        </button>
+      </footer>
+    </div>
+  </div>
+}
+
+@if (devolvendo()) {
+  <div class="overlay">
+    <div
+      #dialogoDevolucao
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="devolucao-titulo"
+      tabindex="-1"
+      (keydown.tab)="prenderTab($event, false, dialogoDevolucao)"
+      (keydown.shift.tab)="prenderTab($event, true, dialogoDevolucao)"
+    >
+      <header class="modal-header">
+        <h2 id="devolucao-titulo">Devolver plano</h2>
+        <button type="button" class="close" aria-label="Fechar" (click)="fecharDevolucao()">
+          &times;
+        </button>
+      </header>
+
+      <div class="modal-body">
+        <p>
+          O plano fica <strong>Devolvido</strong> e sai da análise. O incubado lê o motivo quando
+          você reabrir o plano para edição.
+        </p>
+        <div class="form-group">
+          <label for="motivo-devolucao">Motivo da devolução</label>
+          <textarea
+            id="motivo-devolucao"
+            rows="4"
+            [value]="motivoDevolucao()"
+            [disabled]="salvandoDevolucao()"
+            (input)="escreverMotivo($event)"
+          ></textarea>
+        </div>
+      </div>
+
+      <footer class="modal-footer">
+        <button type="button" class="btn btn--secundario" (click)="fecharDevolucao()">
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="btn btn--azul"
+          [disabled]="!motivoValido() || salvandoDevolucao()"
+          (click)="confirmarDevolucao()"
+        >
+          {{ salvandoDevolucao() ? 'Devolvendo…' : 'Devolver plano' }}
         </button>
       </footer>
     </div>

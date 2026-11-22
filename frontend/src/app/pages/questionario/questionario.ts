@@ -15,6 +15,8 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+
+import { cnpjValidator } from '../../shared/validators/cnpj';
 import { Router, RouterLink } from '@angular/router';
 import { QuillEditorComponent, type ContentChange } from 'ngx-quill';
 import type Quill from 'quill';
@@ -371,10 +373,10 @@ export class Questionario implements OnInit {
     this.designando.set(false);
   }
 
-  /** Enviou para avaliação: relê o plano, que agora tem outro status. */
+  /** Designou os avaliadores: o status não muda, mas relê o plano mesmo assim. */
   protected designado(): void {
     this.designando.set(false);
-    this.toast.sucesso('Plano enviado para avaliação.');
+    this.toast.sucesso('Avaliadores designados. O plano segue aguardando aprovação.');
     this.carregarParaAvaliacao();
   }
 
@@ -386,6 +388,98 @@ export class Questionario implements OnInit {
     const decisao = this.decisao();
     return !this.ehAvaliacao() && decisao?.status === 'rejeitado' ? decisao : null;
   });
+
+  // ----- aprovação (só a coordenação, com as nove etapas avaliadas) -----
+
+  /** As nove etapas já têm nota: só então a coordenação pode aprovar. */
+  protected readonly todasAvaliadas = computed(() =>
+    NUMEROS_ETAPA.every((n) => !!this.json()[String(n) as ChaveEtapa].avaliacao),
+  );
+  protected readonly confirmandoAprovacao = signal(false);
+  protected readonly salvandoAprovacao = signal(false);
+
+  protected abrirAprovacao(): void {
+    this.confirmandoAprovacao.set(true);
+  }
+
+  protected fecharAprovacao(): void {
+    if (this.confirmandoAprovacao() && !this.salvandoAprovacao()) {
+      this.confirmandoAprovacao.set(false);
+    }
+  }
+
+  protected confirmarAprovacao(): void {
+    if (this.salvandoAprovacao()) {
+      return;
+    }
+    this.salvandoAprovacao.set(true);
+    this.limparAvisos();
+    this.planos
+      .aprovar(this.email())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (plano) => {
+          this.json.set(plano.json_questionario);
+          this.statusPlano.set(plano.status_questionario);
+          this.salvandoAprovacao.set(false);
+          this.confirmandoAprovacao.set(false);
+          this.toast.sucesso('Plano aprovado.');
+        },
+        error: (err: ApiError) => {
+          this.salvandoAprovacao.set(false);
+          this.confirmandoAprovacao.set(false);
+          this.mensagemErro.set(err.message);
+        },
+      });
+  }
+
+  // ----- devolução de um plano em análise (só a coordenação) -----
+
+  protected readonly devolvendo = signal(false);
+  protected readonly salvandoDevolucao = signal(false);
+  protected readonly motivoDevolucao = signal('');
+  protected readonly motivoValido = computed(() => this.motivoDevolucao().trim().length > 0);
+
+  protected abrirDevolucao(): void {
+    this.motivoDevolucao.set('');
+    this.devolvendo.set(true);
+  }
+
+  protected fecharDevolucao(): void {
+    if (this.devolvendo() && !this.salvandoDevolucao()) {
+      this.devolvendo.set(false);
+    }
+  }
+
+  protected escreverMotivo(evento: Event): void {
+    this.motivoDevolucao.set((evento.target as HTMLTextAreaElement).value);
+  }
+
+  /** O plano vai para `rejeitado`; o incubado lê o motivo quando a coordenação reabrir. */
+  protected confirmarDevolucao(): void {
+    if (!this.motivoValido() || this.salvandoDevolucao()) {
+      return;
+    }
+    this.salvandoDevolucao.set(true);
+    this.limparAvisos();
+    this.planos
+      .devolver(this.email(), this.motivoDevolucao())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (plano) => {
+          this.json.set(plano.json_questionario);
+          this.statusPlano.set(plano.status_questionario);
+          this.salvandoDevolucao.set(false);
+          this.devolvendo.set(false);
+          this.toast.sucesso('Plano devolvido ao incubado.');
+        },
+        error: (err: ApiError) => {
+          this.salvandoDevolucao.set(false);
+          this.devolvendo.set(false);
+          this.mensagemErro.set(err.message);
+        },
+      });
+  }
 
   // ----- reabertura de um plano devolvido (só a coordenação) -----
 
@@ -665,6 +759,8 @@ export class Questionario implements OnInit {
   private readonly dialogoSaida = viewChild<ElementRef<HTMLElement>>('dialogoSaida');
   private readonly dialogoAjuste = viewChild<ElementRef<HTMLElement>>('dialogoAjuste');
   private readonly dialogoReabertura = viewChild<ElementRef<HTMLElement>>('dialogoReabertura');
+  private readonly dialogoDevolucao = viewChild<ElementRef<HTMLElement>>('dialogoDevolucao');
+  private readonly dialogoAprovacao = viewChild<ElementRef<HTMLElement>>('dialogoAprovacao');
   private ultimoFoco: HTMLElement | null = null;
 
   constructor() {
@@ -677,14 +773,18 @@ export class Questionario implements OnInit {
         this.dialogoEnvio() ??
         this.dialogoSaida() ??
         this.dialogoAjuste() ??
-        this.dialogoReabertura();
+        this.dialogoReabertura() ??
+        this.dialogoDevolucao() ??
+        this.dialogoAprovacao();
       const aberto =
         this.membroAberto() ||
         this.remocao() !== null ||
         this.confirmandoEnvio() ||
         this.saidaPendente() !== null ||
         this.pedindoAjuste() ||
-        this.reabrindo();
+        this.reabrindo() ||
+        this.devolvendo() ||
+        this.confirmandoAprovacao();
       if (aberto && dialogo) {
         this.ultimoFoco ??= document.activeElement as HTMLElement | null;
         dialogo.nativeElement.focus();
@@ -803,7 +903,8 @@ export class Questionario implements OnInit {
       for (const campo of CAMPOS_ETAPA_1) {
         const salvo = String(aba[campo.nome] ?? '');
         const valor = campo.mascara ? mascararValorSalvo(campo.mascara, salvo) : salvo;
-        controles[campo.nome] = [valor, validadores(campo.obrigatorio)];
+        const extra = campo.mascara === 'cnpj' ? [cnpjValidator] : [];
+        controles[campo.nome] = [valor, [...validadores(campo.obrigatorio), ...extra]];
       }
     }
     for (const campo of this.etapa().campos) {
@@ -965,6 +1066,12 @@ export class Questionario implements OnInit {
       this.pedirEnvio();
       return;
     }
+    // Etapa incompleta não grava: antes, o PUT saía com a etapa em branco.
+    if (this.form().invalid || this.equipeFaltando() || this.anexoFaltando()) {
+      this.mensagemErro.set('Preencha esta etapa antes de avançar.');
+      this.mostrarPendencia();
+      return;
+    }
     this.salvarEntao(() => {
       const proxima = (this.numero() + 1) as NumeroEtapa;
       if (!this.passos().find((passo) => passo.numero === proxima)?.acessivel) {
@@ -1037,6 +1144,8 @@ export class Questionario implements OnInit {
     this.cancelarSaida();
     this.fecharAjuste();
     this.fecharReabertura();
+    this.fecharDevolucao();
+    this.fecharAprovacao();
   }
 
   // ----- pré-visualização de anexo -----

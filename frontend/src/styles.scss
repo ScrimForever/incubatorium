@@ -315,6 +315,12 @@ body {
   z-index: 1000;
 }
 
+/* Modal aberta por cima de outra (confirmação dentro de uma edição): sem isso
+   as duas empatam no z-index e a que vem antes no DOM fica escondida. */
+.overlay--acima {
+  z-index: 1010;
+}
+
 /* Quem rola é só o corpo: numa tela baixa (celular deitado) cabeçalho e botões
    continuam à vista, em vez de o "Salvar" sumir junto com o formulário. */
 .modal {

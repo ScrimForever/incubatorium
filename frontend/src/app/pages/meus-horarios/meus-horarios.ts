@@ -29,9 +29,7 @@ import {
   hojeLocal,
   horaLocal,
   rotuloData,
-  rotuloDataCurto,
 } from '../../core/services/consultorias';
-import { DiaDaFaixa, FaixaDias } from '../../shared/components/faixa-dias/faixa-dias';
 import { Icone } from '../../shared/components/icone/icone';
 import { Painel } from '../../shared/components/painel/painel';
 
@@ -43,30 +41,22 @@ type Modal =
   | { tipo: 'remarcar'; horario: Horario; janela: Janela; incubado: string }
   | { tipo: 'tirar-horario'; horario: Horario; rotulo: string; incubado: string };
 
-/** O tour da listagem; o formulário tem o seu, em Abrir agenda. */
+/** O tour do calendário; o formulário tem o seu, em Abrir agenda. */
 const TOUR: readonly PassoTour[] = [
   {
     alvo: 'novo',
     titulo: 'Abra sua agenda',
     texto:
-      'Use o <b>+</b> para escolher os dias e as faixas em que vai atender. Ao publicar, você volta para esta lista.',
+      'Use o <b>+</b> para escolher os dias e as faixas em que vai atender. Ao publicar, você volta para este calendário.',
   },
   {
-    alvo: 'filtros',
-    titulo: 'Escolha o mês',
-    texto: 'Cada aba é um mês com horários abertos.',
-  },
-  {
-    alvo: 'dia',
-    titulo: 'Cada dia da agenda',
+    alvo: 'calendario',
+    titulo: 'O mês da sua agenda',
     texto:
-      'Os dias do mês ficam nesta faixa: passe com as setas ou com a roda do mouse. Clique num dia para ver as faixas e quem reservou. Ali você edita ou cancela uma faixa, remarca um horário reservado e, ao lado do nome do dia, cancela o dia inteiro.',
+      'Passe de mês com as setas. Os dias com agenda mostram o período e quantos horários já foram reservados. Clique num dia para ver as faixas logo abaixo: ali você edita ou cancela uma faixa, remarca um horário reservado e cancela o dia inteiro.',
   },
 ];
 
-type Visao = 'lista' | 'calendario';
-/** A visão escolhida vale para a próxima visita, só neste navegador. */
-const CHAVE_VISAO = 'meus-horarios:visao';
 const MESES = [
   'Janeiro',
   'Fevereiro',
@@ -82,22 +72,18 @@ const MESES = [
   'Dezembro',
 ];
 
-function visaoGuardada(): Visao {
-  return 'calendario';
-}
-
 const plural = (n: number, um: string, varios: string): string => `${n} ${n === 1 ? um : varios}`;
 const hhmm = (hora: string): string => hora.slice(0, 5);
 
 /**
- * Agenda de consultoria do consultor (legado `generate-consultant`), em lista: um
- * item por dia, que abre mostrando as faixas e quem reservou, com editar,
- * remarcar e cancelar. Abrir agenda é outra tela, pelo botão +.
+ * Agenda de consultoria do consultor (legado `generate-consultant`), num calendário
+ * do mês: o dia escolhido abre as faixas e quem reservou, com editar, remarcar e
+ * cancelar. Abrir agenda é outra tela, pelo botão +.
  */
 @Component({
   selector: 'app-meus-horarios',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgTemplateOutlet, ReactiveFormsModule, RouterLink, Painel, Icone, FaixaDias],
+  imports: [NgTemplateOutlet, ReactiveFormsModule, RouterLink, Painel, Icone],
   templateUrl: './meus-horarios.html',
   styleUrl: './meus-horarios.scss',
 })
@@ -127,7 +113,7 @@ export class MeusHorarios implements OnInit {
   /** `?publicadas=N`, vindo de Abrir agenda: vira o aviso de sucesso e sai da URL. */
   readonly publicadas = input<string>();
 
-  /** O dia aberto; na lista, vazio = o primeiro do mês. */
+  /** O dia aberto no calendário; vazio = nenhum. */
   protected readonly aberto = signal('');
 
   // --- agenda publicada ---
@@ -182,49 +168,28 @@ export class MeusHorarios implements OnInit {
       });
   });
 
-  /** Uma aba por mês que tem dia na agenda. */
-  protected readonly filtros = computed(() =>
+  /** Os meses com agenda; o calendário abre no primeiro deles. */
+  private readonly mesesComAgenda = computed(() =>
     abasDeMes(
       this.dias().map((dia) => dia.data),
       this.hoje,
     ),
   );
 
-  /** Os dias do mês em tela: a lista e o calendário mostram um mês por vez. */
+  /** Os dias do mês em tela: o calendário mostra um mês por vez. */
   protected readonly diasVisiveis = computed(() => {
     const mes = this.mesVisto().slice(0, 7);
     return this.dias().filter((dia) => dia.data.startsWith(mes));
   });
 
-  /** Na lista, o dia em tela: o escolhido na faixa, ou o primeiro do mês. */
-  protected readonly diaDaLista = computed(
-    () => this.diasVisiveis().find((dia) => dia.data === this.aberto()) ?? this.diasVisiveis()[0],
-  );
-
-  protected readonly faixa = computed(() =>
-    this.diasVisiveis().map((dia): DiaDaFaixa => {
-      const [semana, numero] = rotuloDataCurto(dia.data).split(' ');
-      return {
-        data: dia.data,
-        rotulo: `${dia.rotulo}: ${dia.selo}, ${dia.detalhe}`,
-        semana,
-        numero: numero.slice(0, 2),
-        detalhe: dia.reservas
-          ? plural(dia.reservas, 'reserva', 'reservas')
-          : plural(dia.total, 'livre', 'livres'),
-      };
-    }),
-  );
-
   // --- visão de calendário ---
 
-  protected readonly visao = signal<Visao>(visaoGuardada());
   /** Semana começando na segunda, como o calendário de Abrir agenda. */
   protected readonly cabecalhoSemana = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
   /** O mês escolhido, AAAA-MM-01; vazio = o primeiro mês com agenda. */
   protected readonly mes = signal('');
   protected readonly mesVisto = computed(
-    () => this.mes() || `${this.filtros()[0]?.mes ?? this.hoje.slice(0, 7)}-01`,
+    () => this.mes() || `${this.mesesComAgenda()[0]?.mes ?? this.hoje.slice(0, 7)}-01`,
   );
 
   protected readonly mesTitulo = computed(() => {
@@ -339,30 +304,6 @@ export class MeusHorarios implements OnInit {
   }
 
   /**
-   * O tour começa na lista e termina no calendário: o último passo troca a visão
-   * sozinho para mostrar a outra forma de ver. A escolha guardada não muda.
-   */
-  private readonly passosDoTour: readonly PassoTour[] = [
-    // Os passos da lista voltam para ela: o tour pode começar no calendário, e o
-    // Anterior do último passo sai dele.
-    ...TOUR.map((passo) => ({ ...passo, antes: () => this.visao.set('lista') })),
-    {
-      alvo: 'calendario',
-      titulo: 'Ou veja o mês inteiro',
-      texto:
-        'Os dois ícones ao lado dos filtros trocam entre <b>lista</b> e <b>calendário</b>. No calendário, clique num dia para ver as faixas logo abaixo.',
-      antes: () => {
-        this.visao.set('calendario');
-        this.aberto.set('');
-      },
-    },
-  ];
-
-  protected abrirTour(): void {
-    this.tour.iniciar(this.passosDoTour);
-  }
-
-  /**
    * O tour abre sozinho só na primeira visita, e só quando a tela já está
    * desenhada: o template depende da sessão, e o último passo, da agenda.
    */
@@ -371,29 +312,12 @@ export class MeusHorarios implements OnInit {
       return;
     }
     this.tourConferido = true;
-    afterNextRender(
-      () => this.tour.iniciarNaPrimeiraVisita('meus-horarios-lista', this.passosDoTour),
-      {
-        injector: this.injector,
-      },
-    );
+    afterNextRender(() => this.tour.iniciarNaPrimeiraVisita('meus-horarios-calendario', TOUR), {
+      injector: this.injector,
+    });
   }
 
   // --- ações sobre a agenda publicada ---
-
-  protected trocarMes(mes: string): void {
-    this.mes.set(`${mes}-01`);
-    this.aberto.set('');
-  }
-
-  protected trocarVisao(visao: Visao): void {
-    this.visao.set(visao);
-    try {
-      localStorage.setItem(CHAVE_VISAO, visao);
-    } catch {
-      // Sem armazenamento, a escolha vale só nesta visita.
-    }
-  }
 
   protected mudarMes(passo: number): void {
     const [ano, mes] = this.mesVisto().split('-').map(Number);
@@ -509,7 +433,7 @@ export class MeusHorarios implements OnInit {
           // Hoje o backend responde 500 aqui (divergência 10 do CLAUDE.md):
           // "tente novamente" não resolve, então a tela diz o que dá para fazer.
           (err) =>
-            err.code === 'UNKNOWN'
+            err.code === 'SERVER_ERROR'
               ? 'O servidor ainda não consegue tirar um horário avulso — erro conhecido, já reportado. Por enquanto, edite ou cancele a faixa inteira.'
               : err.message,
         );

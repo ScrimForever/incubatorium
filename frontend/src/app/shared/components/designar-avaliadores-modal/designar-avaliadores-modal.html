@@ -130,7 +130,12 @@
                 <ul class="lista">
                   @for (avaliador of disponiveis(); track avaliador.email) {
                     <li>
-                      <button type="button" class="lista-item" (click)="escolher(avaliador.email)">
+                      <button
+                        type="button"
+                        class="lista-item"
+                        [attr.aria-label]="'Escolher ' + (avaliador.nome ?? avaliador.email)"
+                        (click)="escolher(avaliador.email)"
+                      >
                         <span class="lista-identidade">
                           <span class="lista-titulo">
                             {{ avaliador.nome ?? avaliador.email }} {{ avaliador.sobrenome }}
@@ -155,6 +160,7 @@
                       <button
                         type="button"
                         class="lista-item lista-item--ativo"
+                        [attr.aria-label]="'Tirar ' + (avaliador.nome ?? avaliador.email)"
                         (click)="tirar(avaliador.email)"
                       >
                         <span class="lista-identidade">

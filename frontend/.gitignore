@@ -45,3 +45,8 @@ Thumbs.db
 *.md
 !/README.md
 /docs/
+
+# Playwright
+/test-results
+/playwright-report
+/blob-report

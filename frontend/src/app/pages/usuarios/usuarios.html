@@ -71,7 +71,7 @@
               [class.plano-item--ativo]="usuarioSelecionado() === usuario.id"
             >
               <span class="lista-identidade">
-                <span class="lista-titulo">{{ usuario.nome || usuario.email }}</span>
+                <span class="lista-titulo">{{ nomeCompleto(usuario) }}</span>
                 <span class="lista-secundaria">
                   @if (usuario.nome) {
                     <app-icone nome="usuario" />
@@ -94,7 +94,7 @@
                 <button
                   type="button"
                   class="btn btn--azul horarios-btn-p"
-                  [attr.aria-label]="'Ver conta de ' + (usuario.nome || usuario.email)"
+                  [attr.aria-label]="'Ver conta de ' + nomeCompleto(usuario)"
                   (click)="abrirEditar(usuario)"
                 >
                   <app-icone nome="usuario" />
@@ -128,7 +128,8 @@
 
 <!-- Modal de confirmação de exclusão -->
 @if (confirmandoExclusao() && editandoUsuario(); as alvoExcluir) {
-  <div class="overlay">
+  <!-- Abre por cima da modal de edição, que continua montada atrás. -->
+  <div class="overlay overlay--acima">
     <div
       class="modal"
       role="dialog"
@@ -293,9 +294,10 @@
           }
         </div>
 
-        <!-- Perfil: só para criação de novo usuário -->
-        @if (!editandoUsuario()) {
-          <fieldset class="usuarios-bloco" style="margin-top: 8px">
+        <!-- Perfil: na criação e na edição. A própria conta não troca de papel
+             (o backend recusa o admin tirar o próprio admin). -->
+        @if (!editandoPropria()) {
+          <fieldset class="usuarios-bloco usuarios-perfil">
             <legend class="usuarios-titulo">Perfil</legend>
             <p class="usuarios-explica">O que esta pessoa pode fazer no sistema.</p>
             @for (opcao of papeis; track opcao.papel) {
@@ -318,6 +320,25 @@
               </label>
             }
           </fieldset>
+        }
+
+        @if (editandoUsuario(); as alvoEditar) {
+          @if (!ehVoce(alvoEditar)) {
+            <label class="usuarios-ativa">
+              <input
+                type="checkbox"
+                [checked]="editAtiva()"
+                [disabled]="salvandoNovo()"
+                (change)="editAtiva.set(!editAtiva())"
+              />
+              <span>
+                <strong>Conta ativa</strong>
+                <span class="usuarios-opcao-descricao">
+                  Desmarcada, a pessoa não consegue entrar no sistema.
+                </span>
+              </span>
+            </label>
+          }
         }
 
         <!-- Excluir (só no modo edição, zona de risco) -->

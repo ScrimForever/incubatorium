@@ -20,7 +20,7 @@ import { Painel, menuPara } from '../../shared/components/painel/painel';
 const SUBTITULO: Record<Role, string> = {
   admin: 'Administração da plataforma TecCampos.',
   avaliador: 'Acompanhe os planos de negócio sob sua avaliação.',
-  colaborador: 'Acompanhe os planos de negócio da incubadora.',
+  colaborador: 'Os módulos do colaborador ainda estão em construção.',
   incubado: 'Acompanhe o andamento do seu plano de negócios.',
 };
 

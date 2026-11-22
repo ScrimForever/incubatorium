@@ -31,7 +31,7 @@
 
     @if (carregando()) {
       <p class="lista-aviso" role="status">Carregando a agenda…</p>
-    } @else if (visao() === 'calendario') {
+    } @else {
       <div class="cartao horarios-mes" data-tour="calendario">
         <div class="horarios-mes-topo">
           <button
@@ -100,7 +100,7 @@
         </div>
         @if (!diasDoMes()) {
           <p class="horarios-mes-vazio">
-            @if (diasVisiveis().length) {
+            @if (dias().length) {
               Nenhum dia da agenda neste mês.
             } @else {
               Nenhum horário aberto de hoje em diante. Use o + para abrir agenda.
@@ -111,29 +111,6 @@
 
       @if (diaAberto(); as dia) {
         <ul class="lista horarios-dia-escolhido" id="horarios-dia-escolhido">
-          <ng-container *ngTemplateOutlet="itemDoDia; context: { $implicit: dia, forcado: true }" />
-        </ul>
-      }
-    } @else if (!diasVisiveis().length) {
-      <p class="lista-aviso" role="status">
-        <app-icone nome="agenda" />
-        @if (dias().length) {
-          Nenhum dia da agenda neste mês.
-        } @else {
-          Nenhum horário aberto de hoje em diante. Use o + para abrir agenda.
-        }
-      </p>
-    } @else {
-      <div data-tour="dia">
-        <app-faixa-dias
-          rotulo="Dias da agenda"
-          [dias]="faixa()"
-          [selecionado]="diaDaLista()?.data ?? ''"
-          (escolher)="aberto.set($event)"
-        />
-      </div>
-      @if (diaDaLista(); as dia) {
-        <ul class="lista">
           <ng-container *ngTemplateOutlet="itemDoDia; context: { $implicit: dia, forcado: true }" />
         </ul>
       }
@@ -285,7 +262,7 @@
   </div>
 }
 
-<!-- As faixas de um dia: dentro do cartão da lista ou abaixo do calendário. -->
+<!-- As faixas de um dia, abaixo do calendário. -->
 <ng-template #faixasDoDia let-dia>
   @for (f of dia.faixas; track f.janela.id) {
     <div class="horarios-faixa">
@@ -350,7 +327,7 @@
   }
 </ng-template>
 
-<!-- Um dia da agenda, o mesmo cartão na lista e abaixo do calendário. -->
+<!-- Um dia da agenda, abaixo do calendário. -->
 <!-- `forcado`: o cartão já vem aberto e sem a seta; é o dia escolhido na faixa ou no calendário. -->
 <ng-template #itemDoDia let-dia let-forcado="forcado">
   <li

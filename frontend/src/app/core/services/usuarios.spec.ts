@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 
 import { Role } from '../models/auth';
-import { NovoUsuario, UsuarioAdmin, UsuariosService, alteracaoDePapel, papelDe } from './usuarios';
+import { NovoUsuario, UsuarioAdmin, UsuariosService, flagsDoPapel, papelDe } from './usuarios';
 
 const CONTA: UsuarioAdmin = {
   id: 'abc-123',
@@ -38,14 +38,17 @@ describe('papelDe', () => {
   });
 });
 
-describe('alteracaoDePapel', () => {
-  it('admin liga o is_superuser, que é o único papel que a API grava', () => {
-    expect(alteracaoDePapel('admin')).toEqual({ role: 'admin', is_superuser: true });
-  });
-
-  it('os demais papéis desligam o is_superuser', () => {
-    for (const papel of ['avaliador', 'colaborador', 'incubado'] as Role[]) {
-      expect(alteracaoDePapel(papel)).toEqual({ role: papel, is_superuser: false });
+describe('flagsDoPapel', () => {
+  it('liga só a flag do papel; avaliador é o is_consultor da API', () => {
+    expect(flagsDoPapel('avaliador')).toEqual({
+      is_admin: false,
+      is_colaborador: false,
+      is_consultor: true,
+      is_incubado: false,
+    });
+    const papeis: Role[] = ['admin', 'avaliador', 'colaborador', 'incubado'];
+    for (const papel of papeis) {
+      expect(Object.values(flagsDoPapel(papel)).filter(Boolean).length).toBe(1);
     }
   });
 });
@@ -75,11 +78,6 @@ describe('UsuariosService', () => {
     expect(recebidas?.length).toBe(1);
   });
 
-  it('busca uma conta pelo e-mail, com o @ escapado', () => {
-    service.buscar(CONTA.email).subscribe();
-    expect(backend.expectOne(ROTA_CONTA).request.method).toBe('GET');
-  });
-
   it('altera só os campos informados', () => {
     service.alterar(CONTA.email, { is_active: false }).subscribe();
 
@@ -89,18 +87,18 @@ describe('UsuariosService', () => {
     req.flush({ ...CONTA, is_active: false });
   });
 
-  it('troca o papel mandando role e is_superuser juntos', () => {
-    service.alterar(CONTA.email, alteracaoDePapel('avaliador')).subscribe();
+  it('troca o papel mandando as quatro flags', () => {
+    service.alterar(CONTA.email, flagsDoPapel('avaliador')).subscribe();
 
     const req = backend.expectOne(ROTA_CONTA);
-    expect(req.request.body).toEqual({ role: 'avaliador', is_superuser: false });
-    req.flush({ ...CONTA, role: 'avaliador' });
+    expect(req.request.body).toEqual(flagsDoPapel('avaliador'));
+    req.flush({ ...CONTA, is_incubado: false, is_consultor: true });
   });
 
-  it('exclui a conta', () => {
-    service.excluir(CONTA.email).subscribe();
+  it('exclui a conta pelo id, na rota do fastapi-users', () => {
+    service.excluir(CONTA.id).subscribe();
 
-    const req = backend.expectOne(ROTA_CONTA);
+    const req = backend.expectOne('/api/users/abc-123');
     expect(req.request.method).toBe('DELETE');
     req.flush(null, { status: 204, statusText: 'No Content' });
   });

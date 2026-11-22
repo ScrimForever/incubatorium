@@ -264,7 +264,7 @@ export const CAMPOS_ETAPA_1 = [
     rotulo: 'CNPJ',
     placeholder: '00.000.000/0000-00',
     obrigatorio: false,
-    erro: '',
+    erro: 'CNPJ inválido: confira os 14 dígitos.',
     mascara: 'cnpj',
   },
 ] as const;

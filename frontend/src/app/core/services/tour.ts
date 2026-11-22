@@ -125,8 +125,12 @@ export class TourService {
    * em vez de esperar — se nada mudou, não haveria próximo desenho para esperar.
    */
   private depoisDeDesenhar(fazer: () => void): void {
-    this.app.tick();
-    fazer();
+    // Numa microtask: quem chama pode estar dentro de um desenho (o tour da
+    // primeira visita nasce num afterNextRender), e tick ali é NG0101.
+    queueMicrotask(() => {
+      this.app.tick();
+      fazer();
+    });
   }
 
   jaViu(tela: string): boolean {

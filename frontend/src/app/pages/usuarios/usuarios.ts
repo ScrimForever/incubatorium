@@ -22,13 +22,14 @@ import {
   NovoUsuario,
   UsuarioAdmin,
   UsuariosService,
+  flagsDoPapel,
   papelDe,
 } from '../../core/services/usuarios';
 import { Icone } from '../../shared/components/icone/icone';
 import { Paginacao } from '../../shared/components/paginacao/paginacao';
 import { Painel } from '../../shared/components/painel/painel';
 import { ToggleSenha } from '../../shared/components/toggle-senha/toggle-senha';
-import { Mascara } from '../../shared/directives/mascara';
+import { Mascara, mascararValorSalvo } from '../../shared/directives/mascara';
 import { ToastService } from '../../core/services/toast';
 
 const PAPEIS: readonly { papel: Role; descricao: string }[] = [
@@ -100,9 +101,13 @@ export class Usuarios implements OnInit {
   protected readonly salvandoNovo = signal(false);
   protected readonly erroNovo = signal('');
   protected readonly mostrarSenha = signal(false);
-  /** Flags de situação editáveis no modo edição (fora do formNovo). */
+  /** A modal está editando a conta de quem está logado: sem perfil nem "ativa". */
+  protected readonly editandoPropria = computed(() => {
+    const alvo = this.editandoUsuario();
+    return !!alvo && this.ehVoce(alvo);
+  });
+  /** "Conta ativa" no modo edição (fora do formNovo: a criação não tem). */
   protected readonly editAtiva = signal(false);
-  protected readonly editVerificada = signal(false);
   /** Confirmação de exclusão dentro do fluxo de edição. */
   protected readonly confirmandoExclusao = signal(false);
   protected readonly salvandoExclusao = signal(false);
@@ -313,6 +318,11 @@ export class Usuarios implements OnInit {
     return 'Ativa';
   }
 
+  /** "Ana Souza", "Ana" ou o e-mail — o rótulo da conta na lista. */
+  protected nomeCompleto(u: UsuarioAdmin): string {
+    return [u.nome, u.sobrenome].filter((parte) => parte?.trim()).join(' ') || u.email;
+  }
+
   protected iniciais(u: UsuarioAdmin): string {
     const n = u.nome?.trim();
     const s = u.sobrenome?.trim();
@@ -363,6 +373,7 @@ export class Usuarios implements OnInit {
     this.mostrarSenha.set(false);
     this.confirmandoExclusao.set(false);
     this.formNovo.controls.email.enable();
+    this.obrigatoriosDaCriacao(true);
     this.formNovo.controls.password.setValidators([
       Validators.required,
       Validators.minLength(MIN_PASSWORD_LENGTH),
@@ -380,19 +391,52 @@ export class Usuarios implements OnInit {
     this.mostrarSenha.set(false);
     this.confirmandoExclusao.set(false);
     this.editAtiva.set(u.is_active);
-    this.editVerificada.set(u.is_verified);
     this.formNovo.controls.email.disable();
+    // Conta criada pelo /auth/register não tem nome nem telefone: exigir aqui
+    // impediria até de trocar a senha dela.
+    this.obrigatoriosDaCriacao(false);
     this.formNovo.controls.password.setValidators([Validators.minLength(MIN_PASSWORD_LENGTH)]);
     this.formNovo.controls.password.updateValueAndValidity();
     this.formNovo.reset({
       nome: u.nome ?? '',
       sobrenome: u.sobrenome ?? '',
-      telefone: u.telefone ?? '',
+      // A máscara só formata o que se digita: o valor salvo entra já formatado.
+      telefone: mascararValorSalvo('telefone', u.telefone ?? ''),
       email: u.email,
       password: '',
       perfil: this.papel(u),
     });
     this.criandoUsuario.set(true);
+  }
+
+  private obrigatoriosDaCriacao(exigir: boolean): void {
+    for (const campo of [
+      this.formNovo.controls.nome,
+      this.formNovo.controls.sobrenome,
+      this.formNovo.controls.telefone,
+    ]) {
+      campo.setValidators(exigir ? Validators.required : null);
+      campo.updateValueAndValidity();
+    }
+  }
+
+  /** Só o que mudou vai no PATCH: campo vazio não apaga o que a conta já tem. */
+  private alteracaoDe(alvo: UsuarioAdmin): AlteracaoUsuario {
+    const { nome, sobrenome, telefone, password, perfil } = this.formNovo.getRawValue();
+    const alteracao: AlteracaoUsuario = {};
+    const texto = { nome, sobrenome, telefone } as const;
+    for (const campo of ['nome', 'sobrenome', 'telefone'] as const) {
+      const novo = texto[campo].trim();
+      const atual = alvo[campo] ?? '';
+      // O telefone abre formatado: só formatar não é mudança.
+      const igual =
+        novo === atual || (campo === 'telefone' && novo === mascararValorSalvo('telefone', atual));
+      if (novo && !igual) alteracao[campo] = novo;
+    }
+    if (password) alteracao.password = password;
+    if (this.editAtiva() !== alvo.is_active) alteracao.is_active = this.editAtiva();
+    if (perfil !== this.papel(alvo)) Object.assign(alteracao, flagsDoPapel(perfil));
+    return alteracao;
   }
 
   protected fecharNovo(): void {
@@ -411,12 +455,11 @@ export class Usuarios implements OnInit {
     const alvoEditar = this.editandoUsuario();
 
     if (alvoEditar) {
-      const { nome, sobrenome, telefone, password } = this.formNovo.getRawValue();
-      const alteracao: AlteracaoUsuario = { nome, sobrenome, telefone };
-      if (password) alteracao.password = password;
-      if (this.editAtiva() !== alvoEditar.is_active) alteracao.is_active = this.editAtiva();
-      if (this.editVerificada() !== alvoEditar.is_verified)
-        alteracao.is_verified = this.editVerificada();
+      const alteracao = this.alteracaoDe(alvoEditar);
+      if (!Object.keys(alteracao).length) {
+        this.fecharNovo();
+        return;
+      }
 
       this.salvandoNovo.set(true);
       this.erroNovo.set('');
@@ -426,13 +469,8 @@ export class Usuarios implements OnInit {
         .subscribe({
           next: (atualizado) => {
             this.salvandoNovo.set(false);
-            const merged: UsuarioAdmin = {
-              ...alvoEditar,
-              ...atualizado,
-              nome: atualizado.nome ?? nome,
-              sobrenome: atualizado.sobrenome ?? sobrenome,
-              telefone: atualizado.telefone ?? telefone,
-            };
+            // `role` vem de antes: o papel passa a ser lido das flags devolvidas.
+            const merged: UsuarioAdmin = { ...alvoEditar, ...atualizado, role: undefined };
             this.usuarios.update((lista) =>
               lista.map((atual) => (atual.id === merged.id ? merged : atual)),
             );
@@ -456,10 +494,7 @@ export class Usuarios implements OnInit {
         nome,
         sobrenome,
         telefone,
-        is_admin: perfil === 'admin',
-        is_colaborador: perfil === 'colaborador',
-        is_consultor: perfil === 'avaliador',
-        is_incubado: perfil === 'incubado',
+        ...flagsDoPapel(perfil),
       };
       this.salvandoNovo.set(true);
       this.erroNovo.set('');
@@ -500,7 +535,7 @@ export class Usuarios implements OnInit {
     if (!u) return;
     this.salvandoExclusao.set(true);
     this.service
-      .excluir(u.email)
+      .excluir(u.id)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
