@@ -1,0 +1,28 @@
+@if (user(); as u) {
+  <app-painel [user]="u" ativo="Monitoramento">
+    <h1>Monitoramento</h1>
+    <p class="painel-subtitulo">
+      Acompanhamento dos incubados aprovados. Por enquanto, o painel do sistema antigo.
+    </p>
+
+    <div class="monitoramento-acoes">
+      <a class="btn btn--azul" [href]="url" target="_blank" rel="noopener noreferrer">
+        Abrir em nova aba
+      </a>
+      <label class="monitoramento-toggle">
+        <input type="checkbox" role="switch" [checked]="embutido()" (change)="alternar()" />
+        Mostrar painel nesta tela
+      </label>
+    </div>
+
+    @if (embutido()) {
+      <div class="cartao monitoramento-quadro">
+        <iframe
+          [src]="urlSegura"
+          title="Painel de monitoramento dos incubados (Power BI)"
+          allowfullscreen
+        ></iframe>
+      </div>
+    }
+  </app-painel>
+}

@@ -1,0 +1,28 @@
+.monitoramento-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.monitoramento-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.monitoramento-quadro {
+  padding: 0;
+  overflow: hidden;
+  container-type: inline-size;
+
+  iframe {
+    display: block;
+    width: 100%;
+    // Relatório 16:9 do Power BI + a barra de zoom dele (~36px): sem faixa vazia.
+    height: calc(56.25cqw + 36px);
+    border: 0;
+  }
+}

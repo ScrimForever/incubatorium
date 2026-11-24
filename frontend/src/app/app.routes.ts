@@ -131,6 +131,12 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/usuarios/usuarios').then((m) => m.Usuarios),
   },
   {
+    path: 'monitoramento',
+    title: 'TecCampos - Monitoramento',
+    canActivate: [authGuard, adminGuard],
+    loadComponent: () => import('./pages/monitoramento/monitoramento').then((m) => m.Monitoramento),
+  },
+  {
     // Dentro do painel: só o incubado com o plano aprovado chega aqui. É o
     // próprio questionário, travado, com as notas — não um documento à parte.
     path: 'meu-plano',

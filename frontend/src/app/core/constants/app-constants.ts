@@ -20,6 +20,8 @@ export const APP_ROUTES = {
    *  vezes quebra o e-mail (`@` vira `%2540`). */
   planoDe: (email: string): string => `/planos-de-negocio/${email}`,
   usuarios: '/usuarios',
+  /** Acompanhamento dos incubados aprovados (por ora, o painel do sistema antigo). */
+  monitoramento: '/monitoramento',
   /** Agenda de consultoria do consultor: abrir, editar e cancelar horários. */
   meusHorarios: '/meus-horarios',
   /** O formulário de abrir agenda; publicar volta para Meus horários. */
@@ -58,3 +60,10 @@ export const JITSI_DOMINIO = 'meet.jit.si';
 
 /** Chave do bearer token no localStorage. */
 export const STORAGE_TOKEN_KEY = 'bearerToken';
+
+/**
+ * Painel Power BI público do sistema antigo, com o monitoramento dos incubados.
+ * Fica até o módulo Monitoramento ter dados próprios na API.
+ */
+export const MONITORAMENTO_POWERBI_URL =
+  'https://app.powerbi.com/view?r=eyJrIjoiNGViN2IwYjMtYjU1Yi00MzMzLTg2MmUtYWRjZjhjOWVlYTAyIiwidCI6IjkwOTc0ZDJiLWJlNGEtNDZmNS1iYzNkLWFlYzIzNjQ1MDk2OCJ9&pageName=2894d430047b0f7d84fc';
