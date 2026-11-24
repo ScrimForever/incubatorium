@@ -1,8 +1,10 @@
-"""baseline
+"""schema inicial
+
+Schema completo do zero (consolida as antigas revisões 0001 a 0005).
 
 Revision ID: 0001
 Revises:
-Create Date: 2026-11-05 00:00:06.645008
+Create Date: 2026-11-21 22:13:15.859812
 
 """
 
@@ -49,6 +51,53 @@ def upgrade() -> None:
         unique=False,
     )
     op.create_table(
+        "historico_acesso",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column(
+            "evento",
+            sa.Enum(
+                "login_sucesso", "login_falha", "senha_alterada", name="evento_acesso"
+            ),
+            nullable=False,
+        ),
+        sa.Column(
+            "motivo",
+            sa.Enum(
+                "credenciais_invalidas",
+                "conta_inativa",
+                "propria",
+                "recuperacao",
+                "administrador",
+                name="motivo_acesso",
+            ),
+            nullable=True,
+        ),
+        sa.Column("email", sa.String(length=320), nullable=False),
+        sa.Column("usuario_id", sa.Uuid(), nullable=True),
+        sa.Column("autor_email", sa.String(length=320), nullable=True),
+        sa.Column("ip", sa.String(length=45), nullable=True),
+        sa.Column("user_agent", sa.String(length=512), nullable=True),
+        sa.Column(
+            "criado_em",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index(
+        op.f("ix_historico_acesso_criado_em"),
+        "historico_acesso",
+        ["criado_em"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_historico_acesso_email"), "historico_acesso", ["email"], unique=False
+    )
+    op.create_index(
+        op.f("ix_historico_acesso_evento"), "historico_acesso", ["evento"], unique=False
+    )
+    op.create_table(
         "questionario",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("usuario_email", sa.String(length=255), nullable=False),
@@ -70,6 +119,12 @@ def upgrade() -> None:
         sa.Column("decidido_por", sa.String(length=255), nullable=True),
         sa.Column("decidido_em", sa.DateTime(timezone=True), nullable=True),
         sa.Column("motivo_decisao", sa.Text(), nullable=True),
+        sa.Column(
+            "avaliado_admin",
+            sa.Boolean(),
+            server_default=sa.text("false"),
+            nullable=False,
+        ),
         sa.Column("criado_por", sa.String(length=255), nullable=False),
         sa.Column(
             "criado_em",
@@ -95,6 +150,9 @@ def upgrade() -> None:
         ),
         sa.Column("situacao_alterada_em", sa.DateTime(timezone=True), nullable=True),
         sa.Column("situacao_alterada_por", sa.String(length=255), nullable=True),
+        sa.Column("nome", sa.String(length=255), nullable=True),
+        sa.Column("sobrenome", sa.String(length=255), nullable=True),
+        sa.Column("telefone", sa.String(length=32), nullable=True),
         sa.Column("id", fastapi_users_db_sqlalchemy.generics.GUID(), nullable=False),
         sa.Column("email", sa.String(length=320), nullable=False),
         sa.Column("hashed_password", sa.String(length=1024), nullable=False),
@@ -141,6 +199,40 @@ def upgrade() -> None:
         unique=False,
     )
     op.create_table(
+        "questionario_avaliador",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("questionario_id", sa.Integer(), nullable=False),
+        sa.Column("avaliador_email", sa.String(length=255), nullable=False),
+        sa.Column("criado_por", sa.String(length=255), nullable=False),
+        sa.Column(
+            "criado_em",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column("atualizado_em", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("atualizado_por", sa.String(length=255), nullable=True),
+        sa.ForeignKeyConstraint(
+            ["questionario_id"], ["questionario.id"], ondelete="CASCADE"
+        ),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint(
+            "questionario_id", "avaliador_email", name="uq_questionario_avaliador"
+        ),
+    )
+    op.create_index(
+        op.f("ix_questionario_avaliador_avaliador_email"),
+        "questionario_avaliador",
+        ["avaliador_email"],
+        unique=False,
+    )
+    op.create_index(
+        op.f("ix_questionario_avaliador_questionario_id"),
+        "questionario_avaliador",
+        ["questionario_id"],
+        unique=False,
+    )
+    op.create_table(
         "questionario_historico",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("questionario_id", sa.Integer(), nullable=False),
@@ -179,16 +271,44 @@ def upgrade() -> None:
         unique=False,
     )
     # ### end Alembic commands ###
+    # Trilha de auditoria: nada é alterado nem apagado depois de gravado.
+    op.execute(
+        """
+        CREATE FUNCTION historico_acesso_imutavel() RETURNS trigger AS $$
+        BEGIN
+            RAISE EXCEPTION 'historico_acesso aceita apenas INSERT';
+        END;
+        $$ LANGUAGE plpgsql;
+        """
+    )
+    op.execute(
+        """
+        CREATE TRIGGER historico_acesso_imutavel
+        BEFORE UPDATE OR DELETE OR TRUNCATE ON historico_acesso
+        FOR EACH STATEMENT EXECUTE FUNCTION historico_acesso_imutavel();
+        """
+    )
 
 
 def downgrade() -> None:
     """Downgrade schema."""
+    op.execute("DROP TRIGGER historico_acesso_imutavel ON historico_acesso")
+    op.execute("DROP FUNCTION historico_acesso_imutavel()")
     # ### commands auto generated by Alembic - please adjust! ###
     op.drop_index(
         op.f("ix_questionario_historico_questionario_id"),
         table_name="questionario_historico",
     )
     op.drop_table("questionario_historico")
+    op.drop_index(
+        op.f("ix_questionario_avaliador_questionario_id"),
+        table_name="questionario_avaliador",
+    )
+    op.drop_index(
+        op.f("ix_questionario_avaliador_avaliador_email"),
+        table_name="questionario_avaliador",
+    )
+    op.drop_table("questionario_avaliador")
     op.drop_index(
         op.f("ix_consultoria_horario_janela_id"), table_name="consultoria_horario"
     )
@@ -202,11 +322,15 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_user_email"), table_name="user")
     op.drop_table("user")
     op.drop_table("questionario")
+    op.drop_index(op.f("ix_historico_acesso_evento"), table_name="historico_acesso")
+    op.drop_index(op.f("ix_historico_acesso_email"), table_name="historico_acesso")
+    op.drop_index(op.f("ix_historico_acesso_criado_em"), table_name="historico_acesso")
+    op.drop_table("historico_acesso")
     op.drop_index(
         op.f("ix_consultoria_janela_consultor_email"), table_name="consultoria_janela"
     )
     op.drop_table("consultoria_janela")
     # ### end Alembic commands ###
     # Os tipos enum não caem com as tabelas; sem isso o upgrade seguinte falha.
-    sa.Enum(name="statusenum").drop(op.get_bind(), checkfirst=True)
-    sa.Enum(name="situacaoincubacao").drop(op.get_bind(), checkfirst=True)
+    for nome in ("statusenum", "situacaoincubacao", "evento_acesso", "motivo_acesso"):
+        sa.Enum(name=nome).drop(op.get_bind(), checkfirst=True)

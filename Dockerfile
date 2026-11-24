@@ -3,9 +3,12 @@ FROM python:3.14-alpine AS builder
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 
+# Venv do container fica fora de /app: o bind mount do compose nunca o enxerga
+# nem o substitui pelo .venv do host.
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
-    UV_NO_DEV=1
+    UV_NO_DEV=1 \
+    UV_PROJECT_ENVIRONMENT=/opt/venv
 
 WORKDIR /app/src
 
@@ -37,13 +40,15 @@ RUN rm -rf /usr/local/lib/python3.14/test \
 
 # `uv run` não deve re-sincronizar nem instalar dependências de dev no start
 ENV UV_NO_DEV=1 \
-    UV_NO_SYNC=1
+    UV_NO_SYNC=1 \
+    UV_PROJECT_ENVIRONMENT=/opt/venv \
+    PATH="/opt/venv/bin:$PATH"
 
+COPY --from=builder /opt/venv /opt/venv
 WORKDIR /app
 COPY --from=builder /app /app
 
 WORKDIR /app/src
-ENV PATH="/app/src/.venv/bin:$PATH"
 
 EXPOSE 8000
 
