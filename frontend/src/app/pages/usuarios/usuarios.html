@@ -341,9 +341,10 @@
           }
         }
 
-        <!-- Excluir (só no modo edição, zona de risco) -->
+        <!-- Excluir (só no modo edição, zona de risco). Só o superuser vê:
+             DELETE /users/{id} recusa admin sem is_superuser com 403. -->
         @if (editandoUsuario(); as alvoEditar) {
-          @if (!ehVoce(alvoEditar)) {
+          @if (podeExcluir() && !ehVoce(alvoEditar)) {
             <div class="usuarios-risco">
               <button
                 type="button"

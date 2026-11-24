@@ -106,6 +106,8 @@ export class Usuarios implements OnInit {
     const alvo = this.editandoUsuario();
     return !!alvo && this.ehVoce(alvo);
   });
+  /** Só o superuser exclui: `DELETE /users/{id}` dá 403 para admin sem `is_superuser`. */
+  protected readonly podeExcluir = computed(() => !!this.user()?.is_superuser);
   /** "Conta ativa" no modo edição (fora do formNovo: a criação não tem). */
   protected readonly editAtiva = signal(false);
   /** Confirmação de exclusão dentro do fluxo de edição. */

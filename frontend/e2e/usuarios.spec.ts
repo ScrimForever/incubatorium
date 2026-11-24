@@ -1,7 +1,7 @@
 import { Page, expect, test } from '@playwright/test';
 
-import { entrar } from './contas';
-import { apagarConta, criarConta as criarContaApi } from './massa';
+import { entrar, entrarComo } from './contas';
+import { API, SENHA, apagarConta, criarConta as criarContaApi, tokenAdmin } from './massa';
 
 const criarConta = (page: Page) =>
   page.waitForResponse((r) => r.url().endsWith('/api/usuarios') && r.request().method() === 'POST');
@@ -85,6 +85,57 @@ test('exclui a conta: a confirmação fica por cima e o DELETE vai para /users/{
   expect((await apagou).status()).toBe(204);
   await expect(page.getByText('Usuário excluído.')).toBeVisible();
   await expect(page.getByText(email)).toHaveCount(0);
+});
+
+test('superuser cria um admin pela tela e depois o exclui', async ({ page }) => {
+  const email = `pw.${Date.now()}@teccampos.com`;
+  await preencherNovo(page, email);
+  await page.getByRole('dialog').locator('input[value=admin]').check({ force: true });
+  const resposta = criarConta(page);
+  await page.getByRole('dialog').getByRole('button', { name: 'Criar conta' }).click();
+  expect((await resposta).status()).toBe(201);
+
+  await abrirConta(page, email);
+  await page.getByRole('button', { name: 'Excluir conta' }).click();
+  const apagou = page.waitForResponse(
+    (r) => r.url().includes('/api/users/') && r.request().method() === 'DELETE',
+  );
+  await page
+    .getByRole('dialog', { name: 'Excluir conta' })
+    .getByRole('button', { name: 'Excluir conta' })
+    .click();
+  expect((await apagou).status()).toBe(204);
+  await expect(page.getByText('Usuário excluído.')).toBeVisible();
+  await expect(page.getByText(email)).toHaveCount(0);
+});
+
+test('admin sem is_superuser não vê o botão Excluir conta', async ({ page, request }) => {
+  const headers = await tokenAdmin(request);
+  const email = `pw.admin.${Date.now()}@teccampos.com`;
+  const r = await request.post(`${API}/usuarios`, {
+    headers,
+    data: {
+      email,
+      password: SENHA,
+      nome: 'Admin',
+      sobrenome: 'Comum',
+      telefone: '22999990000',
+      is_admin: true,
+    },
+  });
+  const admin = (await r.json()) as { id: string };
+  const alvo = await criarContaApi(request, 'incubado');
+  try {
+    await entrarComo(page, email, SENHA);
+    await page.goto('/usuarios');
+    await page.getByPlaceholder('Buscar por nome ou e-mail').fill(alvo.email);
+    await page.getByRole('button', { name: /^Ver conta de/ }).click();
+    await expect(page.getByRole('dialog', { name: 'Editar usuário' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Excluir conta' })).toHaveCount(0);
+  } finally {
+    await apagarConta(request, alvo.id);
+    await apagarConta(request, admin.id);
+  }
 });
 
 test('troca o papel e desativa a conta, mandando só o que mudou', async ({ page }) => {
