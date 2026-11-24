@@ -23,7 +23,12 @@
 
 <ng-template #conteudo>
   @if (carregado()) {
-    <app-imprimir-plano class="quest-imprimir" [json]="json()" [dono]="donoDosAnexos()" />
+    <app-imprimir-plano
+      class="quest-imprimir"
+      [json]="json()"
+      [dono]="donoDosAnexos()"
+      [pdfDoServidor]="pdfDoServidor()"
+    />
   }
 
   @if (ehProprio()) {

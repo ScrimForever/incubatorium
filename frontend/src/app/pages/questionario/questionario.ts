@@ -1190,6 +1190,17 @@ export class Questionario implements OnInit {
   );
 
   /**
+   * O PDF do backend só aceita consultor e coordenação; o incubado e o
+   * colaborador seguem com a impressão do navegador.
+   */
+  protected readonly pdfDoServidor = computed(
+    () =>
+      this.ehAvaliacao() &&
+      !this.ehProprio() &&
+      (this.user()?.role === 'admin' || this.user()?.role === 'avaliador'),
+  );
+
+  /**
    * Abre a modal e já busca o conteúdo, para a prévia ser o arquivo real. No modo
    * avaliação lê o disco do dono do plano (consultor, colaborador e coordenação).
    */
