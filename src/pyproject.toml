@@ -27,7 +27,7 @@ test = [
     "pytest-cov>=7.1.0",
     "pytest-mock>=3.17.0",
     "aiosqlite>=0.22.1",
-    "pypdf>=7.0.1",
+    "pypdf>=7.1.1",
 ]
 dev = [
     {include-group = "test"},
