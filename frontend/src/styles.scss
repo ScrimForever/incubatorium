@@ -1698,6 +1698,11 @@ quill-view .ql-editor {
   font-size: 22px;
 }
 
+/* Ação da caixa de estado: centralizada, no tamanho do texto, não da caixa. */
+.estado-acoes {
+  margin-top: 24px;
+}
+
 .estado-texto {
   margin-top: 14px;
   font-size: 14px;

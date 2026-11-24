@@ -32,13 +32,15 @@
       <div class="error-message" role="alert"><app-icone nome="erro" />{{ mensagemErro() }}</div>
     }
 
-    <button
-      type="button"
-      class="btn btn--azul btn--block"
-      [disabled]="reabrindo() || !carregado()"
-      (click)="corrigir()"
-    >
-      {{ reabrindo() ? 'Abrindo...' : 'Corrigir meu plano' }}
-    </button>
+    <div class="estado-acoes">
+      <button
+        type="button"
+        class="btn btn--azul"
+        [disabled]="reabrindo() || !carregado()"
+        (click)="corrigir()"
+      >
+        {{ reabrindo() ? 'Abrindo...' : 'Corrigir meu plano' }}
+      </button>
+    </div>
   </div>
 </main>
