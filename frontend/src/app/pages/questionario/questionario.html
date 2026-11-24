@@ -1,7 +1,8 @@
-<!-- A coordenação lê o plano dentro do painel, com o menu lateral; incubado e
-     avaliador seguem em tela cheia. O conteúdo é o mesmo nos dois casos. -->
-@if (ehCoordenacao() && user(); as u) {
-  <app-painel [user]="u" ativo="Planos de negócio">
+<!-- A coordenação lê o plano dentro do painel, com o menu lateral, e o incubado
+     relê o plano aprovado também ali; quem preenche e quem avalia segue em tela
+     cheia. O conteúdo é o mesmo nos dois casos. -->
+@if ((ehCoordenacao() || ehProprio()) && user(); as u) {
+  <app-painel [user]="u" [ativo]="ehProprio() ? 'Meu plano' : 'Planos de negócio'">
     <div class="quest quest--avaliacao quest--leitura quest--painel">
       <ng-container [ngTemplateOutlet]="conteudo" />
     </div>
@@ -25,7 +26,13 @@
     <app-imprimir-plano class="quest-imprimir" [json]="json()" [dono]="donoDosAnexos()" />
   }
 
-  @if (ehAvaliacao()) {
+  @if (ehProprio()) {
+    <h1>Meu plano</h1>
+    <p class="quest-subtitulo">
+      O plano de negócios que você enviou, com a avaliação de cada etapa.
+      <span [class]="'selo selo--' + statusPlano()">{{ rotuloStatusPlano() }}</span>
+    </p>
+  } @else if (ehAvaliacao()) {
     <a
       [routerLink]="voltarLista"
       class="btn btn--secundario horarios-btn-p"
@@ -123,13 +130,13 @@
     @if (mensagemErro()) {
       <div class="error-message" role="alert"><app-icone nome="erro" />{{ mensagemErro() }}</div>
     }
-    <!-- Plano devolvido que a coordenação reabriu: o motivo fica à vista em
-           todas as etapas até o incubado reenviar. -->
+    <!-- Plano devolvido e reaberto (pelo incubado ou pela coordenação): o motivo
+           fica à vista em todas as etapas até o incubado reenviar. -->
     @if (devolucaoAnterior(); as devolucao) {
       <div class="error-message" role="alert">
         <app-icone nome="alerta" />
         <span>
-          A coordenação reabriu seu plano para ajustes. Motivo da devolução:
+          Seu plano foi devolvido para ajustes. Motivo da devolução:
           {{ devolucao.justificativa }}
         </span>
       </div>
@@ -451,9 +458,10 @@
       }
     </section>
 
-    <!-- Só na avaliação: o card da nota desta etapa. O layout é sempre o mesmo;
-           travado (nota já dada) ou aberto para edição, mudam só rótulos e controles. -->
-    @if (ehAvaliacao()) {
+    <!-- O card da nota desta etapa: na avaliação sempre; para o incubado que
+           corrige, só quando a etapa já tem nota, e em leitura. O layout é sempre
+           o mesmo; travado ou aberto para edição, mudam só rótulos e controles. -->
+    @if (ehAvaliacao() || notaDaEtapa()) {
       <section class="cartao aval-card" [class.aval-card--travado]="!formularioAberto()">
         <span class="aval-rotulo" id="aval-nota-rotulo">{{ rotuloAvaliacao() }}</span>
         <div class="aval-valores" role="group" aria-labelledby="aval-nota-rotulo">
@@ -530,7 +538,7 @@
                 <app-icone nome="lapis" />
                 Editar avaliação
               </button>
-            } @else if (!ehCoordenacao()) {
+            } @else if (ehAvaliacao() && !ehCoordenacao() && !ehProprio()) {
               <span class="aval-bloqueada">
                 <app-icone nome="cadeado" />
                 Avaliada por outro consultor — você pode apenas visualizar.

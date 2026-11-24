@@ -104,6 +104,29 @@ export class QuestionarioService {
     );
   }
 
+  /**
+   * O incubado reabre o próprio plano devolvido para corrigir (decisão de
+   * 24/11/2026: antes só a coordenação reabria). Volta a `pendente` com o
+   * documento como está — a `decisao` fica, para o motivo seguir no topo do
+   * formulário até o reenvio. Confere o status devolvido, como o `enviar`.
+   */
+  corrigir(): Observable<Questionario> {
+    return this.meu().pipe(
+      switchMap((plano) => {
+        if (plano.status_questionario !== 'rejeitado') {
+          return throwError(() => CORRECAO_SO_DEVOLVIDO);
+        }
+        return this.enviarDocumento('pendente', plano.json_questionario);
+      }),
+      map((plano) => {
+        if (plano.status_questionario !== 'pendente') {
+          throw REABERTURA_NAO_REGISTRADA;
+        }
+        return plano;
+      }),
+    );
+  }
+
   private criar(): Observable<Questionario> {
     const corpo: QuestionarioEntrada = {
       status_questionario: 'iniciado',
@@ -145,6 +168,18 @@ const ENVIO_NAO_REGISTRADO: ApiError = {
   message:
     'Suas respostas foram salvas, mas o servidor não registrou o envio para análise. ' +
     'Tente de novo mais tarde ou avise a coordenação.',
+};
+
+const CORRECAO_SO_DEVOLVIDO: ApiError = {
+  code: 'CORRECAO_SO_DEVOLVIDO',
+  message: 'Só um plano devolvido pode ser reaberto para correção.',
+};
+
+/** O servidor recebeu o pedido, mas o plano não voltou para edição. */
+const REABERTURA_NAO_REGISTRADA: ApiError = {
+  code: 'REABERTURA_NAO_REGISTRADA',
+  message:
+    'O servidor não reabriu o plano para correção. Tente de novo mais tarde ou avise a coordenação.',
 };
 
 /**

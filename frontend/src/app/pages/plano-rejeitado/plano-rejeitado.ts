@@ -8,30 +8,34 @@ import {
   signal,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Router } from '@angular/router';
 
+import { APP_ROUTES } from '../../core/constants/app-constants';
 import { ApiError } from '../../core/models/auth';
 import { DecisaoPlano, JsonQuestionario } from '../../core/models/questionario';
 import { QuestionarioService } from '../../core/services/questionario';
 import { Icone } from '../../shared/components/icone/icone';
-import { PlanoLeitura } from '../../shared/components/plano-leitura/plano-leitura';
 import { TopoSessao } from '../../shared/components/topo-sessao/topo-sessao';
 
 /**
- * Plano devolvido, somente leitura. Quem reabre o plano é a coordenação, mudando
- * o status — não há caminho de volta ao formulário por aqui.
+ * Plano devolvido: o motivo e o caminho de volta ao formulário. O próprio
+ * incubado reabre para corrigir (24/11/2026); as notas aparecem no formulário.
  */
 @Component({
   selector: 'app-plano-rejeitado',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icone, PlanoLeitura, TopoSessao],
+  imports: [Icone, TopoSessao],
   templateUrl: './plano-rejeitado.html',
 })
 export class PlanoRejeitado implements OnInit {
   private readonly service = inject(QuestionarioService);
+  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly json = signal<JsonQuestionario | null>(null);
   protected readonly mensagemErro = signal('');
+  protected readonly carregado = computed(() => this.json() !== null);
+  protected readonly reabrindo = signal(false);
 
   /** O motivo escrito por quem devolveu, quando o documento já o traz. */
   protected readonly devolucao = computed<DecisaoPlano | null>(() => {
@@ -52,6 +56,22 @@ export class PlanoRejeitado implements OnInit {
       .subscribe({
         next: (plano) => this.json.set(plano.json_questionario),
         error: (err: ApiError) => this.mensagemErro.set(err.message),
+      });
+  }
+
+  /** Volta o plano para edição e abre o formulário, com o motivo no topo. */
+  protected corrigir(): void {
+    this.reabrindo.set(true);
+    this.mensagemErro.set('');
+    this.service
+      .corrigir()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => void this.router.navigate([APP_ROUTES.questionario]),
+        error: (err: ApiError) => {
+          this.reabrindo.set(false);
+          this.mensagemErro.set(err.message);
+        },
       });
   }
 }

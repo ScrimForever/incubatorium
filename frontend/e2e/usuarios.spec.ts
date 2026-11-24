@@ -1,6 +1,7 @@
 import { Page, expect, test } from '@playwright/test';
 
 import { entrar } from './contas';
+import { apagarConta, criarConta as criarContaApi } from './massa';
 
 const criarConta = (page: Page) =>
   page.waitForResponse((r) => r.url().endsWith('/api/usuarios') && r.request().method() === 'POST');
@@ -22,9 +23,17 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Usuários' })).toBeVisible();
 });
 
-test('lista real, paginada de 10 em 10', async ({ page }) => {
-  await expect(page.getByRole('button', { name: /^Ver conta de/ })).toHaveCount(10);
-  await expect(page.getByText(/^1–10 de \d+$/)).toBeVisible();
+test('lista real, paginada de 10 em 10', async ({ page, request }) => {
+  // Garante mais de uma página, seja qual for o banco: 11 contas próprias.
+  const criadas: { id: string }[] = [];
+  for (let i = 0; i < 11; i++) criadas.push(await criarContaApi(request, 'incubado'));
+  try {
+    await page.reload();
+    await expect(page.getByRole('button', { name: /^Ver conta de/ })).toHaveCount(10);
+    await expect(page.getByText(/^1–10 de \d+$/)).toBeVisible();
+  } finally {
+    for (const c of criadas) await apagarConta(request, c.id);
+  }
 });
 
 test('cria incubado pela modal e ele aparece na lista', async ({ page }) => {
