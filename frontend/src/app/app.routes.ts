@@ -131,11 +131,19 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/usuarios/usuarios').then((m) => m.Usuarios),
   },
   {
-    // Dentro do painel: só o incubado com o plano aprovado chega aqui.
+    path: 'monitoramento',
+    title: 'TecCampos - Monitoramento',
+    canActivate: [authGuard, adminGuard],
+    loadComponent: () => import('./pages/monitoramento/monitoramento').then((m) => m.Monitoramento),
+  },
+  {
+    // Dentro do painel: só o incubado com o plano aprovado chega aqui. É o
+    // próprio questionário, travado, com as notas — não um documento à parte.
     path: 'meu-plano',
     title: 'TecCampos - Meu plano',
+    data: { modo: 'leitura' },
     canActivate: [authGuard, planoAprovadoGuard],
-    loadComponent: () => import('./pages/meu-plano/meu-plano').then((m) => m.MeuPlano),
+    loadComponent: () => import('./pages/questionario/questionario').then((m) => m.Questionario),
   },
   {
     // Também vive no painel, logo segue a mesma regra do dashboard.

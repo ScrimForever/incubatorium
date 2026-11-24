@@ -54,6 +54,8 @@ export const API_ROUTES = {
      * `{ status_questionario, json_questionario }`, que substitui o documento inteiro.
      */
     porId: (id: number): string => `/questionario/${id}`,
+    /** PDF do plano (A4), gerado pelo backend. Só consultor e coordenação. */
+    pdf: (id: number): string => `/relatorios/questionario/${id}`,
   },
   /**
    * Designação de avaliadores (`docs/contrato-designacao.md`): rotas reais, só

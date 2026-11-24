@@ -95,7 +95,7 @@ test('coordenação aprova com as nove notas e o incubado vê o plano aprovado',
   await entrarComo(page, massa.incubado, SENHA);
   await page.goto('/meu-plano');
   await expect(page.getByRole('heading', { name: 'Meu plano' })).toBeVisible();
-  await expect(page.getByText('Negócio aprovado PW').first()).toBeVisible();
+  await expect(page.locator('#nome_negocio')).toHaveValue('Negócio aprovado PW');
 });
 
 test('plano devolvido: o incubado vê o motivo', async ({ page, request }) => {

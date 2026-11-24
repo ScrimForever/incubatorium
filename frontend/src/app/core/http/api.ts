@@ -43,6 +43,11 @@ export class Api {
    * `POST` que devolve binário — o download de anexo. A resposta não é JSON,
    * então o `responseType` tem de sair do padrão.
    */
+  /** `GET` que devolve binário — o PDF do plano gerado pelo backend. */
+  getBlob(endpoint: string): Observable<Blob> {
+    return this.http.get(this.url(endpoint), { responseType: 'blob' });
+  }
+
   postBlob(endpoint: string, body: unknown): Observable<Blob> {
     return this.http.post(this.url(endpoint), body, { responseType: 'blob' });
   }

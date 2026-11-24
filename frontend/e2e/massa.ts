@@ -113,13 +113,15 @@ export function comNoveNotas(json: Json, avaliador: string): Json {
   return saida;
 }
 
+let seq = 0;
+
 /** Cria uma conta ativa pelo `POST /usuarios`; o incubado nasce com plano `iniciado`. */
 export async function criarConta(
   request: APIRequestContext,
   papel: 'incubado' | 'consultor',
 ): Promise<{ email: string; id: string }> {
   const headers = await tokenAdmin(request);
-  const email = `pw.${papel}.${Date.now()}@teccampos.com`;
+  const email = `pw.${papel}.${Date.now()}.${seq++}@teccampos.com`;
   const r = await request.post(`${API}/usuarios`, {
     headers,
     data: {

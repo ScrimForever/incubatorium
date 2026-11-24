@@ -145,6 +145,28 @@ describe('PlanosService', () => {
     expect(erro?.code).toBe('NAO_DESIGNADO');
   });
 
+  describe('pdf', () => {
+    it('acha o id pelo /todos e baixa o PDF do backend', () => {
+      let pdf: Blob | undefined;
+      service.pdf('bruno@teccampos.com').subscribe((conteudo) => (pdf = conteudo));
+      http.expectOne('/api/questionario/todos').flush(TODOS);
+      const req = http.expectOne('/api/relatorios/questionario/2');
+      expect(req.request.method).toBe('GET');
+      expect(req.request.responseType).toBe('blob');
+      req.flush(new Blob(['%PDF'], { type: 'application/pdf' }));
+
+      expect(pdf?.type).toBe('application/pdf');
+    });
+
+    it('plano fora do /todos (não designado) não pede o PDF', () => {
+      let erro: ApiError | undefined;
+      service.pdf('outro@teccampos.com').subscribe({ error: (e: ApiError) => (erro = e) });
+      http.expectOne('/api/questionario/todos').flush(TODOS);
+
+      expect(erro?.code).toBe('PLANO_NAO_ENCONTRADO');
+    });
+  });
+
   describe('escritas: relem o plano e gravam pelo id', () => {
     /** O plano da Ana como o `/todos` devolve, já com uma etapa avaliada por outro. */
     function planoDaAna(status = 'aguardando_aprovacao') {

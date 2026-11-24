@@ -464,6 +464,52 @@ describe('QuestionarioService', () => {
     req.flush(resposta(json));
   });
 
+  describe('corrigir (o incubado reabre o plano devolvido)', () => {
+    const devolvido = (): Questionario => {
+      const json = documentoVazio();
+      json['2'].business_canvas = 'canvas';
+      json.decisao = {
+        status: 'rejeitado',
+        justificativa: 'Falta o fluxo de caixa.',
+        por: 'coord@x',
+        em: '2026-11-24T10:00:00Z',
+      };
+      return { status_questionario: 'rejeitado', json_questionario: json };
+    };
+
+    it('volta a pendente mantendo a decisão, para o motivo seguir no topo', () => {
+      let recebido: Questionario | undefined;
+      service.corrigir().subscribe((plano) => (recebido = plano));
+      backend.expectOne('/api/questionario').flush(devolvido());
+
+      const put = backend.expectOne('/api/questionario');
+      expect(put.request.method).toBe('PUT');
+      expect(put.request.body.status_questionario).toBe('pendente');
+      expect(put.request.body.json_questionario.decisao.justificativa).toBe(
+        'Falta o fluxo de caixa.',
+      );
+      put.flush({ ...devolvido(), status_questionario: 'pendente' });
+      expect(recebido?.status_questionario).toBe('pendente');
+    });
+
+    it('recusa plano que não está devolvido, sem gravar nada', () => {
+      let erro: ApiError | undefined;
+      service.corrigir().subscribe({ error: (e: ApiError) => (erro = e) });
+      backend
+        .expectOne('/api/questionario')
+        .flush({ ...devolvido(), status_questionario: 'aguardando_aprovacao' });
+      expect(erro?.code).toBe('CORRECAO_SO_DEVOLVIDO');
+    });
+
+    it('avisa quando o servidor não reabriu', () => {
+      let erro: ApiError | undefined;
+      service.corrigir().subscribe({ error: (e: ApiError) => (erro = e) });
+      backend.expectOne('/api/questionario').flush(devolvido());
+      backend.expectOne('/api/questionario').flush(devolvido());
+      expect(erro?.code).toBe('REABERTURA_NAO_REGISTRADA');
+    });
+  });
+
   it('o envio final troca o status para aguardando_aprovacao', () => {
     service.enviar(documentoVazio()).subscribe();
 

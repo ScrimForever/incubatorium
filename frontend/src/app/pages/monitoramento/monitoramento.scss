@@ -1,0 +1,29 @@
+.monitoramento-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.monitoramento-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.monitoramento-quadro {
+  padding: 0;
+  overflow: hidden;
+  container-type: inline-size;
+
+  iframe {
+    display: block;
+    width: 100%;
+    // O painel ocupa quase a tela toda: no 16:9 puro ficava pequeno e o
+    // Power BI espremia texto e gráficos. Nunca abaixo de 640px.
+    height: max(calc(56.25cqw + 36px), calc(100vh - 12rem), 640px);
+    border: 0;
+  }
+}

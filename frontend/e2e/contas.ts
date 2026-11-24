@@ -5,7 +5,7 @@ import { Page, expect } from '@playwright/test';
  * docs/relatorio-e2e-2026-11-19.md). Só valem no Postgres do Docker.
  */
 export const CONTAS = {
-  admin: { email: 'admin.status@teccampos.com', senha: '123456' },
+  admin: { email: 'admin.status@teccampos.com', senha: '12345678' },
   consultor: { email: 'e2e.con@teccampos.com', senha: '12345678' },
   colaborador: { email: 'e2e.col@teccampos.com', senha: '12345678' },
   incubado: { email: 'e2e.ui@teccampos.com', senha: '12345678' },

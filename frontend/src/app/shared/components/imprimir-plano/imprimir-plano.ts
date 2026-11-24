@@ -16,9 +16,22 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ApiError } from '../../../core/models/auth';
 import { Anexo, JsonQuestionario, NumeroEtapa } from '../../../core/models/questionario';
 import { ArquivosService } from '../../../core/services/arquivos';
+import { PlanosService } from '../../../core/services/planos';
 import { salvarComo } from '../../salvar-como';
 import { Icone } from '../icone/icone';
 import { PlanoLeitura } from '../plano-leitura/plano-leitura';
+
+/** "Café & Cia." → "cafe-cia": nome de arquivo sem acento nem símbolo. */
+function nomeDeArquivo(texto: string): string {
+  return (
+    texto
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') || 'negocio'
+  );
+}
 
 interface AnexoDaFicha extends Anexo {
   readonly aba: NumeroEtapa;
@@ -46,6 +59,14 @@ export class ImprimirPlano implements AfterViewInit {
   readonly json = input.required<JsonQuestionario>();
   /** E-mail do dono do plano quando quem imprime é o avaliador; sem ele, é o logado. */
   readonly dono = input<string | undefined>(undefined);
+  /**
+   * Com `true` (e `dono`), o plano sai em PDF gerado pelo backend em vez da
+   * impressão do navegador — a rota só aceita consultor e coordenação.
+   */
+  readonly pdfDoServidor = input(false);
+
+  private readonly planos = inject(PlanosService);
+  protected readonly gerandoPdf = signal(false);
 
   protected readonly aberta = signal(false);
   protected readonly imprimindo = signal(false);
@@ -103,12 +124,40 @@ export class ImprimirPlano implements AfterViewInit {
     }
   }
 
+  /** O plano: PDF do backend para quem avalia, impressão do navegador para o resto. */
+  protected imprimir(): void {
+    const dono = this.dono();
+    if (this.pdfDoServidor() && dono) {
+      this.baixarPdf(dono);
+    } else {
+      this.imprimirNoNavegador();
+    }
+  }
+
+  private baixarPdf(dono: string): void {
+    this.gerandoPdf.set(true);
+    this.erro.set('');
+    this.planos
+      .pdf(dono)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (pdf) => {
+          this.gerandoPdf.set(false);
+          salvarComo(pdf, `plano-${nomeDeArquivo(this.negocio())}.pdf`);
+        },
+        error: (err: ApiError) => {
+          this.gerandoPdf.set(false);
+          this.erro.set(err.message);
+        },
+      });
+  }
+
   protected fechar(): void {
     this.aberta.set(false);
   }
 
   /** Monta a folha, espera o Angular desenhá-la e chama o diálogo do navegador. */
-  protected imprimir(): void {
+  private imprimirNoNavegador(): void {
     this.imprimindo.set(true);
     setTimeout(() => {
       window.print();

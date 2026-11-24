@@ -1,7 +1,15 @@
-<button type="button" class="btn btn--secundario horarios-btn-p" (click)="clicar()">
+<button
+  type="button"
+  class="btn btn--secundario horarios-btn-p"
+  [disabled]="gerandoPdf()"
+  (click)="clicar()"
+>
   <app-icone nome="imprimir" />
-  Imprimir
+  {{ gerandoPdf() && !aberta() ? 'Gerando PDF…' : 'Imprimir' }}
 </button>
+@if (erro() && !aberta()) {
+  <div class="error-message" role="alert"><app-icone nome="erro" />{{ erro() }}</div>
+}
 
 <!-- A folha do PDF. Fica fora da tela; o ngAfterViewInit a leva para o <body>. -->
 <div #folha class="impressao">
@@ -64,12 +72,21 @@
               <span class="lista-titulo">Plano de negócios</span>
               <span class="lista-secundaria">
                 <app-icone nome="documento" />
-                {{ negocio() }} · PDF pelo navegador
+                {{ negocio() }} · {{ pdfDoServidor() ? 'PDF' : 'PDF pelo navegador' }}
               </span>
             </span>
-            <button type="button" class="btn btn--azul horarios-btn-p" (click)="imprimir()">
+            <button
+              type="button"
+              class="btn btn--azul horarios-btn-p"
+              [disabled]="gerandoPdf()"
+              (click)="imprimir()"
+            >
               <app-icone nome="imprimir" />
-              Imprimir / salvar PDF
+              @if (pdfDoServidor()) {
+                {{ gerandoPdf() ? 'Gerando PDF…' : 'Baixar PDF' }}
+              } @else {
+                Imprimir / salvar PDF
+              }
             </button>
           </li>
 

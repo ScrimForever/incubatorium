@@ -53,6 +53,12 @@ export function menuPara(role: Role): readonly ItemMenu[] {
     rota: APP_ROUTES.usuarios,
     pendencia: '',
   };
+  const monitoramento: ItemMenu = {
+    rotulo: 'Monitoramento',
+    icone: 'painel',
+    rota: APP_ROUTES.monitoramento,
+    pendencia: '',
+  };
   const minhaConta: ItemMenu = {
     rotulo: 'Minha conta',
     icone: 'usuario',
@@ -85,6 +91,7 @@ export function menuPara(role: Role): readonly ItemMenu[] {
     admin: [
       usuarios,
       planosDeNegocio,
+      monitoramento,
       bloqueado('Agenda', 'agenda', SEM_AGENDA),
       bloqueado('Práticas chaves', 'praticas', 'domínio ainda não existe no backend'),
     ],

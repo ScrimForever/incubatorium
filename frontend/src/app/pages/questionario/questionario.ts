@@ -144,12 +144,20 @@ export class Questionario implements OnInit {
    * `'edicao'` (padrão): o incubado preenche o próprio plano. `'avaliacao'`: a mesma
    * tela bloqueada para edição, com o card de nota por etapa. Vem do `data.modo` da rota.
    */
-  readonly modo = input<'edicao' | 'avaliacao'>('edicao');
+  readonly modo = input<'edicao' | 'avaliacao' | 'leitura'>('edicao');
   /** No modo avaliação, o e-mail do dono do plano (`:email` da rota). */
   readonly email = input('');
   /** O `accept` dos seletores de anexo: a lista do backend, para o navegador já filtrar. */
   protected readonly tiposAceitos = EXTENSOES_ANEXO.join(',');
-  protected readonly ehAvaliacao = computed(() => this.modo() === 'avaliacao');
+  /**
+   * `'leitura'` é o próprio incubado relendo o plano já enviado (`/meu-plano`): a
+   * mesma tela travada da avaliação, com as notas à vista e nada para gravar.
+   */
+  protected readonly ehProprio = computed(() => this.modo() === 'leitura');
+  // Comparação positiva: rota sem `data.modo` entrega `undefined`, não o padrão.
+  protected readonly ehAvaliacao = computed(
+    () => this.modo() === 'avaliacao' || this.modo() === 'leitura',
+  );
   protected readonly voltarLista = APP_ROUTES.planosDeNegocio;
 
   protected readonly user = signal<SessionUser | null>(null);
@@ -227,6 +235,7 @@ export class Questionario implements OnInit {
     () =>
       // A coordenação decide, não avalia: para ela o card é sempre leitura.
       !this.ehCoordenacao() &&
+      !this.ehProprio() &&
       !this.etapaBloqueada() &&
       (this.minhaDaEtapa() === null || this.editandoNota() === this.numero()),
   );
@@ -694,7 +703,7 @@ export class Questionario implements OnInit {
     const minhas = this.minhas();
     // Para a coordenação, "completa" é etapa avaliada por qualquer consultor —
     // ela não dá nota, então marcar só as dela deixaria a trilha sempre cinza.
-    const coordenacao = this.ehCoordenacao();
+    const coordenacao = this.ehCoordenacao() || this.ehProprio();
     return NUMEROS_ETAPA.map((numero) => ({
       numero,
       rotulo: ROTULO_CURTO[numero],
@@ -718,7 +727,8 @@ export class Questionario implements OnInit {
     if (!this.ehAvaliacao()) {
       return progresso(this.json());
     }
-    const feitas = this.ehCoordenacao() ? this.etapasAvaliadas() : this.minhas().size;
+    const feitas =
+      this.ehCoordenacao() || this.ehProprio() ? this.etapasAvaliadas() : this.minhas().size;
     return Math.round((feitas / NUMEROS_ETAPA.length) * 100);
   });
 
@@ -813,6 +823,10 @@ export class Questionario implements OnInit {
         },
       });
 
+    if (this.ehProprio()) {
+      this.carregarProprio();
+      return;
+    }
     if (this.ehAvaliacao()) {
       this.carregarParaAvaliacao();
       return;
@@ -837,6 +851,23 @@ export class Questionario implements OnInit {
           this.carregado.set(true);
           this.montarFormulario();
           this.conferirAnexosNoDisco();
+        },
+        error: (err: ApiError) => this.mensagemErro.set(err.message),
+      });
+  }
+
+  /** Modo leitura: o próprio plano, já enviado, na tela do questionário travada. */
+  private carregarProprio(): void {
+    this.service
+      .meu()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (plano) => {
+          this.json.set(plano.json_questionario);
+          this.statusPlano.set(plano.status_questionario);
+          this.numero.set(1);
+          this.carregado.set(true);
+          this.montarFormulario();
         },
         error: (err: ApiError) => this.mensagemErro.set(err.message),
       });
@@ -1155,7 +1186,18 @@ export class Questionario implements OnInit {
    * do plano (`?email=`); no do incubado, a de quem está logado.
    */
   protected readonly donoDosAnexos = computed(() =>
-    this.ehAvaliacao() ? this.email() : undefined,
+    this.ehAvaliacao() && !this.ehProprio() ? this.email() : undefined,
+  );
+
+  /**
+   * O PDF do backend só aceita consultor e coordenação; o incubado e o
+   * colaborador seguem com a impressão do navegador.
+   */
+  protected readonly pdfDoServidor = computed(
+    () =>
+      this.ehAvaliacao() &&
+      !this.ehProprio() &&
+      (this.user()?.role === 'admin' || this.user()?.role === 'avaliador'),
   );
 
   /**

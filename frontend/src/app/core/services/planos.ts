@@ -242,6 +242,21 @@ export class PlanosService {
     });
   }
 
+  /**
+   * O PDF do plano gerado pelo backend. A rota pede o `id`, que só o `/todos`
+   * traz — e o `/todos` já filtra o consultor pela designação.
+   */
+  pdf(email: string): Observable<Blob> {
+    return this.todos().pipe(
+      switchMap((planos) => {
+        const lido = planos.find((plano) => plano.usuario_email === email);
+        return lido?.id
+          ? this.api.getBlob(API_ROUTES.avaliacao.pdf(lido.id))
+          : throwError(() => recusa('PLANO_NAO_ENCONTRADO'));
+      }),
+    );
+  }
+
   /** Todos os planos como o servidor os tem, com o `id` que a escrita exige. */
   private todos(): Observable<Questionario[]> {
     return this.api
