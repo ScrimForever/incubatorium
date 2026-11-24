@@ -32,7 +32,7 @@ test = [
 dev = [
     {include-group = "test"},
     "pre-commit>=4.6.2",
-    "ruff>=0.16.5",
+    "ruff>=0.17.6",
     "locust>=2.46.5",
 ]
 
