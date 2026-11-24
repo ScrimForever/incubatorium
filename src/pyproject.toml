@@ -18,7 +18,7 @@ dependencies = [
     "alembic>=1.19.2",
     "aiofiles>=25.1.0",
     "fpdf2>=2.9.0",
-    "sentry-sdk[asyncpg,fastapi,loguru,sqlalchemy]>=2.74.0",
+    "sentry-sdk[asyncpg,fastapi,loguru,sqlalchemy]>=2.75.0",
 ]
 
 [dependency-groups]
